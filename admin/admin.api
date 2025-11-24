@@ -1,0 +1,7 @@
+syntax = "v1"
+
+import (
+    "./api/data_cleaning.api"
+)
+
+    // goctl api go -api .\admin.api -dir . --style=goZero

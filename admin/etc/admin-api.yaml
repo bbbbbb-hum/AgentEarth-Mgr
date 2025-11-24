@@ -1,0 +1,20 @@
+Name: agent-earth-manager
+Host: 0.0.0.0
+Port: 9005
+
+DB:
+  DataSource: "postgres://xxx:xxx@192.168.0.1:0000/xxxx?sslmode=disable" # pgsql连接示例
+
+# Prometheus 配置
+Prometheus:
+  Host: 0.0.0.0
+  Port: 9006      # metrics 端口
+  Path: /metrics  # metrics 路径
+Log:
+  ServiceName: agent-earth-manager       # 日志中显示的服务名
+  Mode: file                             # 日志输出方式：console / file / volume
+  Encoding: json                         # 编码：plain 或 json
+  Path: /opt/xllogs/AEMgr/               # 日志目录（仅 file/volume 模式生效）
+  Level: info                            # 日志级别：info / error / severe
+  KeepDays: 7                            # 保留天数
+  StackCooldownMillis: 100               # 相同堆栈日志冷却时间（ms）

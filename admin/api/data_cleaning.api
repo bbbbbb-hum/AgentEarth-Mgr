@@ -1,0 +1,38 @@
+syntax = "v1"
+
+info(
+    title: "清洗数据模块"
+    desc: "清洗数据接口"
+    author: "wcs"
+    email: ""
+    version: "v1.0.0"
+)
+import "./base.api"
+
+@server (
+    group:  data
+    prefix: /api/admin/data
+)
+service admin-api {
+    // 生成外部服务配置
+    @handler CreateConfig
+    post /create/config () returns (BaseResp)
+
+    // 生成服务以及关联链，节点
+    @handler CreateServices
+    post /create/services  returns (BaseResp)
+
+    // 单独生成服务
+    @handler CreateService
+    post /create/service  returns (BaseResp)
+
+    // 更新服务的描述字段
+    @handler UpdateServiceDesc
+    post /update/service/desc  returns (BaseResp)
+}
+
+type (
+    UpdateServiceDescReq {
+        ServiceID string `json:"service_id,optional"`
+    }
+)
