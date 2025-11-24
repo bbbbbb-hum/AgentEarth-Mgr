@@ -61,7 +61,7 @@ if [ -n "${MACHINE_NAME}" ]; then
 fi
 echo
 # 配置文件位置
-CONFIG_FILE="${CONFIG_DIR}/client_${ENV}-api.yaml"
+CONFIG_FILE="${CONFIG_DIR}/admin_${ENV}-api.yaml"
 # 检查配置文件是否存在
 if [ ! -f "${CONFIG_FILE}" ]; then
     echo "错误: 配置文件不存在: $CONFIG_FILE"
