@@ -27,7 +27,7 @@ func NewCreateConfigLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Crea
 	}
 }
 
-func (l *CreateConfigLogic) CreateConfig() (resp *types.BaseResp, err error) {
+func (l *CreateConfigLogic) CreateConfig(req *types.CreateConfigReq) (resp *types.BaseResp, err error) {
 	// 获取外部配置列表
 	externalMcpServices, total, err := l.svcCtx.ExternalMcpServicesModel.GetList(l.ctx, models.ListConditions{
 		Conditions: []models.Condition{
@@ -42,7 +42,7 @@ func (l *CreateConfigLogic) CreateConfig() (resp *types.BaseResp, err error) {
 			//},
 			{
 				Field: "test_status",
-				Value: 2,
+				Value: req.TestStatus,
 			},
 		},
 	}, true)

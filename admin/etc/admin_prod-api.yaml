@@ -3,7 +3,7 @@ Host: 0.0.0.0
 Port: 9005
 
 DB:
-  DataSource: "postgres://wcs:XingLiang@2025!@39.97.62.38:9002/agent_earth?sslmode=disable"
+  DataSource: "postgres://wcs:XingLiang@2025!@143.110.145.106:9002/agent_earth?sslmode=disable"
 
 # Prometheus 配置
 Prometheus:
@@ -13,7 +13,7 @@ Prometheus:
 
 Log:
   ServiceName: agent-earth-manager      # 日志中显示的服务名
-  Mode: file                  # 日志输出方式：console / file / volume
+  Mode: console                  # 日志输出方式：console / file / volume
   Encoding: json              # 编码：plain 或 json
   Path: /opt/xllogs/AEMgr/                  # 日志目录（仅 file/volume 模式生效）
   Level: info                 # 日志级别：info / error / severe

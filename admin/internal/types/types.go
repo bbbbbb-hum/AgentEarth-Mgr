@@ -15,6 +15,22 @@ type BaseResp struct {
 	Data    map[string]interface{} `json:"data"`
 }
 
+type BatchCloseServicesReq struct {
+	TestStatus int64 `json:"test_status"`
+}
+
+type CreateChainAndNodeReq struct {
+	Ids []int64 `json:"ids,optional"`
+}
+
+type CreateConfigReq struct {
+	TestStatus int64 `json:"test_status"`
+}
+
+type CreateServiceAndConfigReq struct {
+	TestStatus int64 `json:"test_status"`
+}
+
 type UpdateServiceDescReq struct {
 	ServiceID string `json:"service_id,optional"`
 }

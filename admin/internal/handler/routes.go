@@ -17,6 +17,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		[]rest.Route{
 			{
 				Method:  http.MethodPost,
+				Path:    "/batch/close/services",
+				Handler: data.BatchCloseServicesHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/create/chain-and-node",
+				Handler: data.CreateChainAndNodeHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
 				Path:    "/create/config",
 				Handler: data.CreateConfigHandler(serverCtx),
 			},
@@ -24,6 +34,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/create/service",
 				Handler: data.CreateServiceHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/create/service-and-config",
+				Handler: data.CreateServiceAndConfigHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodPost,

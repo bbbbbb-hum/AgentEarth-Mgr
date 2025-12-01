@@ -36,20 +36,23 @@ type (
 	}
 
 	ExternalMcpServices struct {
-		Id            int64          `db:"id"`              // 自增ID
-		ServerName    string         `db:"server_name"`     // 服务名称
-		ServerType    string         `db:"server_type"`     // 服务类型：stdio,sse,httpStream
-		LaunchInfo    string         `db:"launch_info"`     // 启动信息，例如：{      "command": "npx",      "args": ["-y", "time-mcp"]}
-		ConnectInfo   string         `db:"connect_info"`    // 连接信息，如：{  "url": "http://api.remote.com/mcp/sse"}
-		Description   string         `db:"description"`     // 服务描述
-		CreateTime    sql.NullTime   `db:"create_time"`     // 创建时间
-		UpdateTime    sql.NullTime   `db:"update_time"`     // 更新时间
-		CodeSourceUrl string         `db:"code_source_url"` // 来源地址：可以是github项目地址，也可以是原MCP服务的文档地址
-		Calls         sql.NullString `db:"calls"`           // 流量
-		TestStatus    int64          `db:"test_status"`     // 测试状态：0 未测试 1 通过 -1 未通过
-		DockerCmd     sql.NullString `db:"docker_cmd"`
-		ProjectName   sql.NullString `db:"project_name"`
-		Valuable      sql.NullString `db:"valuable"` // 有价值的服务
+		Id              int64          `db:"id"`              // 自增ID
+		ServerName      string         `db:"server_name"`     // 服务名称
+		ServerType      string         `db:"server_type"`     // 服务类型：stdio,sse,httpStream
+		LaunchInfo      string         `db:"launch_info"`     // 启动信息，例如：{      "command": "npx",      "args": ["-y", "time-mcp"]}
+		ConnectInfo     string         `db:"connect_info"`    // 连接信息，如：{  "url": "http://api.remote.com/mcp/sse"}
+		Description     string         `db:"description"`     // 服务描述
+		CreateTime      sql.NullTime   `db:"create_time"`     // 创建时间
+		UpdateTime      sql.NullTime   `db:"update_time"`     // 更新时间
+		CodeSourceUrl   string         `db:"code_source_url"` // 来源地址：可以是github项目地址，也可以是原MCP服务的文档地址
+		TestStatus      int64          `db:"test_status"`     // 测试状态：0 未测试 1 通过 -1 未通过
+		DockerCmd       sql.NullString `db:"docker_cmd"`
+		ProjectName     sql.NullString `db:"project_name"`
+		Valuable        sql.NullString `db:"valuable"`         // 有价值的服务
+		Calls           sql.NullInt64  `db:"calls"`            // 流量
+		Category        sql.NullString `db:"category"`         // 品类
+		Image           sql.NullString `db:"image"`            // 图片
+		CloneRepository sql.NullString `db:"clone_repository"` // 克隆仓库地址
 	}
 )
 
@@ -81,14 +84,14 @@ func (m *defaultExternalMcpServicesModel) FindOne(ctx context.Context, id int64)
 }
 
 func (m *defaultExternalMcpServicesModel) Insert(ctx context.Context, data *ExternalMcpServices) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)", m.table, externalMcpServicesRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.ServerName, data.ServerType, data.LaunchInfo, data.ConnectInfo, data.Description, data.CodeSourceUrl, data.Calls, data.TestStatus, data.DockerCmd, data.ProjectName, data.Valuable)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)", m.table, externalMcpServicesRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.ServerName, data.ServerType, data.LaunchInfo, data.ConnectInfo, data.Description, data.CodeSourceUrl, data.TestStatus, data.DockerCmd, data.ProjectName, data.Valuable, data.Calls, data.Category, data.Image, data.CloneRepository)
 	return ret, err
 }
 
 func (m *defaultExternalMcpServicesModel) Update(ctx context.Context, data *ExternalMcpServices) error {
 	query := fmt.Sprintf("update %s set %s where id = $1", m.table, externalMcpServicesRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServerName, data.ServerType, data.LaunchInfo, data.ConnectInfo, data.Description, data.CodeSourceUrl, data.Calls, data.TestStatus, data.DockerCmd, data.ProjectName, data.Valuable)
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServerName, data.ServerType, data.LaunchInfo, data.ConnectInfo, data.Description, data.CodeSourceUrl, data.TestStatus, data.DockerCmd, data.ProjectName, data.Valuable, data.Calls, data.Category, data.Image, data.CloneRepository)
 	return err
 }
 

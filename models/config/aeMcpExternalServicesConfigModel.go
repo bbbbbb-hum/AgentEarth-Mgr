@@ -3,6 +3,7 @@ package config
 import (
 	"AgentEarth-Mgr/models"
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -19,6 +20,7 @@ type (
 		withSession(session sqlx.Session) AeMcpExternalServicesConfigModel
 		BatchInsert(ctx context.Context, list []AeMcpExternalServicesConfig) error
 		GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpExternalServicesConfig, total int64, err error)
+		FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpExternalServicesConfig, error)
 	}
 
 	customAeMcpExternalServicesConfigModel struct {
@@ -119,4 +121,53 @@ func (m *customAeMcpExternalServicesConfigModel) GetList(ctx context.Context, lp
 		err = m.conn.QueryRowsCtx(ctx, &list, query, args...)
 	}
 	return
+}
+
+func (m *customAeMcpExternalServicesConfigModel) FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpExternalServicesConfig, error) {
+	query := fmt.Sprintf("select %s from %s", aeMcpExternalServicesConfigRows, m.table)
+	//处理where条件
+	whereClause, args, err := models.DealWithWhereSafe(conditions...)
+	if err != nil {
+		return nil, err
+	}
+	query += whereClause
+	query += " limit 1"
+	var resp AeMcpExternalServicesConfig
+	err = m.conn.QueryRowCtx(ctx, &resp, query, args...)
+	switch err {
+	case nil:
+		return &resp, nil
+	case sqlx.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+
+// Insert overrides the default Insert to handle empty ExternalServiceId by omitting it (for DB default UUID)
+func (m *customAeMcpExternalServicesConfigModel) Insert(ctx context.Context, data *AeMcpExternalServicesConfig) (sql.Result, error) {
+	// If ExternalServiceId is empty, omit it from INSERT to allow DB default UUID generation
+	if data.ExternalServiceId == "" {
+		// Omit external_service_id column, same as BatchInsert
+		columns := []string{"name", "type", "launch_info", "connect_info", "max_instance", "create_status", "description", "project_name"}
+		query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8)", m.table, strings.Join(columns, ","))
+		var launchArg interface{}
+		if data.LaunchInfo == "" {
+			launchArg = nil
+		} else {
+			launchArg = data.LaunchInfo
+		}
+		var connectArg interface{}
+		if data.ConnectInfo == "" {
+			connectArg = nil
+		} else {
+			connectArg = data.ConnectInfo
+		}
+		ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, launchArg, connectArg, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName)
+		return ret, err
+	}
+	// If ExternalServiceId is provided, use the default Insert behavior
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName)
+	return ret, err
 }

@@ -22,6 +22,7 @@ type (
 		GetAllTags(ctx context.Context) []string
 		// InsertWithoutId inserts a service row without setting the auto-increment id column
 		InsertWithoutId(ctx context.Context, data *AeMcpServices) (sql.Result, error)
+		FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpServices, error)
 	}
 
 	customAeMcpServicesModel struct {
@@ -92,7 +93,28 @@ func (m *customAeMcpServicesModel) GetAllTags(ctx context.Context) []string {
 // InsertWithoutId inserts without providing the auto-increment id.
 func (m *customAeMcpServicesModel) InsertWithoutId(ctx context.Context, data *AeMcpServices) (sql.Result, error) {
 	// Explicit column list without id
-	columns := "server_id, server_name, logo, protocol_version, enabled, tags, description, task_chain_id, x_net_service_id, call_num,project_name"
-	query := fmt.Sprintf("insert into %s (%s) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", m.table, columns)
-	return m.conn.ExecCtx(ctx, query, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.ProjectName)
+	columns := "server_id, server_name, logo, protocol_version, enabled, tags, description, task_chain_id, x_net_service_id, call_num,project_name,is_install"
+	query := fmt.Sprintf("insert into %s (%s) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", m.table, columns)
+	return m.conn.ExecCtx(ctx, query, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.ProjectName, data.IsInstall)
+}
+
+func (m *customAeMcpServicesModel) FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpServices, error) {
+	query := fmt.Sprintf("select %s from %s", aeMcpServicesRows, m.table)
+	//处理where条件
+	whereClause, args, err1 := models.DealWithWhereSafe(conditions...)
+	if err1 != nil {
+		return nil, err1
+	}
+	query += whereClause
+	query += " limit 1"
+	var resp AeMcpServices
+	err := m.conn.QueryRowCtx(ctx, &resp, query, args...)
+	switch err {
+	case nil:
+		return &resp, nil
+	case sqlx.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
 }

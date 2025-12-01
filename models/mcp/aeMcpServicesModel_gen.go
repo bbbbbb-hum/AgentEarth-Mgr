@@ -55,6 +55,7 @@ type (
 		ResponseTime    float64        `db:"response_time"`    // 响应时间 毫秒（平均值）
 		IsCreated       bool           `db:"is_created"`       // 是否启动时创建服务：true 是 false 否
 		ProjectName     string         `db:"project_name"`     // 项目名称
+		IsInstall       bool           `db:"is_install"`       // 是否需要安装：true 是 false 否
 	}
 )
 
@@ -86,14 +87,14 @@ func (m *defaultAeMcpServicesModel) FindOne(ctx context.Context, serverId string
 }
 
 func (m *defaultAeMcpServicesModel) Insert(ctx context.Context, data *AeMcpServices) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)", m.table, aeMcpServicesRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)", m.table, aeMcpServicesRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall)
 	return ret, err
 }
 
 func (m *defaultAeMcpServicesModel) Update(ctx context.Context, data *AeMcpServices) error {
 	query := fmt.Sprintf("update %s set %s where server_id = $1", m.table, aeMcpServicesRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.ServerId, data.Id, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName)
+	_, err := m.conn.ExecCtx(ctx, query, data.ServerId, data.Id, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall)
 	return err
 }
 

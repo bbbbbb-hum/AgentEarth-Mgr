@@ -29,10 +29,36 @@ service admin-api {
     // 更新服务的描述字段
     @handler UpdateServiceDesc
     post /update/service/desc  returns (BaseResp)
+
+    // 生成(更新)服务与配置
+    @handler CreateServiceAndConfig
+    post /create/service-and-config(CreateServiceAndConfigReq)  returns (BaseResp)
+
+    // 生成链与节点
+    @handler CreateChainAndNode
+    post /create/chain-and-node(CreateChainAndNodeReq)  returns (BaseResp)
+
+    //批量关闭服务
+    @handler BatchCloseServices
+    post /batch/close/services(BatchCloseServicesReq)  returns (BaseResp)
 }
 
 type (
+    CreateConfigReq {
+        TestStatus int64 `json:"test_status"`
+    }
     UpdateServiceDescReq {
         ServiceID string `json:"service_id,optional"`
+    }
+    CreateServiceAndConfigReq {
+        TestStatus int64 `json:"test_status"`
+    }
+
+    CreateChainAndNodeReq {
+        Ids []int64 `json:"ids,optional"`
+    }
+
+    BatchCloseServicesReq{
+        TestStatus int64 `json:"test_status"`
     }
 )
