@@ -1,0 +1,74 @@
+syntax = "v1"
+
+info(
+    title: "mcp服务"
+    desc: "mcp服务接口"
+    author: "wcs"
+    email: ""
+    version: "v1.0.0"
+)
+import "./base.api"
+
+@server (
+    group:  mcp
+    prefix: /api/admin/mcp
+)
+
+service admin-api {
+    // 获取MCP服务列表
+    @handler ServiceList
+    get /service/list (ServiceListReq) returns (BaseResp)
+
+    // 获取MCP服务详情
+    @handler ServiceDetail
+    get /service/detail/:id (DetailReq) returns (BaseResp)
+
+    // 生成任务链与节点
+    @handler ServiceTaskCreate
+    post /service/task/create (ServiceTaskCreateReq) returns (BaseResp)
+
+    // 获取MCP服务配置
+//    @handler ServiceConfig
+//    get /service/config (ServiceDetailReq) returns (BaseResp)
+
+    // 获取MCP服务安装列表
+    @handler ServiceInstallList
+    get /service/install/list (ServiceInstallListReq) returns (BaseResp)
+
+    // 生成shell脚本
+    @handler ServiceShellCreate
+    post /service/shell/create (ServiceShellCreateReq) returns (BaseResp)
+
+    // 生成预装脚本
+    @handler ServicePreInstallCreate
+    post /service/pre_install/create (ServicePreInstallCreateReq) returns (BaseResp)
+
+    // 更新是否启动创建
+    @handler ServiceUpdateIsCreate
+    post /service/update/is_create (ServiceUpdateIsCreateReq) returns (BaseResp)
+}
+
+type (
+    ServiceListReq {
+        BaseListReq
+        Enabled int64 `form:"enabled,optional"`
+        IsCreated int64 `form:"is_created,optional"`
+        IsInstall int64 `form:"is_install,optional"`
+    }
+    ServiceTaskCreateReq {
+        ServiceIds []int64 `json:"service_ids"`
+    }
+    ServiceInstallListReq{
+        BaseListReq
+    }
+    ServiceShellCreateReq{
+        InstallIds []int64 `json:"install_ids"`
+    }
+    ServicePreInstallCreateReq{
+        InstallIds []int64 `json:"install_ids"`
+    }
+    ServiceUpdateIsCreateReq{
+        Id int64 `json:"id"`
+        IsCreated bool `json:"is_created"`
+    }
+)

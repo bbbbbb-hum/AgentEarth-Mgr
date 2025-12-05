@@ -2,6 +2,8 @@ syntax = "v1"
 
 import (
 	"./api/data_cleaning.api"
+	"./api/source.api"
+	"./api/mcp.api"
 )
 
 // goctl api go -api .\admin.api -dir . --style=goZero

@@ -1,0 +1,36 @@
+syntax = "v1"
+
+info(
+    title: "数据源"
+    desc: "源数据接口"
+    author: "wcs"
+    email: ""
+    version: "v1.0.0"
+)
+import "./base.api"
+
+@server (
+    group:  source
+    prefix: /api/admin/source
+)
+
+service admin-api {
+    // 获取数据源列表
+    @handler List
+    get /list (SourceListReq) returns (BaseResp)
+
+    // 按ID列表生成批量MCP服务与配置
+    @handler ServiceBatchCreate
+    post /service/batch/create (ServiceBatchCreateReq) returns (BaseResp)
+}
+
+type (
+    SourceListReq {
+        BaseListReq
+        TestStatus string `form:"test_status,optional"`
+        ServerType string `form:"server_type,optional"`
+    }
+    ServiceBatchCreateReq{
+        Ids []int64 `json:"ids"` // 数据源ID列表
+    }
+)

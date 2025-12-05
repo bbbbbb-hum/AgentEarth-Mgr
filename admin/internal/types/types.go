@@ -31,6 +31,48 @@ type CreateServiceAndConfigReq struct {
 	TestStatus int64 `json:"test_status"`
 }
 
+type DetailReq struct {
+	Id int64 `path:"id"`
+}
+
+type ServiceBatchCreateReq struct {
+	Ids []int64 `json:"ids"` // 数据源ID列表
+}
+
+type ServiceInstallListReq struct {
+	BaseListReq
+}
+
+type ServiceListReq struct {
+	BaseListReq
+	Enabled   int64 `form:"enabled,optional"`
+	IsCreated int64 `form:"is_created,optional"`
+	IsInstall int64 `form:"is_install,optional"`
+}
+
+type ServicePreInstallCreateReq struct {
+	InstallIds []int64 `json:"install_ids"`
+}
+
+type ServiceShellCreateReq struct {
+	InstallIds []int64 `json:"install_ids"`
+}
+
+type ServiceTaskCreateReq struct {
+	ServiceIds []int64 `json:"service_ids"`
+}
+
+type ServiceUpdateIsCreateReq struct {
+	Id        int64 `json:"id"`
+	IsCreated bool  `json:"is_created"`
+}
+
+type SourceListReq struct {
+	BaseListReq
+	TestStatus string `form:"test_status,optional"`
+	ServerType string `form:"server_type,optional"`
+}
+
 type UpdateServiceDescReq struct {
 	ServiceID string `json:"service_id,optional"`
 }

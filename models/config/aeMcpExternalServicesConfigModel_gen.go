@@ -49,6 +49,7 @@ type (
 		CreateStatus      bool      `db:"create_status"`       // true 已创建 false 未创建
 		Description       string    `db:"description"`         // 服务描述
 		ProjectName       string    `db:"project_name"`        // 项目名称
+		ServerId          string    `db:"server_id"`           // mcp服务ID
 	}
 )
 
@@ -80,14 +81,14 @@ func (m *defaultAeMcpExternalServicesConfigModel) FindOne(ctx context.Context, i
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) Insert(ctx context.Context, data *AeMcpExternalServicesConfig) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId)
 	return ret, err
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) Update(ctx context.Context, data *AeMcpExternalServicesConfig) error {
 	query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeMcpExternalServicesConfigRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName)
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId)
 	return err
 }
 

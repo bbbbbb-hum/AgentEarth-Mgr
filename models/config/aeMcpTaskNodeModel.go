@@ -1,6 +1,7 @@
 package config
 
 import (
+	"AgentEarth-Mgr/models"
 	"context"
 	"fmt"
 
@@ -17,6 +18,7 @@ type (
 		withSession(session sqlx.Session) AeMcpTaskNodeModel
 		// InsertReturningId inserts and returns id (PostgreSQL RETURNING)
 		InsertReturningId(ctx context.Context, data *AeMcpTaskNode) (int64, error)
+		GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpTaskNode, total int64, err error)
 	}
 
 	customAeMcpTaskNodeModel struct {
@@ -43,4 +45,39 @@ func (m *customAeMcpTaskNodeModel) InsertReturningId(ctx context.Context, data *
 		return 0, err
 	}
 	return id, nil
+}
+
+func (m *customAeMcpTaskNodeModel) GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpTaskNode, total int64, err error) {
+	countQuery := fmt.Sprintf("select count(*) as number from %s", m.table)
+	query := fmt.Sprintf("select %s from %s", aeMcpTaskNodeRows, m.table)
+	//处理where条件
+	whereClause, args, err := models.DealWithWhereSafe(lp.Conditions...)
+	if err != nil {
+		return
+	}
+	countQuery += whereClause
+	query += whereClause
+	var totals []models.Total
+	err = m.conn.QueryRowsCtx(ctx, &totals, countQuery, args...)
+	if err != nil {
+		return
+	}
+	total = totals[0].Number
+	if total == 0 {
+		return
+	}
+	if getList {
+		//排序
+		if len(lp.Sorts) > 0 && len(lp.Sorts[0].Filed) > 0 && len(lp.Sorts[0].Order) > 0 {
+			query = models.GetOrderBy(lp.Sorts, query)
+		} else {
+			query += " order by id desc"
+		}
+		if lp.Page > 0 && lp.Size > 0 {
+			var offset = (lp.Page - 1) * lp.Size
+			query += fmt.Sprintf(" limit %d offset %d", lp.Size, offset)
+		}
+		err = m.conn.QueryRowsCtx(ctx, &list, query, args...)
+	}
+	return
 }

@@ -6,6 +6,7 @@ import (
 
 	"AgentEarth-Mgr/admin/internal/config"
 	"AgentEarth-Mgr/admin/internal/handler"
+	"AgentEarth-Mgr/admin/internal/middleware"
 	"AgentEarth-Mgr/admin/internal/svc"
 
 	"github.com/zeromicro/go-zero/core/conf"
@@ -22,6 +23,9 @@ func main() {
 
 	server := rest.MustNewServer(c.RestConf)
 	defer server.Stop()
+
+	// 注册错误拦截中间件
+	server.Use(middleware.ErrorHandlerMiddleware)
 
 	ctx := svc.NewServiceContext(c)
 	handler.RegisterHandlers(server, ctx)

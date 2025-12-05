@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	data "AgentEarth-Mgr/admin/internal/handler/data"
+	mcp "AgentEarth-Mgr/admin/internal/handler/mcp"
+	source "AgentEarth-Mgr/admin/internal/handler/source"
 	"AgentEarth-Mgr/admin/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest"
@@ -52,5 +54,62 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 		},
 		rest.WithPrefix("/api/admin/data"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/service/detail/:id",
+				Handler: mcp.ServiceDetailHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/service/install/list",
+				Handler: mcp.ServiceInstallListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/service/list",
+				Handler: mcp.ServiceListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/pre_install/create",
+				Handler: mcp.ServicePreInstallCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/shell/create",
+				Handler: mcp.ServiceShellCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/task/create",
+				Handler: mcp.ServiceTaskCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/update/is_create",
+				Handler: mcp.ServiceUpdateIsCreateHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/api/admin/mcp"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/list",
+				Handler: source.ListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/batch/create",
+				Handler: source.ServiceBatchCreateHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/api/admin/source"),
 	)
 }

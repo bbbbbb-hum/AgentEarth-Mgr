@@ -44,10 +44,10 @@ func (m *customAeMcpServicesModel) withSession(session sqlx.Session) AeMcpServic
 func (m *customAeMcpServicesModel) GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpServices, total int64, err error) {
 	countQuery := fmt.Sprintf("select count(*) as number from %s", m.table)
 	query := fmt.Sprintf("select %s from %s", aeMcpServicesRows, m.table)
-	lp.Conditions = append(lp.Conditions, models.Condition{
-		Field: "enabled",
-		Value: true,
-	})
+	//lp.Conditions = append(lp.Conditions, models.Condition{
+	//	Field: "enabled",
+	//	Value: true,
+	//})
 	//处理where条件
 	whereClause, args, err := models.DealWithWhereSafe(lp.Conditions...)
 	if err != nil {

@@ -50,20 +50,30 @@ func DealWithWhereSafe(params ...Condition) (string, []interface{}, error) {
 		if symbol == "" {
 			symbol = "="
 		}
-
 		escapedCol := escapeColumn(param.Field)
 
 		switch symbol {
-		case "=", "!=", ">", ">=", "<", "<=", "LIKE":
+		case "=", "!=", ">", ">=", "<", "<=", "LIKE", "ILIKE":
 			conditions = append(conditions, fmt.Sprintf("%s %s $%d", escapedCol, symbol, argIndex))
 			args = append(args, param.Value)
 			argIndex++
 
 		case "IN":
-			valSlice, ok := param.Value.([]interface{})
-			if !ok || len(valSlice) == 0 {
+			// 使用反射处理不同类型的切片（[]int64, []string, []interface{} 等）
+			val := reflect.ValueOf(param.Value)
+			if val.Kind() != reflect.Slice {
+				return "", nil, fmt.Errorf("IN requires a slice for column %s, got %T", param.Field, param.Value)
+			}
+			if val.Len() == 0 {
 				return "", nil, fmt.Errorf("IN requires a non-empty slice for column %s", param.Field)
 			}
+
+			// 将切片转换为 []interface{}
+			valSlice := make([]interface{}, val.Len())
+			for i := 0; i < val.Len(); i++ {
+				valSlice[i] = val.Index(i).Interface()
+			}
+
 			placeholders := make([]string, len(valSlice))
 			for i, v := range valSlice {
 				placeholders[i] = fmt.Sprintf("$%d", argIndex)

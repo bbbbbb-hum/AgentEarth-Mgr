@@ -149,8 +149,8 @@ func (m *customAeMcpExternalServicesConfigModel) Insert(ctx context.Context, dat
 	// If ExternalServiceId is empty, omit it from INSERT to allow DB default UUID generation
 	if data.ExternalServiceId == "" {
 		// Omit external_service_id column, same as BatchInsert
-		columns := []string{"name", "type", "launch_info", "connect_info", "max_instance", "create_status", "description", "project_name"}
-		query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8)", m.table, strings.Join(columns, ","))
+		columns := []string{"name", "type", "launch_info", "connect_info", "max_instance", "create_status", "description", "project_name", "server_id"}
+		query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8,$9)", m.table, strings.Join(columns, ","))
 		var launchArg interface{}
 		if data.LaunchInfo == "" {
 			launchArg = nil
@@ -163,11 +163,11 @@ func (m *customAeMcpExternalServicesConfigModel) Insert(ctx context.Context, dat
 		} else {
 			connectArg = data.ConnectInfo
 		}
-		ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, launchArg, connectArg, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName)
+		ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, launchArg, connectArg, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId)
 		return ret, err
 	}
 	// If ExternalServiceId is provided, use the default Insert behavior
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId)
 	return ret, err
 }

@@ -13,7 +13,10 @@ type ServiceContext struct {
 	Config                   config.Config
 	DB                       sqlx.SqlConn
 	McpServiceModel          mcp.AeMcpServicesModel
+	McpServicesInstallModel  mcp.AeMcpServicesInstallModel
 	ExternalMcpServicesModel external.ExternalMcpServicesModel
+	TaskChainModel           configModel.AeMcpTaskChainModel
+	TaskNodeModel            configModel.AeMcpTaskNodeModel
 	TaskNodeConfigModel      configModel.AeMcpExternalServicesConfigModel
 }
 
@@ -24,6 +27,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		DB:                       db,
 		ExternalMcpServicesModel: external.NewExternalMcpServicesModel(db),
 		McpServiceModel:          mcp.NewAeMcpServicesModel(db),
+		McpServicesInstallModel:  mcp.NewAeMcpServicesInstallModel(db),
+		TaskChainModel:           configModel.NewAeMcpTaskChainModel(db),
+		TaskNodeModel:            configModel.NewAeMcpTaskNodeModel(db),
 		TaskNodeConfigModel:      configModel.NewAeMcpExternalServicesConfigModel(db),
 	}
 }
