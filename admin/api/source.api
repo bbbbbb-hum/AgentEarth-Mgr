@@ -22,6 +22,10 @@ service admin-api {
     // 按ID列表生成批量MCP服务与配置
     @handler ServiceBatchCreate
     post /service/batch/create (ServiceBatchCreateReq) returns (BaseResp)
+
+    // 下线 服务
+    @handler ServiceOffline
+    post /service/offline (ServiceOfflineReq) returns (BaseResp)
 }
 
 type (
@@ -31,6 +35,10 @@ type (
         ServerType string `form:"server_type,optional"`
     }
     ServiceBatchCreateReq{
+        Ids []int64 `json:"ids"` // 数据源ID列表
+    }
+
+    ServiceOfflineReq{
         Ids []int64 `json:"ids"` // 数据源ID列表
     }
 )

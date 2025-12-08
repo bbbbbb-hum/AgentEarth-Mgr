@@ -50,6 +50,10 @@ type ServiceListReq struct {
 	IsInstall int64 `form:"is_install,optional"`
 }
 
+type ServiceOfflineReq struct {
+	Ids []int64 `json:"ids"` // 数据源ID列表
+}
+
 type ServicePreInstallCreateReq struct {
 	InstallIds []int64 `json:"install_ids"`
 }

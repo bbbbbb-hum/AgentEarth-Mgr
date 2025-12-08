@@ -109,6 +109,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/service/batch/create",
 				Handler: source.ServiceBatchCreateHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/offline",
+				Handler: source.ServiceOfflineHandler(serverCtx),
+			},
 		},
 		rest.WithPrefix("/api/admin/source"),
 	)

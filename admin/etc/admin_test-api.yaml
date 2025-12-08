@@ -1,6 +1,7 @@
 Name: agent-earth-manager
 Host: 0.0.0.0
 Port: 9005
+Timeout: 120000
 
 DB:
   DataSource: "postgres://wcs:123@121.89.95.89:9002/agent_earth?sslmode=disable"
