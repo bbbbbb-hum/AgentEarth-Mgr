@@ -46,6 +46,18 @@ service admin-api {
     // 更新是否启动创建
     @handler ServiceUpdateIsCreate
     post /service/update/is_create (ServiceUpdateIsCreateReq) returns (BaseResp)
+
+    // 删除数据（包含链，节点，配置，安装命令）
+    @handler ServiceDelete
+    delete /service/delete (ServiceDeleteReq) returns (BaseResp)
+
+    // 批量修改启动分组
+    @handler ServiceUpdateCreatedGroup
+    post /service/update/created-group (ServiceUpdateCreatedGroupReq) returns (BaseResp)
+
+    // 批量关闭服务
+    @handler ServiceBatchClose
+    post /service/batch-close (ServiceBatchCloseReq) returns (BaseResp)
 }
 
 type (
@@ -54,12 +66,14 @@ type (
         Enabled int64 `form:"enabled,optional"`
         IsCreated int64 `form:"is_created,optional"`
         IsInstall int64 `form:"is_install,optional"`
+        ServerId string `form:"server_id,optional"`
     }
     ServiceTaskCreateReq {
         ServiceIds []int64 `json:"service_ids"`
     }
     ServiceInstallListReq{
         BaseListReq
+        ServerId string `form:"server_id,optional"`
     }
     ServiceShellCreateReq{
         InstallIds []int64 `json:"install_ids"`
@@ -70,5 +84,15 @@ type (
     ServiceUpdateIsCreateReq{
         Id int64 `json:"id"`
         IsCreated bool `json:"is_created"`
+    }
+    ServiceDeleteReq{
+        Ids []int64 `json:"ids"`
+    }
+    ServiceUpdateCreatedGroupReq{
+        Ids []int64 `json:"ids"`
+        CreatedGroup int64 `json:"created_group"`
+    }
+    ServiceBatchCloseReq{
+        Ids []int64 `json:"ids"`
     }
 )

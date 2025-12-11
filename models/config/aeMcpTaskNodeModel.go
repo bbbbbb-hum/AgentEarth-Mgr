@@ -3,6 +3,7 @@ package config
 import (
 	"AgentEarth-Mgr/models"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -19,6 +20,7 @@ type (
 		// InsertReturningId inserts and returns id (PostgreSQL RETURNING)
 		InsertReturningId(ctx context.Context, data *AeMcpTaskNode) (int64, error)
 		GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpTaskNode, total int64, err error)
+		DeleteByConditions(ctx context.Context, conditions []models.Condition) error
 	}
 
 	customAeMcpTaskNodeModel struct {
@@ -80,4 +82,22 @@ func (m *customAeMcpTaskNodeModel) GetList(ctx context.Context, lp models.ListCo
 		err = m.conn.QueryRowsCtx(ctx, &list, query, args...)
 	}
 	return
+}
+
+func (m *customAeMcpTaskNodeModel) DeleteByConditions(ctx context.Context, conditions []models.Condition) error {
+	query := fmt.Sprintf("delete from %s", m.table)
+	//处理where条件
+	whereClause, args, err1 := models.DealWithWhereSafe(conditions...)
+	if err1 != nil {
+		return err1
+	}
+	if len(whereClause) == 0 {
+		return errors.New("条件不能为空")
+	}
+	if len(args) == 0 {
+		return errors.New("参数不能为空")
+	}
+	query += whereClause
+	_, err := m.conn.ExecCtx(ctx, query, args...)
+	return err
 }

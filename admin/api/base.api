@@ -13,6 +13,8 @@ type (
         Page   int64  `form:"page, optional"`
         Size   int64  `form:"size, optional"`
         Search string `form:"search, optional"`
+        Sort   string `form:"sort, optional"`
+        Order  string `form:"order, optional"`
     }
     BaseResp {
         Code    int64                  `json:"code"`

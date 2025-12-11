@@ -7,6 +7,8 @@ type BaseListReq struct {
 	Page   int64  `form:"page, optional"`
 	Size   int64  `form:"size, optional"`
 	Search string `form:"search, optional"`
+	Sort   string `form:"sort, optional"`
+	Order  string `form:"order, optional"`
 }
 
 type BaseResp struct {
@@ -35,19 +37,29 @@ type DetailReq struct {
 	Id int64 `path:"id"`
 }
 
+type ServiceBatchCloseReq struct {
+	Ids []int64 `json:"ids"`
+}
+
 type ServiceBatchCreateReq struct {
 	Ids []int64 `json:"ids"` // 数据源ID列表
 }
 
+type ServiceDeleteReq struct {
+	Ids []int64 `json:"ids"`
+}
+
 type ServiceInstallListReq struct {
 	BaseListReq
+	ServerId string `form:"server_id,optional"`
 }
 
 type ServiceListReq struct {
 	BaseListReq
-	Enabled   int64 `form:"enabled,optional"`
-	IsCreated int64 `form:"is_created,optional"`
-	IsInstall int64 `form:"is_install,optional"`
+	Enabled   int64  `form:"enabled,optional"`
+	IsCreated int64  `form:"is_created,optional"`
+	IsInstall int64  `form:"is_install,optional"`
+	ServerId  string `form:"server_id,optional"`
 }
 
 type ServiceOfflineReq struct {
@@ -64,6 +76,11 @@ type ServiceShellCreateReq struct {
 
 type ServiceTaskCreateReq struct {
 	ServiceIds []int64 `json:"service_ids"`
+}
+
+type ServiceUpdateCreatedGroupReq struct {
+	Ids          []int64 `json:"ids"`
+	CreatedGroup int64   `json:"created_group"`
 }
 
 type ServiceUpdateIsCreateReq struct {

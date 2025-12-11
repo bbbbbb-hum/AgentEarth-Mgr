@@ -73,6 +73,13 @@ func (l *ServiceShellCreateLogic) ServiceShellCreate(req *types.ServiceShellCrea
 		sb.WriteString("else\n")
 		sb.WriteString("    echo 'PM2 is already installed'\n")
 		sb.WriteString("fi\n\n")
+
+		// 停止所有 PM2 管理的服务（因为可能有些服务换端口了，需要重启）
+		sb.WriteString("# Stop all PM2 managed services\n")
+		sb.WriteString("echo 'Stopping all PM2 services...'\n")
+		sb.WriteString("pm2 stop all 2>/dev/null || true\n")
+		sb.WriteString("pm2 delete all 2>/dev/null || true\n")
+		sb.WriteString("echo 'All PM2 services stopped'\n\n")
 	}
 
 	commandIndex := 1

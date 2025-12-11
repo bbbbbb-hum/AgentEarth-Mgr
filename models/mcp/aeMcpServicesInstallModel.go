@@ -20,6 +20,7 @@ type (
 		FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpServicesInstall, error)
 		GetMaxPort(ctx context.Context) (int64, error)
 		GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpServicesInstall, total int64, err error)
+		DeleteByConditions(ctx context.Context, conditions []models.Condition) error
 	}
 
 	customAeMcpServicesInstallModel struct {
@@ -106,4 +107,22 @@ func (m *customAeMcpServicesInstallModel) GetList(ctx context.Context, lp models
 		err = m.conn.QueryRowsCtx(ctx, &list, query, args...)
 	}
 	return
+}
+
+func (m *customAeMcpServicesInstallModel) DeleteByConditions(ctx context.Context, conditions []models.Condition) error {
+	query := fmt.Sprintf("delete from %s", m.table)
+	//处理where条件
+	whereClause, args, err1 := models.DealWithWhereSafe(conditions...)
+	if err1 != nil {
+		return err1
+	}
+	if len(whereClause) == 0 {
+		return errors.New("条件不能为空")
+	}
+	if len(args) == 0 {
+		return errors.New("参数不能为空")
+	}
+	query += whereClause
+	_, err := m.conn.ExecCtx(ctx, query, args...)
+	return err
 }

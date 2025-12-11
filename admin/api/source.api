@@ -19,6 +19,10 @@ service admin-api {
     @handler List
     get /list (SourceListReq) returns (BaseResp)
 
+    // 获取数据源详情
+    @handler Detail
+    get /detail/:id (DetailReq) returns (BaseResp)
+
     // 按ID列表生成批量MCP服务与配置
     @handler ServiceBatchCreate
     post /service/batch/create (ServiceBatchCreateReq) returns (BaseResp)

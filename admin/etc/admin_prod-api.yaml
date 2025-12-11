@@ -1,6 +1,6 @@
 Name: agent-earth-manager
 Host: 0.0.0.0
-Port: 9005
+Port: 19005
 Timeout: 120000
 
 DB:
@@ -9,7 +9,7 @@ DB:
 # Prometheus 配置
 Prometheus:
   Host: 0.0.0.0
-  Port: 9006      # metrics 端口
+  Port: 19006      # metrics 端口
   Path: /metrics  # metrics 路径
 
 Log:

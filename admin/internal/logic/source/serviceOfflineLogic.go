@@ -3,8 +3,10 @@ package source
 import (
 	"AgentEarth-Mgr/models"
 	"AgentEarth-Mgr/models/external"
+	"AgentEarth-Mgr/models/mcp"
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"AgentEarth-Mgr/admin/internal/svc"
@@ -63,29 +65,42 @@ func (l *ServiceOfflineLogic) ServiceOffline(req *types.ServiceOfflineReq) (resp
 
 func (l *ServiceOfflineLogic) deal(externalMcpServices []*external.ExternalMcpServices) (total int64, err error) {
 	for _, ems := range externalMcpServices {
-		mcpService, err1 := l.svcCtx.McpServiceModel.FindOneByCondition(l.ctx, []models.Condition{
-			{
-				Field: "server_name",
-				Value: ems.ServerName,
-			},
+		err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
+			sessConn := sqlx.NewSqlConnFromSession(session)
+			mcpServicesModel := mcp.NewAeMcpServicesModel(sessConn)
+			installModel := mcp.NewAeMcpServicesInstallModel(sessConn)
+			mcpService, err1 := mcpServicesModel.FindOneByCondition(ctx, []models.Condition{
+				{
+					Field: "server_name",
+					Value: ems.ServerName,
+				},
+			})
+			if err1 != nil && !errors.Is(err1, sqlx.ErrNotFound) {
+				return err1
+			}
+			if mcpService == nil {
+				return fmt.Errorf("未找到MCP服务：%s", ems.ServerName)
+			}
+			mcpService.Enabled = false
+			mcpService.IsCreated = false
+			mcpService.UpdateTime = time.Now()
+			err1 = mcpServicesModel.Update(ctx, mcpService)
+			if err1 != nil {
+				return fmt.Errorf("更新错误：%s", err1.Error())
+			}
+			// 删除安装命令
+			err1 = installModel.DeleteByConditions(ctx, []models.Condition{
+				{
+					Field: "server_id",
+					Value: mcpService.ServerId,
+				},
+			})
+			if err1 != nil {
+				return fmt.Errorf("删除安装命令错误：%s", err1.Error())
+			}
+			return nil
 		})
-		if err1 != nil && !errors.Is(err1, sqlx.ErrNotFound) {
-			err = err1
-			return
-		}
-		if mcpService == nil {
-			logx.Error("未找到MCP服务：", ems.ServerName)
-			continue
-		}
-		mcpService.Enabled = false
-		mcpService.IsCreated = false
-		mcpService.UpdateTime = time.Now()
-		err = l.svcCtx.McpServiceModel.Update(l.ctx, mcpService)
-		if err != nil {
-			logx.Error("更新错误：", ems.ServerName, err)
-			continue
-		}
-		logx.Info("下线成功：", ems.ServerName)
+		l.Info("下线成功：", ems.ServerName)
 		total++
 	}
 	return

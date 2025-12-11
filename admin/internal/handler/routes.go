@@ -59,6 +59,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	server.AddRoutes(
 		[]rest.Route{
 			{
+				Method:  http.MethodPost,
+				Path:    "/service/batch-close",
+				Handler: mcp.ServiceBatchCloseHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodDelete,
+				Path:    "/service/delete",
+				Handler: mcp.ServiceDeleteHandler(serverCtx),
+			},
+			{
 				Method:  http.MethodGet,
 				Path:    "/service/detail/:id",
 				Handler: mcp.ServiceDetailHandler(serverCtx),
@@ -90,6 +100,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodPost,
+				Path:    "/service/update/created-group",
+				Handler: mcp.ServiceUpdateCreatedGroupHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
 				Path:    "/service/update/is_create",
 				Handler: mcp.ServiceUpdateIsCreateHandler(serverCtx),
 			},
@@ -99,6 +114,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 
 	server.AddRoutes(
 		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/detail/:id",
+				Handler: source.DetailHandler(serverCtx),
+			},
 			{
 				Method:  http.MethodGet,
 				Path:    "/list",

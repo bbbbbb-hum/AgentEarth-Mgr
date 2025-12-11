@@ -189,13 +189,9 @@ func (l *ServiceBatchCreateLogic) deal(externalMcpServices []*external.ExternalM
 					CreateTime: time.Now(),
 				}
 			}
-
-			if len(installCmd) > 0 {
-				serviceInstall.InstallCmd = installCmd
-			}
-			if len(repositoryUrl) > 0 {
-				serviceInstall.Repository = repositoryUrl
-			}
+			// 安装命令，仓库，预安装命令字段以外部配置表为准，如果外部配置表无值则置空
+			serviceInstall.InstallCmd = installCmd
+			serviceInstall.Repository = repositoryUrl
 			// ========================================== 处理服务配置 ==================================================================
 			serviceConfig, err1 := serviceConfigModel.FindOneByCondition(ctx, []models.Condition{
 				{
@@ -226,6 +222,7 @@ func (l *ServiceBatchCreateLogic) deal(externalMcpServices []*external.ExternalM
 			switch ems.ServerType {
 			case "httpStream":
 				serviceConfig.Type = "httpStreamable"
+				serviceConfig.LaunchInfo = "{}"
 				if len(ems.ConnectInfo) > 0 {
 					var chosenConn types.FlatConnect
 					var nc types.NestedConnect
@@ -268,6 +265,9 @@ func (l *ServiceBatchCreateLogic) deal(externalMcpServices []*external.ExternalM
 								l.Infof("Found localhost URL in service %s (ServerId: %s): %s, using existing port %d", ems.ServerName, mcpService.ServerId, url, serviceInstall.Port)
 							}
 							url = replaceLocalhostPort(url, serviceInstall.Port)
+						} else {
+							// 没有 localhost 则原来的端口回收
+							serviceInstall.Port = 0
 						}
 
 						tc := types.TargetConnect{
@@ -287,6 +287,7 @@ func (l *ServiceBatchCreateLogic) deal(externalMcpServices []*external.ExternalM
 				}
 			case "stdio":
 				serviceConfig.Type = "stdio"
+				serviceConfig.ConnectInfo = "{}"
 				var chosen types.FlatLaunch
 				var n types.NestedLaunch
 				if len(ems.LaunchInfo) > 0 {
@@ -337,10 +338,10 @@ func (l *ServiceBatchCreateLogic) deal(externalMcpServices []*external.ExternalM
 					return err
 				}
 				// 组装 Command、Args 和 Env 为 shell 命令，赋值给 PreinstallCmd
-				preinstallCmd := buildShellCommand(chosen.Command, args, chosen.Env)
-				if preinstallCmd != "" {
-					serviceInstall.PreinstallCmd = preinstallCmd
-				}
+				serviceInstall.PreinstallCmd = buildShellCommand(chosen.Command, args, chosen.Env)
+				//if preinstallCmd != "" {
+				//serviceInstall.PreinstallCmd = preinstallCmd
+				//}
 			case "sse":
 				serviceConfig.Type = "sse"
 				if len(ems.ConnectInfo) > 0 {

@@ -78,6 +78,13 @@ func (l *ServiceListLogic) ServiceList(req *types.ServiceListReq) (resp *types.B
 			Value:  isCreated,
 		})
 	}
+	if len(req.ServerId) > 0 {
+		listConditions.Conditions = append(listConditions.Conditions, models.Condition{
+			Field:  "server_id",
+			Symbol: "=",
+			Value:  req.ServerId,
+		})
+	}
 	list, total, err := l.svcCtx.McpServiceModel.GetList(l.ctx, listConditions, true)
 	if err != nil {
 		return

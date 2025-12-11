@@ -4,6 +4,7 @@ import (
 	"AgentEarth-Mgr/models"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -21,6 +22,7 @@ type (
 		BatchInsert(ctx context.Context, list []AeMcpExternalServicesConfig) error
 		GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpExternalServicesConfig, total int64, err error)
 		FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpExternalServicesConfig, error)
+		DeleteByConditions(ctx context.Context, conditions []models.Condition) error
 	}
 
 	customAeMcpExternalServicesConfigModel struct {
@@ -170,4 +172,22 @@ func (m *customAeMcpExternalServicesConfigModel) Insert(ctx context.Context, dat
 	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
 	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId)
 	return ret, err
+}
+
+func (m *customAeMcpExternalServicesConfigModel) DeleteByConditions(ctx context.Context, conditions []models.Condition) error {
+	query := fmt.Sprintf("delete from %s", m.table)
+	//处理where条件
+	whereClause, args, err1 := models.DealWithWhereSafe(conditions...)
+	if err1 != nil {
+		return err1
+	}
+	if len(whereClause) == 0 {
+		return errors.New("条件不能为空")
+	}
+	if len(args) == 0 {
+		return errors.New("参数不能为空")
+	}
+	query += whereClause
+	_, err := m.conn.ExecCtx(ctx, query, args...)
+	return err
 }

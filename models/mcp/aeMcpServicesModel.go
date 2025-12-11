@@ -3,9 +3,9 @@ package mcp
 import (
 	"AgentEarth-Mgr/models"
 	"context"
-	"fmt"
-
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -23,6 +23,10 @@ type (
 		// InsertWithoutId inserts a service row without setting the auto-increment id column
 		InsertWithoutId(ctx context.Context, data *AeMcpServices) (sql.Result, error)
 		FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpServices, error)
+		// UpdateCreatedGroup 批量更新服务的启动分组
+		UpdateCreatedGroup(ctx context.Context, ids []int64, createdGroup int64) error
+		// BatchClose 批量关闭服务（将 enabled 更新为 false）
+		BatchClose(ctx context.Context, ids []int64) error
 	}
 
 	customAeMcpServicesModel struct {
@@ -117,4 +121,39 @@ func (m *customAeMcpServicesModel) FindOneByCondition(ctx context.Context, condi
 	default:
 		return nil, err
 	}
+}
+
+// UpdateCreatedGroup 批量更新服务的启动分组
+func (m *customAeMcpServicesModel) UpdateCreatedGroup(ctx context.Context, ids []int64, createdGroup int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	// 构建 IN 子句的占位符
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids)+1)
+	args[0] = createdGroup
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args[i+1] = id
+	}
+	query := fmt.Sprintf("update %s set created_group = $1 where id in (%s)", m.table, strings.Join(placeholders, ","))
+	_, err := m.conn.ExecCtx(ctx, query, args...)
+	return err
+}
+
+// BatchClose 批量关闭服务（将 enabled 更新为 false）
+func (m *customAeMcpServicesModel) BatchClose(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	// 构建 IN 子句的占位符
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+	query := fmt.Sprintf("update %s set enabled = false where id in (%s)", m.table, strings.Join(placeholders, ","))
+	_, err := m.conn.ExecCtx(ctx, query, args...)
+	return err
 }

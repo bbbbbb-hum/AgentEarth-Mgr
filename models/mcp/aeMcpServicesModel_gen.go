@@ -43,7 +43,7 @@ type (
 		ServerName      string         `db:"server_name"`      // 服务名称
 		Logo            string         `db:"logo"`             // logo
 		ProtocolVersion string         `db:"protocol_version"` // 协议版本号
-		Enabled         bool           `db:"enabled"`          // 是否开启
+		Enabled         bool           `db:"enabled"`          // 服务状态：true 可用 false 不可用
 		Tags            pq.StringArray `db:"tags"`             // 标签名称（多个）
 		Description     string         `db:"description"`      // 描述
 		TaskChainId     int64          `db:"task_chain_id"`    // 任务链id
@@ -53,9 +53,10 @@ type (
 		CallNum         int64          `db:"call_num"`         // 调用次数
 		CallSuccessNum  int64          `db:"call_success_num"` // 调用成功次数
 		ResponseTime    float64        `db:"response_time"`    // 响应时间 毫秒（平均值）
-		IsCreated       bool           `db:"is_created"`       // 是否启动时创建服务：true 是 false 否
+		IsCreated       bool           `db:"is_created"`       // 是否启动服务：true 是 false 否 (手动修改)
 		ProjectName     string         `db:"project_name"`     // 项目名称
 		IsInstall       bool           `db:"is_install"`       // 是否需要安装：true 是 false 否
+		CreatedGroup    int64          `db:"created_group"`    // 服务启动分组（按分组启动服务）
 	}
 )
 
@@ -87,14 +88,14 @@ func (m *defaultAeMcpServicesModel) FindOne(ctx context.Context, serverId string
 }
 
 func (m *defaultAeMcpServicesModel) Insert(ctx context.Context, data *AeMcpServices) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)", m.table, aeMcpServicesRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)", m.table, aeMcpServicesRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall, data.CreatedGroup)
 	return ret, err
 }
 
 func (m *defaultAeMcpServicesModel) Update(ctx context.Context, data *AeMcpServices) error {
 	query := fmt.Sprintf("update %s set %s where server_id = $1", m.table, aeMcpServicesRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.ServerId, data.Id, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall)
+	_, err := m.conn.ExecCtx(ctx, query, data.ServerId, data.Id, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall, data.CreatedGroup)
 	return err
 }
 
