@@ -65,6 +65,21 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodDelete,
+				Path:    "/service/config/account/delete",
+				Handler: mcp.ServiceConfigAccountDeleteHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/service/config/account/list",
+				Handler: mcp.ServiceConfigAccountListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/config/account/update-status",
+				Handler: mcp.ServiceConfigAccountUpdateStatusHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodDelete,
 				Path:    "/service/delete",
 				Handler: mcp.ServiceDeleteHandler(serverCtx),
 			},
@@ -114,6 +129,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 
 	server.AddRoutes(
 		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/account/list",
+				Handler: source.AccountListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/account/sync",
+				Handler: source.AccountSyncHandler(serverCtx),
+			},
 			{
 				Method:  http.MethodGet,
 				Path:    "/detail/:id",

@@ -30,6 +30,14 @@ service admin-api {
     // 下线 服务
     @handler ServiceOffline
     post /service/offline (ServiceOfflineReq) returns (BaseResp)
+
+    // 源数据账号列表
+    @handler AccountList
+    get /account/list (AccountListReq) returns (BaseResp)
+
+    // 同步账号数据到Mcp服务配置账号表
+    @handler AccountSync
+    post /account/sync (AccountSyncReq) returns (BaseResp)
 }
 
 type (
@@ -44,5 +52,14 @@ type (
 
     ServiceOfflineReq{
         Ids []int64 `json:"ids"` // 数据源ID列表
+    }
+
+    AccountListReq{
+        BaseListReq
+        SourceId int64 `form:"source_id,optional"`
+    }
+
+    AccountSyncReq{
+        Ids []int64 `json:"ids"` // 账号ID列表
     }
 )

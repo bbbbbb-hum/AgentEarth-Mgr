@@ -58,6 +58,18 @@ service admin-api {
     // 批量关闭服务
     @handler ServiceBatchClose
     post /service/batch-close (ServiceBatchCloseReq) returns (BaseResp)
+
+    // 配置账号列表
+    @handler ServiceConfigAccountList
+    get /service/config/account/list (ServiceConfigAccountListReq) returns (BaseResp)
+
+    // 批量修改账号状态
+    @handler ServiceConfigAccountUpdateStatus
+    post /service/config/account/update-status (ServiceConfigAccountUpdateStatusReq) returns (BaseResp)
+
+    // 批量删除账号信息
+    @handler ServiceConfigAccountDelete
+    delete /service/config/account/delete (ServiceConfigAccountDeleteReq) returns (BaseResp)
 }
 
 type (
@@ -93,6 +105,18 @@ type (
         CreatedGroup int64 `json:"created_group"`
     }
     ServiceBatchCloseReq{
+        Ids []int64 `json:"ids"`
+    }
+    ServiceConfigAccountListReq{
+        BaseListReq
+        ServerId string `form:"server_id,optional"`
+        Status string `form:"status,optional"`
+    }
+    ServiceConfigAccountUpdateStatusReq{
+        Ids []int64 `json:"ids"`
+        Status string `json:"status"`
+    }
+    ServiceConfigAccountDeleteReq{
         Ids []int64 `json:"ids"`
     }
 )

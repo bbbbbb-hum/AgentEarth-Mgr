@@ -3,6 +3,15 @@
 
 package types
 
+type AccountListReq struct {
+	BaseListReq
+	SourceId int64 `form:"source_id,optional"`
+}
+
+type AccountSyncReq struct {
+	Ids []int64 `json:"ids"` // 账号ID列表
+}
+
 type BaseListReq struct {
 	Page   int64  `form:"page, optional"`
 	Size   int64  `form:"size, optional"`
@@ -43,6 +52,21 @@ type ServiceBatchCloseReq struct {
 
 type ServiceBatchCreateReq struct {
 	Ids []int64 `json:"ids"` // 数据源ID列表
+}
+
+type ServiceConfigAccountDeleteReq struct {
+	Ids []int64 `json:"ids"`
+}
+
+type ServiceConfigAccountListReq struct {
+	BaseListReq
+	ServerId string `form:"server_id,optional"`
+	Status   string `form:"status,optional"`
+}
+
+type ServiceConfigAccountUpdateStatusReq struct {
+	Ids    []int64 `json:"ids"`
+	Status string  `json:"status"`
 }
 
 type ServiceDeleteReq struct {
