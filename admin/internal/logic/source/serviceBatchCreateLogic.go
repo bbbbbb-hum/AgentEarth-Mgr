@@ -317,7 +317,7 @@ func (l *ServiceBatchCreateLogic) deal(externalMcpServices []*external.ExternalM
 				}
 			}
 			// ========================================== 更新外部服务表 ==================================================================
-			//ems.TestStatus = 9
+			ems.TestStatus = 9
 			err = externalMcpServiceModel.Update(ctx, ems)
 			if err != nil {
 				return err

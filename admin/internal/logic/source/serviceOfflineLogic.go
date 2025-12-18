@@ -67,8 +67,10 @@ func (l *ServiceOfflineLogic) deal(externalMcpServices []*external.ExternalMcpSe
 	for _, ems := range externalMcpServices {
 		err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
 			sessConn := sqlx.NewSqlConnFromSession(session)
+			externalMcpServicesModel := external.NewExternalMcpServicesModel(sessConn)
 			mcpServicesModel := mcp.NewAeMcpServicesModel(sessConn)
 			installModel := mcp.NewAeMcpServicesInstallModel(sessConn)
+			// 关闭MCP服务的启动状态和服务启动创建状态
 			mcpService, err1 := mcpServicesModel.FindOneByCondition(ctx, []models.Condition{
 				{
 					Field: "server_name",
@@ -97,6 +99,12 @@ func (l *ServiceOfflineLogic) deal(externalMcpServices []*external.ExternalMcpSe
 			})
 			if err1 != nil {
 				return fmt.Errorf("删除安装命令错误：%s", err1.Error())
+			}
+			// 更新源表数据状态
+			ems.TestStatus = 11
+			err1 = externalMcpServicesModel.Update(ctx, ems)
+			if err1 != nil {
+				return fmt.Errorf("更新源表数据状态错误：%s", err1.Error())
 			}
 			return nil
 		})
