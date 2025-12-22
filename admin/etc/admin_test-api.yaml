@@ -6,6 +6,10 @@ Timeout: 120000
 DB:
   DataSource: "postgres://wcs:123@121.89.95.89:9002/agent_earth?sslmode=disable"
 
+# 可选：生产环境数据库（用于“测试->生产”同步接口）
+ProdDB:
+  DataSource: "postgres://wcs:XingLiang@2025!@143.110.145.106:9002/agent_earth?sslmode=disable"
+
 # Prometheus 配置
 Prometheus:
   Host: 0.0.0.0

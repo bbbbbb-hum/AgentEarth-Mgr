@@ -1,65 +1,102 @@
 syntax = "v1"
 
-info(
-    title: "数据源"
-    desc: "源数据接口"
-    author: "wcs"
-    email: ""
-    version: "v1.0.0"
+info (
+	title:   "数据源"
+	desc:    "源数据接口"
+	author:  "wcs"
+	email:   ""
+	version: "v1.0.0"
 )
+
 import "./base.api"
 
 @server (
-    group:  source
-    prefix: /api/admin/source
+	group:  source
+	prefix: /api/admin/source
 )
-
 service admin-api {
-    // 获取数据源列表
-    @handler List
-    get /list (SourceListReq) returns (BaseResp)
+	// 获取数据源列表
+	@handler List
+	get /list (SourceListReq) returns (BaseResp)
 
-    // 获取数据源详情
-    @handler Detail
-    get /detail/:id (DetailReq) returns (BaseResp)
+	// 获取数据源详情
+	@handler Detail
+	get /detail/:id (DetailReq) returns (BaseResp)
 
-    // 按ID列表生成批量MCP服务与配置
-    @handler ServiceBatchCreate
-    post /service/batch/create (ServiceBatchCreateReq) returns (BaseResp)
+	// 更新数据源接口
+	@handler Update
+	put /update (SourceUpdateReq) returns (BaseResp)
 
-    // 下线 服务
-    @handler ServiceOffline
-    post /service/offline (ServiceOfflineReq) returns (BaseResp)
+	// 按ID列表生成批量MCP服务与配置
+	@handler ServiceBatchCreate
+	post /service/batch/create (ServiceBatchCreateReq) returns (BaseResp)
 
-    // 源数据账号列表
-    @handler AccountList
-    get /account/list (AccountListReq) returns (BaseResp)
+	// 下线 服务
+	@handler ServiceOffline
+	post /service/offline (ServiceOfflineReq) returns (BaseResp)
 
-    // 同步账号数据到Mcp服务配置账号表
-    @handler AccountSync
-    post /account/sync (AccountSyncReq) returns (BaseResp)
+	// 调整源数据状态
+	@handler ServiceTestStatusUpdate
+	post /service/test-status-update (ServiceTestStatusUpdateReq) returns (BaseResp)
+
+	// 从测试环境同步数据到生产环境（按id更新/不存在则新增，保持生产与测试一致）
+	@handler ServiceSyncTestToProd
+	post /service/sync-test-to-prod (IdsReq) returns (BaseResp)
+
+	// 源数据账号列表
+	@handler AccountList
+	get /account/list (AccountListReq) returns (BaseResp)
+
+	// 同步账号数据到Mcp服务配置账号表
+	@handler AccountSync
+	post /account/sync (AccountSyncReq) returns (BaseResp)
+
+	// 从测试环境同步账号数据到生产环境（按id更新/不存在则新增，保持生产与测试一致）
+	@handler AccountSyncTestToProd
+	post /account/sync-test-to-prod (IdsReq) returns (BaseResp)
 }
 
 type (
-    SourceListReq {
-        BaseListReq
-        TestStatus string `form:"test_status,optional"`
-        ServerType string `form:"server_type,optional"`
-    }
-    ServiceBatchCreateReq{
-        Ids []int64 `json:"ids"` // 数据源ID列表
-    }
-
-    ServiceOfflineReq{
-        Ids []int64 `json:"ids"` // 数据源ID列表
-    }
-
-    AccountListReq{
-        BaseListReq
-        SourceId int64 `form:"source_id,optional"`
-    }
-
-    AccountSyncReq{
-        Ids []int64 `json:"ids"` // 账号ID列表
-    }
+	SourceListReq {
+		BaseListReq
+		TestStatus string `form:"test_status,optional"`
+		ServerType string `form:"server_type,optional"`
+	}
+	ServiceBatchCreateReq {
+		Ids []int64 `json:"ids"` // 数据源ID列表
+	}
+	ServiceOfflineReq {
+		Ids []int64 `json:"ids"` // 数据源ID列表
+	}
+	AccountListReq {
+		BaseListReq
+		SourceId int64 `form:"source_id,optional"`
+	}
+	AccountSyncReq {
+		Ids []int64 `json:"ids"` // 账号ID列表
+	}
+	ServiceTestStatusUpdateReq {
+		Ids        []int64 `json:"ids"` // 数据源ID
+		TestStatus int64   `json:"test_status"` // 测试状态
+	}
+	SourceUpdateReq {
+		Id              int64  `json:"id"` // 自增ID
+		ServerName      string `json:"server_name, optional"` // 服务名称
+		ServerType      string `json:"server_type, optional"` // 服务类型：stdio,sse,httpStream
+		LaunchInfo      string `json:"launch_info, optional"` // 启动信息，例如：{      "command": "npx",      "args": ["-y", "time-mcp"]}
+		ConnectInfo     string `json:"connect_info, optional"` // 连接信息，如：{  "url": "http://api.remote.com/mcp/sse"}
+		Description     string `json:"description, optional"` // 服务描述
+		CodeSourceUrl   string `json:"code_source_url, optional"` // 来源地址：可以是github项目地址，也可以是原MCP服务的文档地址
+		TestStatus      int64  `json:"test_status, optional"` // 测试状态：0 未测试 1 通过 -1 未通过
+		DockerCmd       string `json:"docker_cmd, optional"`
+		ProjectName     string `json:"project_name, optional"`
+		Valuable        string `json:"valuable, optional"` // 有价值的服务
+		Calls           int64  `json:"calls, optional"` // 流量
+		Category        string `json:"category, optional"` // 品类
+		Image           string `json:"image, optional"` // 图片
+		CloneRepository string `json:"clone_repository, optional"` // 克隆仓库地址
+		NeedKey         int64  `json:"need_key, optional"` // 1 需要key 0不需要key
+		Install         string `json:"install, optional"` // 安装命令
+	}
 )
+

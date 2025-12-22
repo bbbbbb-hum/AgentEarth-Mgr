@@ -65,7 +65,7 @@ func (l *ServiceOfflineLogic) ServiceOffline(req *types.ServiceOfflineReq) (resp
 
 func (l *ServiceOfflineLogic) deal(externalMcpServices []*external.ExternalMcpServices) (total int64, err error) {
 	for _, ems := range externalMcpServices {
-		err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
+		err2 := l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
 			sessConn := sqlx.NewSqlConnFromSession(session)
 			externalMcpServicesModel := external.NewExternalMcpServicesModel(sessConn)
 			mcpServicesModel := mcp.NewAeMcpServicesModel(sessConn)
@@ -109,6 +109,10 @@ func (l *ServiceOfflineLogic) deal(externalMcpServices []*external.ExternalMcpSe
 			return nil
 		})
 		l.Info("下线成功：", ems.ServerName)
+		if err2 != nil {
+			l.Errorf("下线失败：%s", err2.Error())
+			continue
+		}
 		total++
 	}
 	return

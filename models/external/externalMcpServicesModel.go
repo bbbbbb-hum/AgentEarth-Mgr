@@ -4,6 +4,7 @@ import (
 	"AgentEarth-Mgr/models"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -17,7 +18,9 @@ type (
 		externalMcpServicesModel
 		withSession(session sqlx.Session) ExternalMcpServicesModel
 		GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*ExternalMcpServices, total int64, err error)
+		UpdateTestStatus(ctx context.Context, ids []int64, status int64) error
 		BatchUpdateTestStatus(ctx context.Context, ids []int64, status int64) error
+		UpsertWithId(ctx context.Context, data *ExternalMcpServices) error
 	}
 
 	customExternalMcpServicesModel struct {
@@ -71,13 +74,76 @@ func (m *customExternalMcpServicesModel) GetList(ctx context.Context, lp models.
 	return
 }
 
+func (m *customExternalMcpServicesModel) UpdateTestStatus(ctx context.Context, ids []int64, status int64) error {
+	// keep compatibility with logic layer naming; reuse the existing batch implementation
+	return m.BatchUpdateTestStatus(ctx, ids, status)
+}
+
 func (m *customExternalMcpServicesModel) BatchUpdateTestStatus(ctx context.Context, ids []int64, status int64) error {
-	inCondition, inArgs := models.GetInCondition(ids)
-	query := fmt.Sprintf("update %s set test_status = ? where %s", m.table, inCondition)
-	args := append([]interface{}{status}, inArgs...)
+	if len(ids) == 0 {
+		return nil
+	}
+
+	placeholders := make([]string, 0, len(ids))
+	args := make([]any, 0, 1+len(ids))
+	args = append(args, status)
+	for i, id := range ids {
+		// status is $1, ids start from $2
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i+2))
+		args = append(args, id)
+	}
+
+	query := fmt.Sprintf("update %s set test_status = $1 where id in (%s)", m.table, strings.Join(placeholders, ","))
 	_, err := m.conn.ExecCtx(ctx, query, args...)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (m *customExternalMcpServicesModel) UpsertWithId(ctx context.Context, data *ExternalMcpServices) error {
+	// Insert all fields (including id) and update all non-id fields on conflict.
+	placeholders := make([]string, 0, len(externalMcpServicesFieldNames))
+	for i := range externalMcpServicesFieldNames {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
+	}
+
+	updateCols := make([]string, 0, len(externalMcpServicesFieldNames)-1)
+	for _, col := range externalMcpServicesFieldNames {
+		if col == "id" {
+			continue
+		}
+		updateCols = append(updateCols, fmt.Sprintf("%s = excluded.%s", col, col))
+	}
+
+	query := fmt.Sprintf(
+		"insert into %s (%s) values (%s) on conflict (id) do update set %s",
+		m.table,
+		externalMcpServicesRows,
+		strings.Join(placeholders, ","),
+		strings.Join(updateCols, ","),
+	)
+
+	_, err := m.conn.ExecCtx(ctx, query,
+		data.Id,
+		data.ServerName,
+		data.ServerType,
+		data.LaunchInfo,
+		data.ConnectInfo,
+		data.Description,
+		data.CreateTime,
+		data.UpdateTime,
+		data.CodeSourceUrl,
+		data.TestStatus,
+		data.DockerCmd,
+		data.ProjectName,
+		data.Valuable,
+		data.Calls,
+		data.Category,
+		data.Image,
+		data.CloneRepository,
+		data.NeedKey,
+		data.Install,
+	)
+	return err
 }

@@ -4,6 +4,7 @@ import (
 	"AgentEarth-Mgr/models"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -17,6 +18,7 @@ type (
 		externalMcpServicesAccountModel
 		withSession(session sqlx.Session) ExternalMcpServicesAccountModel
 		GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*ExternalMcpServicesAccount, total int64, err error)
+		UpsertWithId(ctx context.Context, data *ExternalMcpServicesAccount) error
 	}
 
 	customExternalMcpServicesAccountModel struct {
@@ -68,4 +70,38 @@ func (m *customExternalMcpServicesAccountModel) GetList(ctx context.Context, lp 
 		err = m.conn.QueryRowsCtx(ctx, &list, query, args...)
 	}
 	return
+}
+
+func (m *customExternalMcpServicesAccountModel) UpsertWithId(ctx context.Context, data *ExternalMcpServicesAccount) error {
+	// Insert all fields (including id) and update all non-id fields on conflict.
+	placeholders := make([]string, 0, len(externalMcpServicesAccountFieldNames))
+	for i := range externalMcpServicesAccountFieldNames {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i+1))
+	}
+
+	updateCols := make([]string, 0, len(externalMcpServicesAccountFieldNames)-1)
+	for _, col := range externalMcpServicesAccountFieldNames {
+		if col == "id" {
+			continue
+		}
+		updateCols = append(updateCols, fmt.Sprintf("%s = excluded.%s", col, col))
+	}
+
+	query := fmt.Sprintf(
+		"insert into %s (%s) values (%s) on conflict (id) do update set %s",
+		m.table,
+		externalMcpServicesAccountRows,
+		strings.Join(placeholders, ","),
+		strings.Join(updateCols, ","),
+	)
+
+	_, err := m.conn.ExecCtx(ctx, query,
+		data.Id,
+		data.Name,
+		data.AuthInfo,
+		data.ExternalMcpServicesId,
+		data.CreateTime,
+		data.UpdateTime,
+	)
+	return err
 }

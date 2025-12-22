@@ -63,7 +63,7 @@ func (l *AccountSyncLogic) AccountSync(req *types.AccountSyncReq) (resp *types.B
 					return err1
 				}
 				if serviceConfig == nil {
-					return fmt.Errorf("未找到对应的服务配置:%")
+					return fmt.Errorf("未找到对应的服务配置:%s", account.Name)
 				}
 				var serviceConfigAccount = &configModel.AeMcpExternalServicesAccount{
 					Name:       account.Name,

@@ -46,6 +46,10 @@ type DetailReq struct {
 	Id int64 `path:"id"`
 }
 
+type IdsReq struct {
+	Ids []int64 `json:"ids"`
+}
+
 type ServiceBatchCloseReq struct {
 	Ids []int64 `json:"ids"`
 }
@@ -102,6 +106,11 @@ type ServiceTaskCreateReq struct {
 	ServiceIds []int64 `json:"service_ids"`
 }
 
+type ServiceTestStatusUpdateReq struct {
+	Ids        []int64 `json:"ids"`         // 数据源ID
+	TestStatus int64   `json:"test_status"` // 测试状态
+}
+
 type ServiceUpdateCreatedGroupReq struct {
 	Ids          []int64 `json:"ids"`
 	CreatedGroup int64   `json:"created_group"`
@@ -116,6 +125,26 @@ type SourceListReq struct {
 	BaseListReq
 	TestStatus string `form:"test_status,optional"`
 	ServerType string `form:"server_type,optional"`
+}
+
+type SourceUpdateReq struct {
+	Id              int64  `json:"id"`                        // 自增ID
+	ServerName      string `json:"server_name, optional"`     // 服务名称
+	ServerType      string `json:"server_type, optional"`     // 服务类型：stdio,sse,httpStream
+	LaunchInfo      string `json:"launch_info, optional"`     // 启动信息，例如：{      "command": "npx",      "args": ["-y", "time-mcp"]}
+	ConnectInfo     string `json:"connect_info, optional"`    // 连接信息，如：{  "url": "http://api.remote.com/mcp/sse"}
+	Description     string `json:"description, optional"`     // 服务描述
+	CodeSourceUrl   string `json:"code_source_url, optional"` // 来源地址：可以是github项目地址，也可以是原MCP服务的文档地址
+	TestStatus      int64  `json:"test_status, optional"`     // 测试状态：0 未测试 1 通过 -1 未通过
+	DockerCmd       string `json:"docker_cmd, optional"`
+	ProjectName     string `json:"project_name, optional"`
+	Valuable        string `json:"valuable, optional"`         // 有价值的服务
+	Calls           int64  `json:"calls, optional"`            // 流量
+	Category        string `json:"category, optional"`         // 品类
+	Image           string `json:"image, optional"`            // 图片
+	CloneRepository string `json:"clone_repository, optional"` // 克隆仓库地址
+	NeedKey         int64  `json:"need_key, optional"`         // 1 需要key 0不需要key
+	Install         string `json:"install, optional"`          // 安装命令
 }
 
 type UpdateServiceDescReq struct {

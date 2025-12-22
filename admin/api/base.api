@@ -24,5 +24,8 @@ type (
     DetailReq {
         Id int64 `path:"id"`
     }
+    IdsReq {
+        Ids []int64 `json:"ids"`
+    }
 )
 

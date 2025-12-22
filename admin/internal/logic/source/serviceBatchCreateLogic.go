@@ -155,6 +155,7 @@ func (l *ServiceBatchCreateLogic) deal(externalMcpServices []*external.ExternalM
 				repositoryName = extractProjectDirName(repositoryUrl)
 			}
 			//判断更新还是插入
+			mcpService.IsCreated = true
 			if mcpService.Id > 0 {
 				err2 = serviceModel.Update(ctx, mcpService)
 				if err2 != nil {
