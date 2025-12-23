@@ -11,9 +11,10 @@ api_probe_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(api_probe_dir)
 
 global_logger = None
+cached_config = None
+config_last_mtime = None
 
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
-TIMESTAMP_FORMAT_MS = '%Y-%m-%d %H:%M:%S.%f'
 
 def setup_global_logger():
     """设置全局日志记录器"""
@@ -53,12 +54,22 @@ def load_config():
     Returns:
         dict: 配置字典，如果加载失败则返回 None
     """
+    global cached_config, config_last_mtime
+    
     config_file = "config.json"
     config_path = "/opt/xlconfigs/AEMgr/pyutils/" + config_file
     
     try:
+        current_mtime = os.path.getmtime(config_path)
+        
+        if cached_config is not None and config_last_mtime is not None:
+            if current_mtime == config_last_mtime:
+                return cached_config
+        
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
+        cached_config = config
+        config_last_mtime = current_mtime
         return config
     except Exception as e:
         print(f"加载配置文件失败: {str(e)}")
@@ -168,10 +179,6 @@ def get_api_info():
         logger.error("错误: API密钥不能为空")
         return None
     
-    if 'repeat_time_sec' not in api_info:
-        logger.error("错误: repeat_time_sec 未在配置文件中设置")
-        return None
-    
     logger.info(f"API配置已加载: addr={api_info['addr']}")
     return api_info
 
@@ -185,7 +192,6 @@ class MCPBasicProber:
         self.services = []
         self.api_info = None
         self.probe_results = []
-        self.cycle_count = 0
         
         # 使用全局日志记录器
         self.logger = setup_global_logger()
@@ -363,7 +369,7 @@ class MCPBasicProber:
             self.logger.warning("警告: 服务信息不完整，跳过探查")
             return
             
-        self.logger.info(f"\n开始一级探测服务: {server_name} (ID: {server_id})")
+        self.logger.info(f"开始一级探测服务: {server_name} (ID: {server_id})")
         
         # 构建服务URL和头部信息
         server_url, headers = self._build_request_headers(server_id)
@@ -376,10 +382,8 @@ class MCPBasicProber:
     
     async def run_probe_cycle(self):
         """运行一次完整的一级探测周期"""
-        self.logger.info("\n" + "="*60)
         self.logger.info("开始执行MCP接口一级探测周期")
         self.logger.info(f"开始时间: {datetime.now().strftime(TIMESTAMP_FORMAT)}")
-        self.logger.info("="*60)
         
         # 初始化探测状态
         self.probe_results = []
@@ -394,28 +398,19 @@ class MCPBasicProber:
         
         # 探测每个服务
         for idx, service in enumerate(self.services, 1):
-            self.logger.info(f"\n\n[{idx}/{len(self.services)}] 开始探测服务")
+            self.logger.info(f"[{idx}/{len(self.services)}] 开始探测服务")
             await self.probe_service_tools(service)
         
-        self.logger.info("\n" + "="*60)
         self.logger.info(f"探测周期结束")
         self.logger.info(f"结束时间: {datetime.now().strftime(TIMESTAMP_FORMAT)}")
-        self.logger.info("="*60)
         
         # 打印探测结果摘要
         self.print_probe_summary()
     
     def print_probe_summary(self):
         """打印一级探测结果摘要"""
-        self.logger.info("\n" + "="*60)
-        self.logger.info("一级探测结果摘要")
-        self.logger.info("="*60)
-        
-        timestamp = datetime.now().strftime(TIMESTAMP_FORMAT_MS)[:-3]
-        
-        # 如果没有探测结果，直接返回
         if not self.probe_results:
-            self.logger.info(f"{timestamp} - INFO - 没有探测结果")
+            self.logger.info("没有探测结果")
             return
             
         # 按服务分组结果
@@ -443,35 +438,36 @@ class MCPBasicProber:
         failed_services = total_services - successful_services
         total_tools = sum(len(r['tools']) for r in service_results.values())
         
-        # 计算成功率（避免除零错误）
+        # 计算成功率
         success_rate = (successful_services / total_services * 100) if total_services > 0 else 0
         
-        # 周期统计
-        self.logger.info(f"周期 {self.cycle_count} 测试完成统计:")
-        self.logger.info(f"{timestamp} - INFO - 总服务数: {total_services}个，连接成功: {successful_services}个，连接失败{failed_services}个，服务连接成功率{success_rate:.1f}%")
-        self.logger.info(f"{timestamp} - INFO - 总工具数: {total_tools}个")
+        # 测试完成统计
+        self.logger.info("测试完成统计:")
+        self.logger.info(f"总服务数: {total_services}个，连接成功: {successful_services}个，连接失败{failed_services}个，服务连接成功率{success_rate:.1f}%")
+        self.logger.info(f"总工具数: {total_tools}个")
         
         # 成功的服务及其工具数
         if successful_services > 0:
-            self.logger.info(f"\n{timestamp} - INFO - 连接成功的服务:")
+            self.logger.info("连接成功的服务:")
             for server_name, result in service_results.items():
                 if result['status'] == 'success':
                     self.logger.info(f"  - {server_name}: {len(result['tools'])} 个工具")
         
         # 失败的服务详情
         if failed_services > 0:
-            self.logger.info(f"\n{timestamp} - INFO - 连接失败的服务:")
+            self.logger.info("连接失败的服务:")
             for server_name, result in service_results.items():
                 if result['status'] == 'error':
                     self.logger.info(f"  - {server_name}: {result.get('error', '未知错误')}")
     
 
     async def main(self):
-        """主函数 - 执行一级探测器的初始化，并周期性地运行探测周期"""
-        self.logger.info("\n" + "="*60)
-        self.logger.info("MCP接口一级探测工具 v1.0")
-        self.logger.info("功能: 从数据库读取服务接口，连接服务并获取工具定义")
-        self.logger.info("="*60)
+        """主函数 - 执行一级探测器的初始化，并运行一次探测周期"""
+        self.logger.info(f"{'='*60}")
+        self.logger.info(f"启动时间: {datetime.now().strftime(TIMESTAMP_FORMAT)}")
+        self.logger.info(f"{'='*60}")
+        self.logger.info("MCP接口一级探测工具")
+        self.logger.info("功能: 从API读取服务接口，连接服务并获取工具定义")
         
         if not self.initialize():
             self.logger.error("初始化失败，无法继续执行探测")
@@ -479,32 +475,14 @@ class MCPBasicProber:
         
         self.logger.info("初始化成功，准备开始探测")
         
-        repeat_time_sec = self.api_info['repeat_time_sec']
+        await self.run_probe_cycle()
         
-        self.logger.info(f"开始周期性一级探测，循环间隔: {repeat_time_sec}秒")
-        self.logger.info("按 Ctrl+C 退出程序")
-        
-        try:
-            while True:
-                self.cycle_count += 1
-                self.logger.info(f"\n{'='*60}")
-                self.logger.info(f"开始执行一级探测周期 #{self.cycle_count}")
-                self.logger.info(f"{'='*60}")
-                
-                # 运行探测周期
-                await self.run_probe_cycle()
-                
-                self.logger.info(f"\n一级探测周期 #{self.cycle_count} 完成，等待 {repeat_time_sec} 秒后开始下一个周期...")
-                await asyncio.sleep(repeat_time_sec)
-                
-        except KeyboardInterrupt:
-            self.logger.info(f"\n用户中断，程序退出。共执行了 {self.cycle_count} 个一级探测周期。")
-            return
+        self.logger.info("探测完成，程序退出")
+        return True
 
 # 主程序入口
 if __name__ == "__main__":
     logger = setup_global_logger()
-    logger.info("\n正在启动...")
     logger.info("探测所有可用服务")
     
     prober = MCPBasicProber()
