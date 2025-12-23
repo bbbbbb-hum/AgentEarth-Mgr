@@ -17,7 +17,7 @@ def load_config():
         dict: 配置字典，如果加载失败则返回 None
     """
     config_file = "config.json"
-    config_path = "/opt/xlconfigs/AEMgr/pyutils/" + config_file
+    config_path = "/opt/xlconfigs/AEMgr/pyutils/api_probe/" + config_file
     
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
