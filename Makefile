@@ -42,6 +42,7 @@ build:
 	@mkdir -p $(CONFIG_DIR)
 	@cp ./admin/etc/*.yaml "$(CONFIG_DIR)/"
 	@cp ./launch/*.sh "$(BINARY_DIR)/"
+	@cp ./pyutils/api_probe/mcpapiprober_basic.py "$(BINARY_DIR)/"
 	@chmod +x $(BINARY_DIR)/*.sh
 	@echo "Branch: ${CI_COMMIT_REF_NAME}, BuildNo: ${BUILD_NUMBER}, BuildTime: ${DATETIME}, CommitID: ${CI_COMMIT_ID}" > "$(DIST_DIR)/v_${CI_COMMIT_REF_NAME}_${BUILD_NUMBER}_${DATETIME}_${CI_COMMIT_ID}.txt"
 	@echo "Build completed: $(BINARY_PATH)"
