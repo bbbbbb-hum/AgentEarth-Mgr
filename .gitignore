@@ -15,7 +15,7 @@
 # vendor/
 
 # 配置文件
-api/client/etc/admin_*-api.yaml
+admin/etc/admin_*-api.yaml
 
 # 模型生成文件
 models/*.txt
