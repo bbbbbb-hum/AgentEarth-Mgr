@@ -1,0 +1,16 @@
+{
+    "ApiInfo": {
+        "addr": "https://gw.agentearth.ai",
+        "X-API-Key": "7fa5fb8c6c6169af8678557cfdae350bf3ea80ea45ccb1aef4936f8e141d3ccf",
+        "repeat_time_sec": 60
+    },
+    "ServiceListApi": {
+        "url": "https://www.agentearth.ai/api/client/mcp/service/list"
+    },
+    "LogConfig": {
+        "log_file_path": "/opt/xllogs/AEMgr/pyutils/mcpapiprober_basic.log",
+        "log_level": "INFO",
+        "console_format": "%(message)s",
+        "file_format": "\t%(asctime)s\t-\t%(levelname)s\t-\t%(message)s\t"
+    }
+}
