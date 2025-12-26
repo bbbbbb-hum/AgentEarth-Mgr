@@ -1,0 +1,20 @@
+{
+    "ApiInfo": {
+        "addr": "your-api-addr",
+        "X-API-Key": "your-api-key"
+    },
+    "ServiceListApi": {
+        "url": "your-service-list-api-url"
+    },
+    "ProbeConfig": {
+        "concurrent_users": 50,
+        "requests_per_user": 20,
+        "request_timeout": 120
+    },
+    "LogConfig": {
+        "log_file_path": "your-log-file-path",
+        "log_level": "INFO",
+        "console_format": "%(message)s",
+        "file_format": "\t%(asctime)s\t-\t%(levelname)s\t-\t%(message)s\t"
+    }
+}
