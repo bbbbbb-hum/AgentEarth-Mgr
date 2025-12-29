@@ -13,15 +13,7 @@ _config_mtime = None
 global_logger = None
 
 def calculate_percentile(data, percentile):
-    """计算百分位数
-    
-    Args:
-        data: 数据列表
-        percentile: 百分位数（0-100）
-    
-    Returns:
-        float: 百分位数值
-    """
+    """计算百分位数"""
     sorted_data = sorted(data)
     n = len(sorted_data)
     if n == 0:
