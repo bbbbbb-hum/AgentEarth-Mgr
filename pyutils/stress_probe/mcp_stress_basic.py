@@ -44,7 +44,7 @@ def setup_global_logger():
     if not log_config:
         raise ValueError("LogConfig配置项不存在")
     
-    log_file_path = log_config['log_file_path']
+    log_path = log_config['log_path']
     log_level_str = log_config['log_level'].upper()
     log_level = getattr(logging, log_level_str, logging.INFO)
     console_format = log_config['console_format']
@@ -55,7 +55,7 @@ def setup_global_logger():
     
     if not global_logger.handlers:
         console_handler = logging.StreamHandler(sys.stdout)
-        file_handler = logging.FileHandler(log_file_path, mode='a', encoding='utf-8')
+        file_handler = logging.FileHandler(log_path, mode='a', encoding='utf-8')
         console_formatter = logging.Formatter(console_format)
         file_formatter = logging.Formatter(file_format)
         console_handler.setFormatter(console_formatter)
