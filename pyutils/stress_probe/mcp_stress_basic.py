@@ -499,6 +499,7 @@ class MCPLevel1Prober:
         time_stats = self._calculate_time_statistics(all_probe_times)
         
         slow_services = []
+        failed_services = []
         for server_name, stats in service_stats.items():
             if stats['probe_times']:
                 service_avg_time = sum(stats['probe_times']) / len(stats['probe_times'])
@@ -509,6 +510,16 @@ class MCPLevel1Prober:
                         'total': stats['total'],
                         'success': stats['success']
                     })
+            
+            if stats['failed'] > 0 or stats['error'] > 0 or stats['timeout'] > 0:
+                failed_services.append({
+                    'server_name': server_name,
+                    'total': stats['total'],
+                    'success': stats['success'],
+                    'failed': stats['failed'],
+                    'error': stats['error'],
+                    'timeout': stats['timeout']
+                })
         
         logger.info("测试完成统计:")
         logger.info(f"总探测次数: {total_probes}次，成功探测: {total_success}次，失败探测{total_probes - total_success}次，成功率{success_rate:.1f}%")
@@ -528,6 +539,13 @@ class MCPLevel1Prober:
                 logger.info(f"{service['server_name']}: 平均时延{service['avg_time']:.3f}秒，总请求{service['total']}次，成功{service['success']}次")
         else:
             logger.info("没有瓶颈服务（平均时延 > 2秒）")
+        
+        if failed_services:
+            logger.info(f"失败服务: {len(failed_services)}个")
+            for service in failed_services:
+                logger.info(f"{service['server_name']}: 总请求{service['total']}次，成功{service['success']}次，失败{service['failed']}次，错误{service['error']}次，超时{service['timeout']}次")
+        else:
+            logger.info("没有失败服务")
     
     async def run(self):
         logger = setup_global_logger()
