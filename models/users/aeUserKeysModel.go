@@ -1,7 +1,7 @@
 package users
 
 import (
-	"AgentEarth/models"
+	"AgentEarth-Mgr/models"
 	"context"
 	"fmt"
 	"strings"
