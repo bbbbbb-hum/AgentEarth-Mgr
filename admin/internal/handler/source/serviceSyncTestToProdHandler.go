@@ -1,3 +1,6 @@
+// Code scaffolded by goctl. Safe to edit.
+// goctl 1.9.2
+
 package source
 
 import (
@@ -6,7 +9,6 @@ import (
 	"AgentEarth-Mgr/admin/internal/logic/source"
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
-
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 

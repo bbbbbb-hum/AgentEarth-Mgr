@@ -1,3 +1,6 @@
+// Code scaffolded by goctl. Safe to edit.
+// goctl 1.9.2
+
 package source
 
 import (
@@ -26,5 +29,3 @@ func AccountSyncTestToProdHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 	}
 }
-
-

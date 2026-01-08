@@ -1,14 +1,14 @@
+// Code scaffolded by goctl. Safe to edit.
+// goctl 1.9.2
+
 package mcp
 
 import (
 	"net/http"
-	"strconv"
-	"time"
 
 	"AgentEarth-Mgr/admin/internal/logic/mcp"
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
-
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
@@ -21,21 +21,11 @@ func ServiceShellCreateHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 
 		l := mcp.NewServiceShellCreateLogic(r.Context(), svcCtx)
-		shellContent, err := l.ServiceShellCreate(&req)
+		resp, err := l.ServiceShellCreate(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
-			return
+		} else {
+			httpx.OkJsonCtx(r.Context(), w, resp)
 		}
-
-		// 设置文件下载响应头
-		filename := "install_" + time.Now().Format("20060102_150405") + ".sh"
-		content := []byte(shellContent)
-		w.Header().Set("Content-Type", "application/x-sh")
-		w.Header().Set("Content-Disposition", "attachment; filename="+filename)
-		w.Header().Set("Content-Length", strconv.Itoa(len(content)))
-
-		// 写入文件内容
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(content)
 	}
 }
