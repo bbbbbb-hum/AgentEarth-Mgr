@@ -202,9 +202,9 @@ type UpdateServiceConfigReq struct {
 	LaunchInfo      *string `json:"launch_info,optional"`
 	ConnectInfo     *string `json:"connect_info,optional"`
 	InstallInfo     *string `json:"install_info,optional"`
-	AccountRequired int64   `json:"account_required,optional,default=0"`
-	TestStatus      int64   `json:"test_status,optional,default=0"`
-	OnlineStatus    int64   `json:"online_status,optional,default=0"`
+	AccountRequired *int64  `json:"account_required,optional"`
+	TestStatus      *int64  `json:"test_status,optional"`
+	OnlineStatus    *int64  `json:"online_status,optional"`
 }
 
 type UpdateServiceDescReq struct {

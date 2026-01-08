@@ -36,27 +36,49 @@ func (l *UpdateServiceConfigLogic) UpdateServiceConfig(req *types.UpdateServiceC
 		}, nil
 	}
 
-	existingConfig.Name = req.Name
-	existingConfig.Type = req.Type
-	existingConfig.Description = req.Description
-	existingConfig.ProjectName = req.ProjectName
-	existingConfig.MaxInstance = req.MaxInstance
-	
+	if req.Name != "" {
+		existingConfig.Name = req.Name
+	}
+
+	if req.Type != "" {
+		existingConfig.Type = req.Type
+	}
+
+	if req.Description != "" {
+		existingConfig.Description = req.Description
+	}
+
+	if req.ProjectName != "" {
+		existingConfig.ProjectName = req.ProjectName
+	}
+
+	if req.MaxInstance != 0 {
+		existingConfig.MaxInstance = req.MaxInstance
+	}
+
 	if req.LaunchInfo != nil {
 		existingConfig.LaunchInfo = *req.LaunchInfo
 	}
-	
+
 	if req.ConnectInfo != nil {
 		existingConfig.ConnectInfo = *req.ConnectInfo
 	}
-	
+
 	if req.InstallInfo != nil {
 		existingConfig.InstallInfo = sql.NullString{String: *req.InstallInfo, Valid: true}
 	}
-	
-	existingConfig.AccountRequired = sql.NullInt64{Int64: req.AccountRequired, Valid: true}
-	existingConfig.TestStatus = sql.NullInt64{Int64: req.TestStatus, Valid: true}
-	existingConfig.OnlineStatus = sql.NullInt64{Int64: req.OnlineStatus, Valid: true}
+
+	if req.AccountRequired != nil {
+		existingConfig.AccountRequired = sql.NullInt64{Int64: *req.AccountRequired, Valid: true}
+	}
+
+	if req.TestStatus != nil {
+		existingConfig.TestStatus = sql.NullInt64{Int64: *req.TestStatus, Valid: true}
+	}
+
+	if req.OnlineStatus != nil {
+		existingConfig.OnlineStatus = sql.NullInt64{Int64: *req.OnlineStatus, Valid: true}
+	}
 
 	err = l.svcCtx.TaskNodeConfigModel.Update(l.ctx, existingConfig)
 	if err != nil {
