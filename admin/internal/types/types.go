@@ -124,20 +124,23 @@ type ServiceConfigDeleteReq struct {
 }
 
 type ServiceConfigItem struct {
-	Id              int64  `json:"id"`
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	Description     string `json:"description"`
-	ProjectName     string `json:"project_name"`
-	MaxInstance     int64  `json:"max_instance"`
-	LaunchInfo      string `json:"launch_info"`
-	ConnectInfo     string `json:"connect_info"`
-	InstallInfo     string `json:"install_info"`
-	AccountRequired int64  `json:"account_required"`
-	TestStatus      int64  `json:"test_status"`
-	OnlineStatus    int64  `json:"online_status"`
-	CreateTime      string `json:"create_time"`
-	UpdateTime      string `json:"update_time"`
+	Id                int64  `json:"id"`
+	Name              string `json:"name"`
+	Type              string `json:"type"`
+	Description       string `json:"description"`
+	ProjectName       string `json:"project_name"`
+	MaxInstance       int64  `json:"max_instance"`
+	LaunchInfo        string `json:"launch_info"`
+	ConnectInfo       string `json:"connect_info"`
+	InstallInfo       string `json:"install_info"`
+	AccountRequired   int64  `json:"account_required"`
+	TestStatus        int64  `json:"test_status"`
+	OnlineStatus      int64  `json:"online_status"`
+	ExternalServiceId string `json:"external_service_id"`
+	ServerId          string `json:"server_id"`
+	CreateStatus      bool   `json:"create_status"`
+	CreateTime        string `json:"create_time"`
+	UpdateTime        string `json:"update_time"`
 }
 
 type ServiceDeleteReq struct {

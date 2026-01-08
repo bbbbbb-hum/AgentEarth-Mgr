@@ -132,20 +132,23 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 		}
 
 		items = append(items, types.ServiceConfigItem{
-			Id:              item.Id,
-			Name:            item.Name,
-			Type:            item.Type,
-			Description:     item.Description,
-			ProjectName:     item.ProjectName,
-			MaxInstance:     item.MaxInstance,
-			LaunchInfo:      item.LaunchInfo,
-			ConnectInfo:     item.ConnectInfo,
-			InstallInfo:     item.InstallInfo.String,
-			AccountRequired: accountRequired,
-			TestStatus:      testStatus,
-			OnlineStatus:    onlineStatus,
-			CreateTime:      item.CreateTime.Format("2006-01-02 15:04:05"),
-			UpdateTime:      item.UpdateTime.Format("2006-01-02 15:04:05"),
+			Id:                item.Id,
+			Name:              item.Name,
+			Type:              item.Type,
+			Description:       item.Description,
+			ProjectName:       item.ProjectName,
+			MaxInstance:       item.MaxInstance,
+			LaunchInfo:        item.LaunchInfo,
+			ConnectInfo:       item.ConnectInfo,
+			InstallInfo:       item.InstallInfo.String,
+			AccountRequired:   accountRequired,
+			TestStatus:        testStatus,
+			OnlineStatus:      onlineStatus,
+			ExternalServiceId: item.ExternalServiceId,
+			ServerId:          item.ServerId,
+			CreateStatus:      item.CreateStatus,
+			CreateTime:        item.CreateTime.Format("2006-01-02 15:04:05"),
+			UpdateTime:        item.UpdateTime.Format("2006-01-02 15:04:05"),
 		})
 	}
 
