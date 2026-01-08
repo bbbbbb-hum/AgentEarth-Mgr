@@ -17,7 +17,7 @@ import "./base.api"
 service admin-api {
 	// 生成外部服务配置
 	@handler CreateConfig
-	post /create/config returns (BaseResp)
+	post /create/config (CreateConfigReq) returns (BaseResp)
 
 	// 生成服务以及关联链，节点
 	@handler CreateServices
@@ -29,7 +29,7 @@ service admin-api {
 
 	// 更新服务的描述字段
 	@handler UpdateServiceDesc
-	post /update/service/desc returns (BaseResp)
+	post /update/service/desc (UpdateServiceDescReq) returns (BaseResp)
 
 	// 生成(更新)服务与配置
 	@handler CreateServiceAndConfig
