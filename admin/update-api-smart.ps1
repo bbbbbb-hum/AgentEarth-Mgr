@@ -24,9 +24,26 @@ git commit -m "BACKUP: Before API update - $(Get-Date -Format 'yyyy-MM-dd HH:mm:
 $backupCommit = git rev-parse HEAD
 Write-Host "OK: Backup commit created ($backupCommit)" -ForegroundColor Green
 
-# 3. Generate code
-Write-Host "[3/7] Generating API code..." -ForegroundColor Yellow
-goctl api go -api .\admin.api -dir . --style=goZero --overwrite
+# 3. Delete files to be regenerated
+Write-Host "[3/7] Preparing for code generation..." -ForegroundColor Yellow
+Write-Host "  Deleting types and handler files..." -ForegroundColor Gray
+
+# Delete types file (we want to regenerate it)
+if (Test-Path "internal/types/types.go") {
+    Remove-Item "internal/types/types.go" -Force
+    Write-Host "  - Deleted internal/types/types.go" -ForegroundColor Gray
+}
+
+# Delete handler files (they are auto-generated)
+$handlerFiles = Get-ChildItem -Path "internal/handler" -Filter "*.go" -Recurse
+foreach ($file in $handlerFiles) {
+    Remove-Item $file.FullName -Force
+}
+Write-Host "  - Deleted handler files" -ForegroundColor Gray
+
+# 4. Generate code
+Write-Host "[4/7] Generating API code..." -ForegroundColor Yellow
+goctl api go -api .\admin.api -dir . --style=goZero
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to generate code!" -ForegroundColor Red
@@ -35,8 +52,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "OK: Code generated successfully" -ForegroundColor Green
 
-# 4. Check logic file changes
-Write-Host "[4/7] Analyzing logic file changes..." -ForegroundColor Yellow
+# 5. Check logic file changes
+Write-Host "[5/7] Analyzing logic file changes..." -ForegroundColor Yellow
 $logicChanges = git diff --name-only HEAD~1 HEAD | Where-Object { $_ -like "*/logic/*" }
 
 if ($logicChanges) {
