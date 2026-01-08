@@ -1,122 +1,151 @@
 syntax = "v1"
 
-info(
-    title: "mcp服务"
-    desc: "mcp服务接口"
-    author: "wcs"
-    email: ""
-    version: "v1.0.0"
+info (
+	title:   "mcp服务"
+	desc:    "mcp服务接口"
+	author:  "wcs"
+	email:   ""
+	version: "v1.0.0"
 )
+
 import "./base.api"
 
 @server (
-    group:  mcp
-    prefix: /api/admin/mcp
+	group:  mcp
+	prefix: /api/admin/mcp
 )
-
 service admin-api {
-    // 获取MCP服务列表
-    @handler ServiceList
-    get /service/list (ServiceListReq) returns (BaseResp)
+	// 获取MCP服务列表
+	@handler ServiceList
+	get /service/list (ServiceListReq) returns (BaseResp)
 
-    // 获取MCP服务详情
-    @handler ServiceDetail
-    get /service/detail/:id (DetailReq) returns (BaseResp)
+	// 获取MCP服务详情
+	@handler ServiceDetail
+	get /service/detail/:id (DetailReq) returns (BaseResp)
 
-    // 生成任务链与节点
-    @handler ServiceTaskCreate
-    post /service/task/create (ServiceTaskCreateReq) returns (BaseResp)
+	// 生成任务链与节点
+	@handler ServiceTaskCreate
+	post /service/task/create (ServiceTaskCreateReq) returns (BaseResp)
 
-    // 获取MCP服务配置
-//    @handler ServiceConfig
-//    get /service/config (ServiceDetailReq) returns (BaseResp)
+	// 获取MCP服务配置
+	//    @handler ServiceConfig
+	//    get /service/config (ServiceDetailReq) returns (BaseResp)
+	// 获取MCP服务安装列表
+	@handler ServiceInstallList
+	get /service/install/list (ServiceInstallListReq) returns (BaseResp)
 
-    // 获取MCP服务安装列表
-    @handler ServiceInstallList
-    get /service/install/list (ServiceInstallListReq) returns (BaseResp)
+	// 生成shell脚本
+	@handler ServiceShellCreate
+	post /service/shell/create (ServiceShellCreateReq) returns (BaseResp)
 
-    // 生成shell脚本
-    @handler ServiceShellCreate
-    post /service/shell/create (ServiceShellCreateReq) returns (BaseResp)
+	// 生成预装脚本
+	@handler ServicePreInstallCreate
+	post /service/pre_install/create (ServicePreInstallCreateReq) returns (BaseResp)
 
-    // 生成预装脚本
-    @handler ServicePreInstallCreate
-    post /service/pre_install/create (ServicePreInstallCreateReq) returns (BaseResp)
+	// 更新是否启动创建
+	@handler ServiceUpdateIsCreate
+	post /service/update/is_create (ServiceUpdateIsCreateReq) returns (BaseResp)
 
-    // 更新是否启动创建
-    @handler ServiceUpdateIsCreate
-    post /service/update/is_create (ServiceUpdateIsCreateReq) returns (BaseResp)
+	// 删除数据（包含链，节点，配置，安装命令）
+	@handler ServiceDelete
+	delete /service/delete (ServiceDeleteReq) returns (BaseResp)
 
-    // 删除数据（包含链，节点，配置，安装命令）
-    @handler ServiceDelete
-    delete /service/delete (ServiceDeleteReq) returns (BaseResp)
+	// 批量修改启动分组
+	@handler ServiceUpdateCreatedGroup
+	post /service/update/created-group (ServiceUpdateCreatedGroupReq) returns (BaseResp)
 
-    // 批量修改启动分组
-    @handler ServiceUpdateCreatedGroup
-    post /service/update/created-group (ServiceUpdateCreatedGroupReq) returns (BaseResp)
+	// 批量关闭服务
+	@handler ServiceBatchClose
+	post /service/batch-close (ServiceBatchCloseReq) returns (BaseResp)
 
-    // 批量关闭服务
-    @handler ServiceBatchClose
-    post /service/batch-close (ServiceBatchCloseReq) returns (BaseResp)
+	// 删除服务配置
+	@handler ServiceConfigDelete
+	delete /service/config/delete (ServiceConfigDeleteReq) returns (BaseResp)
 
-    // 配置账号列表
-    @handler ServiceConfigAccountList
-    get /service/config/account/list (ServiceConfigAccountListReq) returns (BaseResp)
+	// 配置账号列表
+	@handler ServiceConfigAccountList
+	get /service/config/account/list (ServiceConfigAccountListReq) returns (BaseResp)
 
-    // 批量修改账号状态
-    @handler ServiceConfigAccountUpdateStatus
-    post /service/config/account/update-status (ServiceConfigAccountUpdateStatusReq) returns (BaseResp)
+	// 批量修改账号状态
+	@handler ServiceConfigAccountUpdateStatus
+	post /service/config/account/update-status (ServiceConfigAccountUpdateStatusReq) returns (BaseResp)
 
-    // 批量删除账号信息
-    @handler ServiceConfigAccountDelete
-    delete /service/config/account/delete (ServiceConfigAccountDeleteReq) returns (BaseResp)
+	// 批量删除账号信息
+	@handler ServiceConfigAccountDelete
+	delete /service/config/account/delete (ServiceConfigAccountDeleteReq) returns (BaseResp)
+
+	// 创建账号信息
+	@handler ServiceConfigAccountCreate
+	post /service/config/account/create (ServiceConfigAccountCreateReq) returns (BaseResp)
+
+	// 更新账号信息
+	@handler ServiceConfigAccountUpdate
+	post /service/config/account/update (ServiceConfigAccountUpdateReq) returns (BaseResp)
 }
 
 type (
-    ServiceListReq {
-        BaseListReq
-        Enabled int64 `form:"enabled,optional"`
-        IsCreated int64 `form:"is_created,optional"`
-        IsInstall int64 `form:"is_install,optional"`
-        ServerId string `form:"server_id,optional"`
-    }
-    ServiceTaskCreateReq {
-        ServiceIds []int64 `json:"service_ids"`
-    }
-    ServiceInstallListReq{
-        BaseListReq
-        ServerId string `form:"server_id,optional"`
-    }
-    ServiceShellCreateReq{
-        InstallIds []int64 `json:"install_ids"`
-    }
-    ServicePreInstallCreateReq{
-        InstallIds []int64 `json:"install_ids"`
-    }
-    ServiceUpdateIsCreateReq{
-        Id int64 `json:"id"`
-        IsCreated bool `json:"is_created"`
-    }
-    ServiceDeleteReq{
-        Ids []int64 `json:"ids"`
-    }
-    ServiceUpdateCreatedGroupReq{
-        Ids []int64 `json:"ids"`
-        CreatedGroup int64 `json:"created_group"`
-    }
-    ServiceBatchCloseReq{
-        Ids []int64 `json:"ids"`
-    }
-    ServiceConfigAccountListReq{
-        BaseListReq
-        ServerId string `form:"server_id,optional"`
-        Status string `form:"status,optional"`
-    }
-    ServiceConfigAccountUpdateStatusReq{
-        Ids []int64 `json:"ids"`
-        Status string `json:"status"`
-    }
-    ServiceConfigAccountDeleteReq{
-        Ids []int64 `json:"ids"`
-    }
+	ServiceListReq {
+		BaseListReq
+		Enabled   int64  `form:"enabled,optional"`
+		IsCreated int64  `form:"is_created,optional"`
+		IsInstall int64  `form:"is_install,optional"`
+		ServerId  string `form:"server_id,optional"`
+	}
+	ServiceTaskCreateReq {
+		ServiceIds []int64 `json:"service_ids"`
+	}
+	ServiceInstallListReq {
+		BaseListReq
+		ServerId string `form:"server_id,optional"`
+	}
+	ServiceShellCreateReq {
+		InstallIds []int64 `json:"install_ids"`
+	}
+	ServicePreInstallCreateReq {
+		InstallIds []int64 `json:"install_ids"`
+	}
+	ServiceUpdateIsCreateReq {
+		Id        int64 `json:"id"`
+		IsCreated bool  `json:"is_created"`
+	}
+	ServiceDeleteReq {
+		Ids []int64 `json:"ids"`
+	}
+	ServiceUpdateCreatedGroupReq {
+		Ids          []int64 `json:"ids"`
+		CreatedGroup int64   `json:"created_group"`
+	}
+	ServiceBatchCloseReq {
+		Ids []int64 `json:"ids"`
+	}
+	ServiceConfigDeleteReq {
+		Ids []int64 `json:"ids"`
+	}
+	ServiceConfigAccountListReq {
+		BaseListReq
+		ServerId string `form:"server_id,optional"`
+		Status   string `form:"status,optional"`
+		ConfigId int64  `form:"config_id,optional"`
+	}
+	ServiceConfigAccountUpdateStatusReq {
+		Ids    []int64 `json:"ids"`
+		Status string  `json:"status"`
+	}
+	ServiceConfigAccountDeleteReq {
+		Ids []int64 `json:"ids"`
+	}
+	ServiceConfigAccountCreateReq {
+		Name     string `json:"name"`
+		AuthInfo string `json:"auth_info"`
+		ConfigId int64  `json:"config_id"`
+		Status   string `json:"status"`
+	}
+	ServiceConfigAccountUpdateReq {
+		Id       int64   `json:"id"`
+		Name     string  `json:"name"`
+		AuthInfo *string `json:"auth_info,optional"`
+		ConfigId *int64  `json:"config_id,optional"`
+		Status   string  `json:"status"`
+	}
 )
+

@@ -1,3 +1,6 @@
+// Code scaffolded by goctl. Safe to edit.
+// goctl 1.9.2
+
 package main
 
 import (
@@ -6,7 +9,6 @@ import (
 
 	"AgentEarth-Mgr/admin/internal/config"
 	"AgentEarth-Mgr/admin/internal/handler"
-	"AgentEarth-Mgr/admin/internal/middleware"
 	"AgentEarth-Mgr/admin/internal/svc"
 
 	"github.com/zeromicro/go-zero/core/conf"
@@ -23,8 +25,6 @@ func main() {
 
 	server := rest.MustNewServer(c.RestConf)
 	defer server.Stop()
-
-	server.Use(middleware.ErrorHandlerMiddleware)
 
 	ctx := svc.NewServiceContext(c)
 	handler.RegisterHandlers(server, ctx)

@@ -25,13 +25,19 @@ func NewServiceConfigAccountListLogic(ctx context.Context, svcCtx *svc.ServiceCo
 }
 
 func (l *ServiceConfigAccountListLogic) ServiceConfigAccountList(req *types.ServiceConfigAccountListReq) (resp *types.BaseResp, err error) {
-	// todo: add your logic here and delete this line
 	var conditions []models.Condition
 	if len(req.Search) > 0 {
 		conditions = append(conditions, models.Condition{
 			Field:  "name",
 			Symbol: "ILIKE",
 			Value:  "%" + req.Search + "%",
+		})
+	}
+	if req.ConfigId > 0 {
+		conditions = append(conditions, models.Condition{
+			Field:  "config_id",
+			Symbol: "=",
+			Value:  req.ConfigId,
 		})
 	}
 	list, total, err := l.svcCtx.TaskNodeConfigAccountModel.GetList(l.ctx, models.ListConditions{
@@ -48,7 +54,7 @@ func (l *ServiceConfigAccountListLogic) ServiceConfigAccountList(req *types.Serv
 		Code:    0,
 		Message: "success",
 		Data: types.D{
-			"list":  list,
+			"list": list,
 			"total": total,
 		},
 	}

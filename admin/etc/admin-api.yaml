@@ -3,9 +3,8 @@ Host: 0.0.0.0
 Port: 9005
 
 DB:
-  DataSource: "postgres://xxx:xxx@192.168.0.1:0000/xxxx?sslmode=disable" # pgsql连接示例
-
-# 可选：生产环境数据库（用于“测试->生产”同步接口）
+  DataSource: "postgres://wcs:123@8.146.236.193:9002/agent_earth?sslmode=disable" # pgsql连接示例
+# 可选：生产环境数据库（用于"测试->生产"同步接口）
 ProdDB:
   DataSource: "postgres://xxx:xxx@192.168.0.1:0000/xxxx?sslmode=disable"
 
