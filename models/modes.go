@@ -250,5 +250,6 @@ type (
 		Pages
 		Conditions []Condition
 		Sorts      []Sort
+		OrderBy    string
 	}
 )
