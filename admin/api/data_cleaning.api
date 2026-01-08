@@ -49,7 +49,7 @@ service admin-api {
 
 	// 获取服务配置列表
 	@handler GetServiceConfigList
-	get /service-config/list (GetServiceConfigListReq) returns (BaseResp)
+	get /service-config/list (GetServiceConfigListReq) returns (GetServiceConfigListResp)
 
 	// 更新服务配置
 	@handler UpdateServiceConfig
@@ -108,6 +108,28 @@ type (
 		FilterOnlineStatus    string `form:"filter_online_status,optional"`
 		SortField             string `form:"sort_field,optional"`
 		SortOrder             string `form:"sort_order,optional"`
+	}
+
+	ServiceConfigItem {
+		Id                int64  `json:"id"`
+		Name              string `json:"name"`
+		Type              string `json:"type"`
+		Description       string `json:"description"`
+		ProjectName       string `json:"project_name"`
+		MaxInstance       int64  `json:"max_instance"`
+		LaunchInfo        string `json:"launch_info"`
+		ConnectInfo       string `json:"connect_info"`
+		InstallInfo       string `json:"install_info"`
+		AccountRequired   int64  `json:"account_required"`
+		TestStatus        int64  `json:"test_status"`
+		OnlineStatus      int64  `json:"online_status"`
+		CreateTime        string `json:"create_time"`
+		UpdateTime        string `json:"update_time"`
+	}
+
+	GetServiceConfigListResp {
+		List  []ServiceConfigItem `json:"list"`
+		Total int64               `json:"total"`
 	}
 )
 

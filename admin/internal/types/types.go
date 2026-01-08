@@ -71,6 +71,11 @@ type GetServiceConfigListReq struct {
 	SortOrder             string `form:"sort_order,optional"`
 }
 
+type GetServiceConfigListResp struct {
+	List  []ServiceConfigItem `json:"list"`
+	Total int64               `json:"total"`
+}
+
 type IdsReq struct {
 	Ids []int64 `json:"ids"`
 }
@@ -116,6 +121,23 @@ type ServiceConfigAccountUpdateStatusReq struct {
 
 type ServiceConfigDeleteReq struct {
 	Ids []int64 `json:"ids"`
+}
+
+type ServiceConfigItem struct {
+	Id              int64  `json:"id"`
+	Name            string `json:"name"`
+	Type            string `json:"type"`
+	Description     string `json:"description"`
+	ProjectName     string `json:"project_name"`
+	MaxInstance     int64  `json:"max_instance"`
+	LaunchInfo      string `json:"launch_info"`
+	ConnectInfo     string `json:"connect_info"`
+	InstallInfo     string `json:"install_info"`
+	AccountRequired int64  `json:"account_required"`
+	TestStatus      int64  `json:"test_status"`
+	OnlineStatus    int64  `json:"online_status"`
+	CreateTime      string `json:"create_time"`
+	UpdateTime      string `json:"update_time"`
 }
 
 type ServiceDeleteReq struct {

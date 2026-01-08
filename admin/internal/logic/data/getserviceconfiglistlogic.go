@@ -27,7 +27,7 @@ func NewGetServiceConfigListLogic(ctx context.Context, svcCtx *svc.ServiceContex
 	}
 }
 
-func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceConfigListReq) (resp *types.BaseResp, err error) {
+func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceConfigListReq) (resp *types.GetServiceConfigListResp, err error) {
 	var conditions []models.Condition
 
 	if len(req.Search) > 0 {
@@ -108,18 +108,46 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 	}, true)
 
 	if err != nil {
-		return &types.BaseResp{
-			Code:    -1,
-			Message: "获取服务配置列表失败: " + err.Error(),
-		}, nil
+		return nil, err
 	}
 
-	return &types.BaseResp{
-		Code:    0,
-		Message: "success",
-		Data: types.D{
-			"list":  list,
-			"total": total,
-		},
+	var items []types.ServiceConfigItem
+	for _, item := range list {
+		accountRequired := int64(0)
+		if item.AccountRequired.Valid {
+			accountRequired = item.AccountRequired.Int64
+		}
+
+		testStatus := int64(0)
+		if item.TestStatus.Valid {
+			testStatus = item.TestStatus.Int64
+		}
+
+		onlineStatus := int64(0)
+		if item.OnlineStatus.Valid {
+			onlineStatus = item.OnlineStatus.Int64
+		}
+
+		items = append(items, types.ServiceConfigItem{
+			Id:              item.Id,
+			Name:            item.Name,
+			Type:            item.Type,
+			Description:     item.Description,
+			ProjectName:     item.ProjectName,
+			MaxInstance:     item.MaxInstance,
+			LaunchInfo:      item.LaunchInfo,
+			ConnectInfo:     item.ConnectInfo,
+			InstallInfo:     item.InstallInfo.String,
+			AccountRequired: accountRequired,
+			TestStatus:      testStatus,
+			OnlineStatus:    onlineStatus,
+			CreateTime:      item.CreateTime.Format("2006-01-02 15:04:05"),
+			UpdateTime:      item.UpdateTime.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return &types.GetServiceConfigListResp{
+		List:  items,
+		Total: total,
 	}, nil
 }
