@@ -194,11 +194,11 @@ type SourceUpdateReq struct {
 
 type UpdateServiceConfigReq struct {
 	Id              int64   `json:"id"`
-	Name            string  `json:"name"`
-	Type            string  `json:"type"`
-	Description     string  `json:"description"`
-	ProjectName     string  `json:"project_name"`
-	MaxInstance     int64   `json:"max_instance"`
+	Name            string  `json:"name,optional"`
+	Type            string  `json:"type,optional"`
+	Description     string  `json:"description,optional"`
+	ProjectName     string  `json:"project_name,optional"`
+	MaxInstance     int64   `json:"max_instance,optional"`
 	LaunchInfo      *string `json:"launch_info,optional"`
 	ConnectInfo     *string `json:"connect_info,optional"`
 	InstallInfo     *string `json:"install_info,optional"`
