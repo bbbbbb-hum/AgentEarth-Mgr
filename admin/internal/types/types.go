@@ -235,3 +235,8 @@ type UpdateServiceConfigReq struct {
 type UpdateServiceDescReq struct {
 	ServiceID string `json:"service_id,optional"`
 }
+
+type UpdateServiceOnlineReq struct {
+	Id           int64 `json:"id"`
+	OnlineStatus int64 `json:"online_status"`
+}

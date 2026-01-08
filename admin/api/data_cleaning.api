@@ -54,6 +54,10 @@ service admin-api {
 	// 更新服务配置
 	@handler UpdateServiceConfig
 	post /update/service-config (UpdateServiceConfigReq) returns (BaseResp)
+
+	// 更新服务上线状态
+	@handler UpdateServiceOnline
+	post /update-service-online (UpdateServiceOnlineReq) returns (BaseResp)
 }
 
 type (
@@ -99,6 +103,10 @@ type (
 		TestStatus      *int64  `json:"test_status,optional"`
 		OnlineStatus    *int64  `json:"online_status,optional"`
 	}
+	UpdateServiceOnlineReq {
+		Id           int64 `json:"id"`
+		OnlineStatus int64 `json:"online_status"`
+	}
 	GetServiceConfigListReq {
 		BaseListReq
 		FilterName            string `form:"filter_name,optional"`
@@ -109,7 +117,6 @@ type (
 		SortField             string `form:"sort_field,optional"`
 		SortOrder             string `form:"sort_order,optional"`
 	}
-
 	ServiceConfigItem {
 		Id                int64  `json:"id"`
 		Name              string `json:"name"`
@@ -129,7 +136,6 @@ type (
 		CreateTime        string `json:"create_time"`
 		UpdateTime        string `json:"update_time"`
 	}
-
 	GetServiceConfigListResp {
 		List  []ServiceConfigItem `json:"list"`
 		Total int64               `json:"total"`

@@ -15,8 +15,8 @@ Prometheus:
   Path: /metrics  # metrics 路径
 Log:
   ServiceName: agent-earth-manager       # 日志中显示的服务名
-  Mode: file                             # 日志输出方式：console / file / volume
-  Encoding: json                         # 编码：plain 或 json
+  Mode: console                          # 日志输出方式：console / file / volume
+  Encoding: json                        # 编码：plain 或 json
   Path: /opt/xllogs/AEMgr/               # 日志目录（仅 file/volume 模式生效）
   Level: info                            # 日志级别：info / error / severe
   KeepDays: 7                            # 保留天数

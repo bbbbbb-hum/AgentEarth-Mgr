@@ -111,7 +111,9 @@ func (m *customAeMcpExternalServicesConfigModel) GetList(ctx context.Context, lp
 	}
 	if getList {
 		//排序
-		if len(lp.Sorts) > 0 && len(lp.Sorts[0].Filed) > 0 && len(lp.Sorts[0].Order) > 0 {
+		if len(lp.OrderBy) > 0 {
+			query += " order by " + lp.OrderBy
+		} else if len(lp.Sorts) > 0 && len(lp.Sorts[0].Filed) > 0 && len(lp.Sorts[0].Order) > 0 {
 			query = models.GetOrderBy(lp.Sorts, query)
 		} else {
 			query += " order by id desc"
