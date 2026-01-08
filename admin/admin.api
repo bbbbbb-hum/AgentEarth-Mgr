@@ -6,4 +6,4 @@ import (
 	"./api/mcp.api"
 )
 
-// goctl api go -api .\admin.api -dir .\internal --style=goZero
+// goctl api go -api .\admin.api -dir . --style=goZero
