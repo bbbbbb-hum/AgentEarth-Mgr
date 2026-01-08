@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/zeromicro/go-zero/core/stores/builder"
-	"github.com/zeromicro/go-zero/core/stores/cache"
-	"github.com/zeromicro/go-zero/core/stores/sqlc"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"github.com/zeromicro/go-zero/core/stringx"
 )
@@ -23,8 +21,6 @@ var (
 	aeMcpExternalServicesConfigRows                = strings.Join(aeMcpExternalServicesConfigFieldNames, ",")
 	aeMcpExternalServicesConfigRowsExpectAutoSet   = strings.Join(stringx.Remove(aeMcpExternalServicesConfigFieldNames, "id", "create_at", "create_time", "created_at", "update_at", "update_time", "updated_at"), ",")
 	aeMcpExternalServicesConfigRowsWithPlaceHolder = builder.PostgreSqlJoin(stringx.Remove(aeMcpExternalServicesConfigFieldNames, "id", "create_at", "create_time", "created_at", "update_at", "update_time", "updated_at"))
-
-	cachePublicAeMcpExternalServicesConfigIdPrefix = "cache:public:aeMcpExternalServicesConfig:id:"
 )
 
 type (
@@ -36,7 +32,7 @@ type (
 	}
 
 	defaultAeMcpExternalServicesConfigModel struct {
-		sqlc.CachedConn
+		conn  sqlx.SqlConn
 		table string
 	}
 
@@ -61,33 +57,27 @@ type (
 	}
 )
 
-func newAeMcpExternalServicesConfigModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) *defaultAeMcpExternalServicesConfigModel {
+func newAeMcpExternalServicesConfigModel(conn sqlx.SqlConn) *defaultAeMcpExternalServicesConfigModel {
 	return &defaultAeMcpExternalServicesConfigModel{
-		CachedConn: sqlc.NewConn(conn, c, opts...),
-		table:      `"public"."ae_mcp_external_services_config"`,
+		conn:  conn,
+		table: `"public"."ae_mcp_external_services_config"`,
 	}
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) Delete(ctx context.Context, id int64) error {
-	publicAeMcpExternalServicesConfigIdKey := fmt.Sprintf("%s%v", cachePublicAeMcpExternalServicesConfigIdPrefix, id)
-	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("delete from %s where id = $1", m.table)
-		return conn.ExecCtx(ctx, query, id)
-	}, publicAeMcpExternalServicesConfigIdKey)
+	query := fmt.Sprintf("delete from %s where id = $1", m.table)
+	_, err := m.conn.ExecCtx(ctx, query, id)
 	return err
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) FindOne(ctx context.Context, id int64) (*AeMcpExternalServicesConfig, error) {
-	publicAeMcpExternalServicesConfigIdKey := fmt.Sprintf("%s%v", cachePublicAeMcpExternalServicesConfigIdPrefix, id)
+	query := fmt.Sprintf("select %s from %s where id = $1 limit 1", aeMcpExternalServicesConfigRows, m.table)
 	var resp AeMcpExternalServicesConfig
-	err := m.QueryRowCtx(ctx, &resp, publicAeMcpExternalServicesConfigIdKey, func(ctx context.Context, conn sqlx.SqlConn, v any) error {
-		query := fmt.Sprintf("select %s from %s where id = $1 limit 1", aeMcpExternalServicesConfigRows, m.table)
-		return conn.QueryRowCtx(ctx, v, query, id)
-	})
+	err := m.conn.QueryRowCtx(ctx, &resp, query, id)
 	switch err {
 	case nil:
 		return &resp, nil
-	case sqlc.ErrNotFound:
+	case sqlx.ErrNotFound:
 		return nil, ErrNotFound
 	default:
 		return nil, err
@@ -95,30 +85,15 @@ func (m *defaultAeMcpExternalServicesConfigModel) FindOne(ctx context.Context, i
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) Insert(ctx context.Context, data *AeMcpExternalServicesConfig) (sql.Result, error) {
-	publicAeMcpExternalServicesConfigIdKey := fmt.Sprintf("%s%v", cachePublicAeMcpExternalServicesConfigIdPrefix, data.Id)
-	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId, data.InstallInfo, data.AccountRequired, data.TestStatus, data.OnlineStatus)
-	}, publicAeMcpExternalServicesConfigIdKey)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId, data.InstallInfo, data.AccountRequired, data.TestStatus, data.OnlineStatus)
 	return ret, err
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) Update(ctx context.Context, data *AeMcpExternalServicesConfig) error {
-	publicAeMcpExternalServicesConfigIdKey := fmt.Sprintf("%s%v", cachePublicAeMcpExternalServicesConfigIdPrefix, data.Id)
-	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeMcpExternalServicesConfigRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.Id, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId, data.InstallInfo, data.AccountRequired, data.TestStatus, data.OnlineStatus)
-	}, publicAeMcpExternalServicesConfigIdKey)
+	query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeMcpExternalServicesConfigRowsWithPlaceHolder)
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId, data.InstallInfo, data.AccountRequired, data.TestStatus, data.OnlineStatus)
 	return err
-}
-
-func (m *defaultAeMcpExternalServicesConfigModel) formatPrimary(primary any) string {
-	return fmt.Sprintf("%s%v", cachePublicAeMcpExternalServicesConfigIdPrefix, primary)
-}
-
-func (m *defaultAeMcpExternalServicesConfigModel) queryPrimary(ctx context.Context, conn sqlx.SqlConn, v, primary any) error {
-	query := fmt.Sprintf("select %s from %s where id = $1 limit 1", aeMcpExternalServicesConfigRows, m.table)
-	return conn.QueryRowCtx(ctx, v, query, primary)
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) tableName() string {
