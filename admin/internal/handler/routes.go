@@ -6,6 +6,8 @@ package handler
 import (
 	"net/http"
 
+	data "AgentEarth-Mgr/admin/internal/handler/data"
+	mcp "AgentEarth-Mgr/admin/internal/handler/mcp"
 	source "AgentEarth-Mgr/admin/internal/handler/source"
 	"AgentEarth-Mgr/admin/internal/svc"
 
@@ -13,6 +15,148 @@ import (
 )
 
 func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodPost,
+				Path:    "/batch/close/services",
+				Handler: data.BatchCloseServicesHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/create/chain-and-node",
+				Handler: data.CreateChainAndNodeHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/create/config",
+				Handler: data.CreateConfigHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/create/service",
+				Handler: data.CreateServiceHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/create/service-and-config",
+				Handler: data.CreateServiceAndConfigHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/create/service-config-manual",
+				Handler: data.CreateServiceConfigManualHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/create/services",
+				Handler: data.CreateServicesHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/service-config/list",
+				Handler: data.GetServiceConfigListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/update/service-config",
+				Handler: data.UpdateServiceConfigHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/update/service/desc",
+				Handler: data.UpdateServiceDescHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/api/admin/data"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/batch-close",
+				Handler: mcp.ServiceBatchCloseHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/config/account/create",
+				Handler: mcp.ServiceConfigAccountCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodDelete,
+				Path:    "/service/config/account/delete",
+				Handler: mcp.ServiceConfigAccountDeleteHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/service/config/account/list",
+				Handler: mcp.ServiceConfigAccountListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/config/account/update",
+				Handler: mcp.ServiceConfigAccountUpdateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/config/account/update-status",
+				Handler: mcp.ServiceConfigAccountUpdateStatusHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodDelete,
+				Path:    "/service/config/delete",
+				Handler: mcp.ServiceConfigDeleteHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodDelete,
+				Path:    "/service/delete",
+				Handler: mcp.ServiceDeleteHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/service/detail/:id",
+				Handler: mcp.ServiceDetailHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/service/install/list",
+				Handler: mcp.ServiceInstallListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/service/list",
+				Handler: mcp.ServiceListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/pre_install/create",
+				Handler: mcp.ServicePreInstallCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/shell/create",
+				Handler: mcp.ServiceShellCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/task/create",
+				Handler: mcp.ServiceTaskCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/update/created-group",
+				Handler: mcp.ServiceUpdateCreatedGroupHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/update/is_create",
+				Handler: mcp.ServiceUpdateIsCreateHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/api/admin/mcp"),
+	)
+
 	server.AddRoutes(
 		[]rest.Route{
 			{

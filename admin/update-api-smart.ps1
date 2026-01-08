@@ -26,7 +26,7 @@ Write-Host "OK: Backup commit created ($backupCommit)" -ForegroundColor Green
 
 # 3. Generate code
 Write-Host "[3/7] Generating API code..." -ForegroundColor Yellow
-goctl api go -api .\admin.api -dir . --style=goZero
+goctl api go -api .\admin.api -dir . --style=goZero --overwrite
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Error: Failed to generate code!" -ForegroundColor Red
