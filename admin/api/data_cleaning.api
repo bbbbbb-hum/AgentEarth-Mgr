@@ -49,7 +49,7 @@ service admin-api {
 
 	// 获取服务配置列表
 	@handler GetServiceConfigList
-	get /service-config/list (GetServiceConfigListReq) returns (GetServiceConfigListResp)
+	get /service-config/list (GetServiceConfigListReq) returns (BaseResp)
 
 	// 更新服务配置
 	@handler UpdateServiceConfig

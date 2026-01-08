@@ -27,7 +27,7 @@ func NewGetServiceConfigListLogic(ctx context.Context, svcCtx *svc.ServiceContex
 	}
 }
 
-func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceConfigListReq) (resp *types.GetServiceConfigListResp, err error) {
+func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceConfigListReq) (resp *types.BaseResp, err error) {
 	var conditions []models.Condition
 
 	if len(req.Search) > 0 {
@@ -108,7 +108,10 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 	}, true)
 
 	if err != nil {
-		return nil, err
+		return &types.BaseResp{
+			Code:    -1,
+			Message: "获取服务配置列表失败: " + err.Error(),
+		}, nil
 	}
 
 	var items []types.ServiceConfigItem
@@ -146,8 +149,12 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 		})
 	}
 
-	return &types.GetServiceConfigListResp{
-		List:  items,
-		Total: total,
+	return &types.BaseResp{
+		Code:    0,
+		Message: "success",
+		Data: types.D{
+			"list":  items,
+			"total": total,
+		},
 	}, nil
 }
