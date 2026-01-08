@@ -1,64 +1,113 @@
 syntax = "v1"
 
-info(
-    title: "清洗数据模块"
-    desc: "清洗数据接口"
-    author: "wcs"
-    email: ""
-    version: "v1.0.0"
+info (
+	title:   "清洗数据模块"
+	desc:    "清洗数据接口"
+	author:  "wcs"
+	email:   ""
+	version: "v1.0.0"
 )
+
 import "./base.api"
 
 @server (
-    group:  data
-    prefix: /api/admin/data
+	group:  data
+	prefix: /api/admin/data
 )
 service admin-api {
-    // 生成外部服务配置
-    @handler CreateConfig
-    post /create/config () returns (BaseResp)
+	// 生成外部服务配置
+	@handler CreateConfig
+	post /create/config returns (BaseResp)
 
-    // 生成服务以及关联链，节点
-    @handler CreateServices
-    post /create/services  returns (BaseResp)
+	// 生成服务以及关联链，节点
+	@handler CreateServices
+	post /create/services returns (BaseResp)
 
-    // 单独生成服务
-    @handler CreateService
-    post /create/service  returns (BaseResp)
+	// 单独生成服务
+	@handler CreateService
+	post /create/service returns (BaseResp)
 
-    // 更新服务的描述字段
-    @handler UpdateServiceDesc
-    post /update/service/desc  returns (BaseResp)
+	// 更新服务的描述字段
+	@handler UpdateServiceDesc
+	post /update/service/desc returns (BaseResp)
 
-    // 生成(更新)服务与配置
-    @handler CreateServiceAndConfig
-    post /create/service-and-config(CreateServiceAndConfigReq)  returns (BaseResp)
+	// 生成(更新)服务与配置
+	@handler CreateServiceAndConfig
+	post /create/service-and-config (CreateServiceAndConfigReq) returns (BaseResp)
 
-    // 生成链与节点
-    @handler CreateChainAndNode
-    post /create/chain-and-node(CreateChainAndNodeReq)  returns (BaseResp)
+	// 生成链与节点
+	@handler CreateChainAndNode
+	post /create/chain-and-node (CreateChainAndNodeReq) returns (BaseResp)
 
-    //批量关闭服务
-    @handler BatchCloseServices
-    post /batch/close/services(BatchCloseServicesReq)  returns (BaseResp)
+	//批量关闭服务
+	@handler BatchCloseServices
+	post /batch/close/services (BatchCloseServicesReq) returns (BaseResp)
+
+	// 手动创建服务配置
+	@handler CreateServiceConfigManual
+	post /create/service-config-manual (CreateServiceConfigManualReq) returns (BaseResp)
+
+	// 获取服务配置列表
+	@handler GetServiceConfigList
+	get /service-config/list (GetServiceConfigListReq) returns (BaseResp)
+
+	// 更新服务配置
+	@handler UpdateServiceConfig
+	post /update/service-config (UpdateServiceConfigReq) returns (BaseResp)
 }
 
 type (
-    CreateConfigReq {
-        TestStatus int64 `json:"test_status"`
-    }
-    UpdateServiceDescReq {
-        ServiceID string `json:"service_id,optional"`
-    }
-    CreateServiceAndConfigReq {
-        TestStatus int64 `json:"test_status"`
-    }
-
-    CreateChainAndNodeReq {
-        Ids []int64 `json:"ids,optional"`
-    }
-
-    BatchCloseServicesReq{
-        TestStatus int64 `json:"test_status"`
-    }
+	CreateConfigReq {
+		TestStatus int64 `json:"test_status"`
+	}
+	UpdateServiceDescReq {
+		ServiceID string `json:"service_id,optional"`
+	}
+	CreateServiceAndConfigReq {
+		TestStatus int64 `json:"test_status"`
+	}
+	CreateChainAndNodeReq {
+		Ids []int64 `json:"ids,optional"`
+	}
+	BatchCloseServicesReq {
+		TestStatus int64 `json:"test_status"`
+	}
+	CreateServiceConfigManualReq {
+		Name            string `json:"name"`
+		Type            string `json:"type"`
+		Description     string `json:"description"`
+		ProjectName     string `json:"project_name"`
+		MaxInstance     int64  `json:"max_instance"`
+		LaunchInfo      string `json:"launch_info"`
+		ConnectInfo     string `json:"connect_info"`
+		InstallInfo     string `json:"install_info"`
+		AccountRequired int64  `json:"account_required,default=0"`
+		TestStatus      int64  `json:"test_status,default=0"`
+		OnlineStatus    int64  `json:"online_status,default=0"`
+	}
+	UpdateServiceConfigReq {
+		Id              int64   `json:"id"`
+		Name            string  `json:"name"`
+		Type            string  `json:"type"`
+		Description     string  `json:"description"`
+		ProjectName     string  `json:"project_name"`
+		MaxInstance     int64   `json:"max_instance"`
+		LaunchInfo      *string `json:"launch_info,optional"`
+		ConnectInfo     *string `json:"connect_info,optional"`
+		InstallInfo     *string `json:"install_info,optional"`
+		AccountRequired int64   `json:"account_required,optional,default=0"`
+		TestStatus      int64   `json:"test_status,optional,default=0"`
+		OnlineStatus    int64   `json:"online_status,optional,default=0"`
+	}
+	GetServiceConfigListReq {
+		BaseListReq
+		FilterName            string `form:"filter_name,optional"`
+		FilterType            string `form:"filter_type,optional"`
+		FilterAccountRequired string `form:"filter_account_required,optional"`
+		FilterTestStatus      string `form:"filter_test_status,optional"`
+		FilterOnlineStatus    string `form:"filter_online_status,optional"`
+		SortField             string `form:"sort_field,optional"`
+		SortOrder             string `form:"sort_order,optional"`
+	}
 )
+
