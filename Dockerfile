@@ -1,4 +1,5 @@
-FROM golang:1.22-alpine AS build
+ARG DOCKER_REP_PATH=
+FROM ${DOCKER_REP_PATH}golang:1.22-alpine AS build
 WORKDIR /src
 
 RUN apk add --no-cache git ca-certificates && update-ca-certificates
@@ -9,7 +10,8 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/admin-api ./admin
 
-FROM alpine:3.20
+ARG DOCKER_REP_PATH=
+FROM ${DOCKER_REP_PATH}alpine:3.20
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 WORKDIR /app
 COPY --from=build /out/admin-api ./admin-api
