@@ -13,7 +13,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/admin-api ./admin
 
-FROM ${DOCKER_REP_PATH}alpine:3.20
+FROM ${DOCKER_REP_PATH}alpine:latest
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 WORKDIR /app
 COPY --from=build /out/admin-api ./admin-api
