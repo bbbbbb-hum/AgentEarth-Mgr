@@ -1,5 +1,6 @@
+# 使用阿里云官方镜像，确保流水线 100% 能拉取到
 ARG DOCKER_REP_PATH=
-FROM ${DOCKER_REP_PATH}golang:1.22-alpine AS build
+FROM registry.cn-hangzhou.aliyuncs.com/library/golang:1.22-alpine AS build
 WORKDIR /src
 
 RUN apk add --no-cache git ca-certificates && update-ca-certificates
