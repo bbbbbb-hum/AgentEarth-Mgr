@@ -24,12 +24,19 @@ GOARCH := amd64
 # ========================
 # Phony targets
 # ========================
-.PHONY: all build cross-build test test-coverage coverage-html clean help
+.PHONY: all install build cross-build test test-coverage coverage-html clean help
 
 # ========================
 # Default target
 # ========================
 all: build
+
+# ========================
+# Install dependencies (for CI)
+# ========================
+install:
+	@echo "Installing dependencies..."
+	@go mod download
 
 # ========================
 # Build for local OS/ARCH
