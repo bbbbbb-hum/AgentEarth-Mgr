@@ -8,6 +8,10 @@ DB:
 ProdDB:
   DataSource: "postgres://xxx:xxx@192.168.0.1:0000/xxxx?sslmode=disable"
 
+Auth:
+  AccessSecret: "ae-mgr-secret-2024" # 建议在生产环境使用更复杂的随机字符串
+  AccessExpire: 86400 # 24小时 (秒)
+
 # Prometheus 配置
 Prometheus:
   Host: 0.0.0.0
