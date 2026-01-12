@@ -13,11 +13,11 @@ type AccountSyncReq struct {
 }
 
 type BaseListReq struct {
-	Page   int64  `form:"page, optional"`
-	Size   int64  `form:"size, optional"`
-	Search string `form:"search, optional"`
-	Sort   string `form:"sort, optional"`
-	Order  string `form:"order, optional"`
+	Page   int64  `form:"page,optional"`
+	Size   int64  `form:"size,optional"`
+	Search string `form:"search,optional"`
+	Sort   string `form:"sort,optional"`
+	Order  string `form:"order,optional"`
 }
 
 type BaseResp struct {
@@ -31,7 +31,7 @@ type BatchCloseServicesReq struct {
 }
 
 type CreateChainAndNodeReq struct {
-	Ids []int64 `json:"ids,optional"`
+	Ids []int64 `json:"ids,omitempty"`
 }
 
 type CreateConfigReq struct {
@@ -51,9 +51,9 @@ type CreateServiceConfigManualReq struct {
 	LaunchInfo      string `json:"launch_info"`
 	ConnectInfo     string `json:"connect_info"`
 	InstallInfo     string `json:"install_info"`
-	AccountRequired int64  `json:"account_required,default=0"`
-	TestStatus      int64  `json:"test_status,default=0"`
-	OnlineStatus    int64  `json:"online_status,default=0"`
+	AccountRequired int64  `json:"account_required"`
+	TestStatus      int64  `json:"test_status"`
+	OnlineStatus    int64  `json:"online_status"`
 }
 
 type DetailReq struct {
@@ -109,8 +109,8 @@ type ServiceConfigAccountListReq struct {
 type ServiceConfigAccountUpdateReq struct {
 	Id       int64   `json:"id"`
 	Name     string  `json:"name"`
-	AuthInfo *string `json:"auth_info,optional"`
-	ConfigId *int64  `json:"config_id,optional"`
+	AuthInfo *string `json:"auth_info,omitempty"`
+	ConfigId *int64  `json:"config_id,omitempty"`
 	Status   string  `json:"status"`
 }
 
@@ -198,45 +198,62 @@ type SourceListReq struct {
 }
 
 type SourceUpdateReq struct {
-	Id              int64  `json:"id"`                        // 自增ID
-	ServerName      string `json:"server_name, optional"`     // 服务名称
-	ServerType      string `json:"server_type, optional"`     // 服务类型：stdio,sse,httpStream
-	LaunchInfo      string `json:"launch_info, optional"`     // 启动信息，例如：{      "command": "npx",      "args": ["-y", "time-mcp"]}
-	ConnectInfo     string `json:"connect_info, optional"`    // 连接信息，如：{  "url": "http://api.remote.com/mcp/sse"}
-	Description     string `json:"description, optional"`     // 服务描述
-	CodeSourceUrl   string `json:"code_source_url, optional"` // 来源地址：可以是github项目地址，也可以是原MCP服务的文档地址
-	TestStatus      int64  `json:"test_status, optional"`     // 测试状态：0 未测试 1 通过 -1 未通过
-	DockerCmd       string `json:"docker_cmd, optional"`
-	ProjectName     string `json:"project_name, optional"`
-	Valuable        string `json:"valuable, optional"`         // 有价值的服务
-	Calls           int64  `json:"calls, optional"`            // 流量
-	Category        string `json:"category, optional"`         // 品类
-	Image           string `json:"image, optional"`            // 图片
-	CloneRepository string `json:"clone_repository, optional"` // 克隆仓库地址
-	NeedKey         int64  `json:"need_key, optional"`         // 1 需要key 0不需要key
-	Install         string `json:"install, optional"`          // 安装命令
+	Id              int64  `json:"id"`              // 自增ID
+	ServerName      string `json:"server_name"`     // 服务名称
+	ServerType      string `json:"server_type"`     // 服务类型：stdio,sse,httpStream
+	LaunchInfo      string `json:"launch_info"`     // 启动信息，例如：{      "command": "npx",      "args": ["-y", "time-mcp"]}
+	ConnectInfo     string `json:"connect_info"`    // 连接信息，如：{  "url": "http://api.remote.com/mcp/sse"}
+	Description     string `json:"description"`     // 服务描述
+	CodeSourceUrl   string `json:"code_source_url"` // 来源地址：可以是github项目地址，也可以是原MCP服务的文档地址
+	TestStatus      int64  `json:"test_status"`     // 测试状态：0 未测试 1 通过 -1 未通过
+	DockerCmd       string `json:"docker_cmd"`
+	ProjectName     string `json:"project_name"`
+	Valuable        string `json:"valuable"`         // 有价值的服务
+	Calls           int64  `json:"calls"`            // 流量
+	Category        string `json:"category"`         // 品类
+	Image           string `json:"image"`            // 图片
+	CloneRepository string `json:"clone_repository"` // 克隆仓库地址
+	NeedKey         int64  `json:"need_key"`         // 1 需要key 0不需要key
+	Install         string `json:"install"`          // 安装命令
 }
 
 type UpdateServiceConfigReq struct {
 	Id              int64   `json:"id"`
-	Name            string  `json:"name,optional"`
-	Type            string  `json:"type,optional"`
-	Description     string  `json:"description,optional"`
-	ProjectName     string  `json:"project_name,optional"`
-	MaxInstance     int64   `json:"max_instance,optional"`
-	LaunchInfo      *string `json:"launch_info,optional"`
-	ConnectInfo     *string `json:"connect_info,optional"`
-	InstallInfo     *string `json:"install_info,optional"`
-	AccountRequired *int64  `json:"account_required,optional"`
-	TestStatus      *int64  `json:"test_status,optional"`
-	OnlineStatus    *int64  `json:"online_status,optional"`
+	Name            string  `json:"name"`
+	Type            string  `json:"type"`
+	Description     string  `json:"description"`
+	ProjectName     string  `json:"project_name"`
+	MaxInstance     int64   `json:"max_instance"`
+	LaunchInfo      *string `json:"launch_info,omitempty"`
+	ConnectInfo     *string `json:"connect_info,omitempty"`
+	InstallInfo     *string `json:"install_info,omitempty"`
+	AccountRequired *int64  `json:"account_required,omitempty"`
+	TestStatus      *int64  `json:"test_status,omitempty"`
+	OnlineStatus    *int64  `json:"online_status,omitempty"`
 }
 
 type UpdateServiceDescReq struct {
-	ServiceID string `json:"service_id,optional"`
+	ServiceID string `json:"service_id"`
 }
 
 type UpdateServiceOnlineReq struct {
 	Id           int64 `json:"id"`
 	OnlineStatus int64 `json:"online_status"`
+}
+
+type LoginData struct {
+	Token    string `json:"token"`
+	UserId   string `json:"user_id"`
+	Username string `json:"username"`
+}
+
+type LoginReq struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type LoginResp struct {
+	Code    int64     `json:"code"`
+	Message string    `json:"message"`
+	Data    LoginData `json:"data"`
 }

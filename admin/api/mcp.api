@@ -143,9 +143,8 @@ type (
 	ServiceConfigAccountUpdateReq {
 		Id       int64   `json:"id"`
 		Name     string  `json:"name"`
-		AuthInfo *string `json:"auth_info,optional"`
-		ConfigId *int64  `json:"config_id,optional"`
+		AuthInfo *string `json:"auth_info,omitempty"`
+		ConfigId *int64  `json:"config_id,omitempty"`
 		Status   string  `json:"status"`
 	}
 )
-

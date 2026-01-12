@@ -1,0 +1,38 @@
+syntax = "v1"
+
+info (
+	title:   "用户认证模块"
+	desc:    "用户登录认证接口"
+	author:  "wcs"
+	email:   ""
+	version: "v1.0.0"
+)
+
+import "./base.api"
+
+@server (
+	group:  auth
+	prefix: /api/admin/auth
+)
+service admin-api {
+	@handler Login
+	post /login (LoginReq) returns (LoginResp)
+}
+
+type (
+	LoginReq {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	LoginResp {
+		Code    int64     `json:"code"`
+		Message string    `json:"message"`
+		Data    LoginData `json:"data"`
+	}
+	LoginData {
+		Token    string `json:"token"`
+		UserId   string `json:"user_id"`
+		Username string `json:"username"`
+	}
+)
+

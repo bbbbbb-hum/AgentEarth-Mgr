@@ -62,7 +62,6 @@ echo "正在启动服务..."
 echo "环境: $ENV"
 echo "配置文件: $CONFIG_FILE"
 echo "可执行文件: $EXEC_FILE"
-echo "日志目录: $LOG_DIR"
 echo "Data目录: $DATA_DIR"
 echo "PID: $PID_FILE"
 echo "启动时间: $(date)"
@@ -70,7 +69,7 @@ echo "========================================"
 echo
 
 # 后台启动服务并保存PID
-setsid "$EXEC_FILE" -f "$CONFIG_FILE" > "${LOG_FILE}" 2>&1 &
+setsid "$EXEC_FILE" -f "$CONFIG_FILE" &
 PID=$!
 
 # 保存PID到文件
@@ -89,15 +88,10 @@ while true; do
         echo
         echo "✗ 服务启动失败（进程已退出）"
         echo
-        if [ -s "${LOG_FILE}" ]; then
-            echo "错误信息:"
-            tail -20 "${LOG_FILE}"
-        else
-            echo "未捕获到错误信息，请检查:"
-            echo "  1. 配置文件是否正确: $CONFIG_FILE"
-            echo "  2. 可执行文件是否有问题: $EXEC_FILE"
-            echo "  3. 数据库连接是否正常"
-        fi
+        echo "请检查:"
+        echo "  1. 配置文件是否正确: $CONFIG_FILE"
+        echo "  2. 可执行文件是否有问题: $EXEC_FILE"
+        echo "  3. 数据库连接是否正常"
         rm -f "$PID_FILE"
         exit 1
     fi
@@ -132,14 +126,7 @@ if [ "$PORT_LISTENING" = true ]; then
     echo "  PID文件: $PID_FILE"
     echo "  配置文件: $CONFIG_FILE"
     echo "  监听端口: $PORT"
-    echo "  日志目录: $LOG_DIR"
     echo
-    # 检查启动日志是否有错误
-    if [ -s "${LOG_FILE}" ]; then
-        echo "⚠ 注意: 启动时有以下警告或错误信息:"
-        tail -20 "${LOG_FILE}"
-        echo
-    fi
     echo "使用以下命令管理服务:"
     echo "  停止服务: ./stop.sh"
     echo "  检查状态: ./status.sh"

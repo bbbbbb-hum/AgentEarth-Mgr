@@ -65,13 +65,13 @@ type (
 		TestStatus int64 `json:"test_status"`
 	}
 	UpdateServiceDescReq {
-		ServiceID string `json:"service_id,optional"`
+		ServiceID string `json:"service_id,omitempty"`
 	}
 	CreateServiceAndConfigReq {
 		TestStatus int64 `json:"test_status"`
 	}
 	CreateChainAndNodeReq {
-		Ids []int64 `json:"ids,optional"`
+		Ids []int64 `json:"ids,omitempty"`
 	}
 	BatchCloseServicesReq {
 		TestStatus int64 `json:"test_status"`
@@ -85,23 +85,23 @@ type (
 		LaunchInfo      string `json:"launch_info"`
 		ConnectInfo     string `json:"connect_info"`
 		InstallInfo     string `json:"install_info"`
-		AccountRequired int64  `json:"account_required,default=0"`
-		TestStatus      int64  `json:"test_status,default=0"`
-		OnlineStatus    int64  `json:"online_status,default=0"`
+		AccountRequired int64  `json:"account_required"`
+		TestStatus      int64  `json:"test_status"`
+		OnlineStatus    int64  `json:"online_status"`
 	}
 	UpdateServiceConfigReq {
 		Id              int64   `json:"id"`
-		Name            string  `json:"name,optional"`
-		Type            string  `json:"type,optional"`
-		Description     string  `json:"description,optional"`
-		ProjectName     string  `json:"project_name,optional"`
-		MaxInstance     int64   `json:"max_instance,optional"`
-		LaunchInfo      *string `json:"launch_info,optional"`
-		ConnectInfo     *string `json:"connect_info,optional"`
-		InstallInfo     *string `json:"install_info,optional"`
-		AccountRequired *int64  `json:"account_required,optional"`
-		TestStatus      *int64  `json:"test_status,optional"`
-		OnlineStatus    *int64  `json:"online_status,optional"`
+		Name            string  `json:"name"`
+		Type            string  `json:"type"`
+		Description     string  `json:"description"`
+		ProjectName     string  `json:"project_name"`
+		MaxInstance     int64   `json:"max_instance"`
+		LaunchInfo      *string `json:"launch_info,omitempty"`
+		ConnectInfo     *string `json:"connect_info,omitempty"`
+		InstallInfo     *string `json:"install_info,omitempty"`
+		AccountRequired *int64  `json:"account_required,omitempty"`
+		TestStatus      *int64  `json:"test_status,omitempty"`
+		OnlineStatus    *int64  `json:"online_status,omitempty"`
 	}
 	UpdateServiceOnlineReq {
 		Id           int64 `json:"id"`
@@ -141,4 +141,3 @@ type (
 		Total int64               `json:"total"`
 	}
 )
-

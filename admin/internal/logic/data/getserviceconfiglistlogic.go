@@ -85,10 +85,10 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 			field = "account_required"
 		}
 		if field == "testStatus" {
-			field = "test_status"
+			field = "CASE WHEN test_status = 1 THEN '已测试' ELSE '未测试' END"
 		}
 		if field == "onlineStatus" {
-			field = "online_status"
+			field = "CASE WHEN online_status = 1 THEN '已上线' ELSE '已下线' END"
 		}
 
 		order := "ASC"
