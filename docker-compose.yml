@@ -13,3 +13,7 @@ services:
       - ./dist/data:/opt/xldata/AEMgrBE/data
       - ./dist/tmp:/opt/xltmp/AEMgrBE/tmp
     restart: always
+
+networks:
+  default:
+    name: ae-mgr-net
