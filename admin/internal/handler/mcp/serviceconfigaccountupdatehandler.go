@@ -4,6 +4,8 @@
 package mcp
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
 
 	"AgentEarth-Mgr/admin/internal/logic/mcp"
@@ -15,8 +17,20 @@ import (
 func ServiceConfigAccountUpdateHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.ServiceConfigAccountUpdateReq
-		if err := httpx.Parse(r, &req); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
+			return
+		}
+		if req.Id == 0 {
+			httpx.ErrorCtx(r.Context(), w, errors.New("field \"id\" is not set"))
+			return
+		}
+		if req.Name == "" {
+			httpx.ErrorCtx(r.Context(), w, errors.New("field \"name\" is not set"))
+			return
+		}
+		if req.Status == "" {
+			httpx.ErrorCtx(r.Context(), w, errors.New("field \"status\" is not set"))
 			return
 		}
 

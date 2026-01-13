@@ -4,6 +4,8 @@
 package data
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
 
 	"AgentEarth-Mgr/admin/internal/logic/data"
@@ -15,8 +17,12 @@ import (
 func UpdateServiceConfigHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req types.UpdateServiceConfigReq
-		if err := httpx.Parse(r, &req); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
+			return
+		}
+		if req.Id == 0 {
+			httpx.ErrorCtx(r.Context(), w, errors.New("field \"id\" is not set"))
 			return
 		}
 
