@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ae-mgr-api
+    ports:
+      - "9005:9005"
+    restart: always
