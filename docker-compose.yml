@@ -3,9 +3,13 @@ version: '3.8'
 services:
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ./dist
+      dockerfile: ../Dockerfile
     container_name: ae-mgr-api
     ports:
       - "9005:9005"
+    volumes:
+      - ./dist/config:/opt/xlconfigs/AEMgrBE:ro
+      - ./dist/data:/opt/xldata/AEMgrBE/data
+      - ./dist/tmp:/opt/xltmp/AEMgrBE/tmp
     restart: always

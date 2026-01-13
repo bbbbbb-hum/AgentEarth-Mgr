@@ -49,6 +49,17 @@ build:
 	@echo "Build completed: $(BINARY_PATH)"
 
 # ========================
+# Build docker image
+# ========================
+dockerimg:
+	@echo "======================================="
+	@echo "开始构建docker image..."
+	@echo "======================================="
+	@docker build -t ae-mgr:latest -f Dockerfile ./dist
+	@echo "[INFO] docker image构建完成: ae-mgr:latest"
+	@echo "======================================="
+
+# ========================
 # Cross-build for Linux/amd64
 # ========================
 cross-build:
