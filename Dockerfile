@@ -10,7 +10,7 @@ WORKDIR /app
 RUN mkdir -p /app/etc
 
 COPY bin/agent-earth-manager /app/agent-earth-manager
-COPY admin/etc /app/etc
+COPY config /app/etc
 
 RUN chmod +x /app/agent-earth-manager
 
