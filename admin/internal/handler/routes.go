@@ -74,7 +74,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: data.UpdateServiceDescHandler(serverCtx),
 			},
 		},
-		rest.WithPrefix("/api/admin/data"),
+		rest.WithPrefix("/manager/api/admin/data"),
 	)
 
 	server.AddRoutes(
@@ -160,7 +160,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: mcp.ServiceUpdateIsCreateHandler(serverCtx),
 			},
 		},
-		rest.WithPrefix("/api/admin/mcp"),
+		rest.WithPrefix("/manager/api/admin/mcp"),
 	)
 
 	server.AddRoutes(
@@ -216,7 +216,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: source.UpdateHandler(serverCtx),
 			},
 		},
-		rest.WithPrefix("/api/admin/source"),
+		rest.WithPrefix("/manager/api/admin/source"),
 	)
 
 	server.AddRoutes(
@@ -227,6 +227,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: auth.LoginHandler(serverCtx),
 			},
 		},
-		rest.WithPrefix("/api/admin/auth"),
+		rest.WithPrefix("/manager/api/admin/auth"),
 	)
 }

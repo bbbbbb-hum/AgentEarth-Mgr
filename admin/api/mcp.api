@@ -12,7 +12,7 @@ import "./base.api"
 
 @server (
 	group:  mcp
-	prefix: /api/admin/mcp
+	prefix: /manager/api/admin/mcp
 )
 service admin-api {
 	// 获取MCP服务列表

@@ -12,7 +12,7 @@ import "./base.api"
 
 @server (
 	group:  auth
-	prefix: /api/admin/auth
+	prefix: /manager/api/admin/auth
 )
 service admin-api {
 	@handler Login
@@ -35,4 +35,3 @@ type (
 		Username string `json:"username"`
 	}
 )
-

@@ -12,7 +12,7 @@ import "./base.api"
 
 @server (
 	group:  source
-	prefix: /api/admin/source
+	prefix: /manager/api/admin/source
 )
 service admin-api {
 	// 获取数据源列表

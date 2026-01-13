@@ -12,7 +12,7 @@ import "./base.api"
 
 @server (
 	group:  data
-	prefix: /api/admin/data
+	prefix: /manager/api/admin/data
 )
 service admin-api {
 	// 生成外部服务配置
