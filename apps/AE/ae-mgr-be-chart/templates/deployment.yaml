@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ae-mgr-be.fullname" . }}
+  labels:
+    {{- include "ae-mgr-be.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ae-mgr-be.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ae-mgr-be.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - name: http
+              containerPort: 9005
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /opt/xlconfigs/AEMgrBE
+            - name: data
+              mountPath: /opt/xldata/AEMgrBE/data
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "ae-mgr-be.fullname" . }}-config
+        - name: data
+          emptyDir: {}

@@ -135,6 +135,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: mcp.ServiceListHandler(serverCtx),
 			},
 			{
+				Method:  http.MethodGet,
+				Path:    "/service/all-with-accounts",
+				Handler: mcp.FullServiceListWithAccountsHandler(serverCtx),
+			},
+			{
 				Method:  http.MethodPost,
 				Path:    "/service/pre_install/create",
 				Handler: mcp.ServicePreInstallCreateHandler(serverCtx),
