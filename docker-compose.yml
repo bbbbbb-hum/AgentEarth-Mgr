@@ -9,9 +9,9 @@ services:
     ports:
       - "9005:9005"
     volumes:
-      - ./dist/config:/opt/xlconfigs/AEMgrBE:ro
-      - ./dist/data:/opt/xldata/AEMgrBE/data
-      - ./dist/tmp:/opt/xltmp/AEMgrBE/tmp
+      - ./dist/config:/opt/xlconfigs/AEMGRBE:ro
+      - ./dist/data:/opt/xldata/AEMGRBE/data
+      - ./dist/tmp:/opt/xltmp/AEMGRBE/tmp
     restart: always
 
 networks:

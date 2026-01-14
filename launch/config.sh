@@ -2,11 +2,11 @@
 # config.sh - 公共配置常量
 
 # 服务名称
-APP_DIR="AEMgr"
-SERVICE_NAME="agent-earth-manager"
+APP_DIR="AEMGRBE"
+SERVICE_NAME="agent-earth-mgr-backend"
 # 文件路径
 BIN_DIR="/opt/xlapps/${APP_DIR}/bin"
-TMP_DIR="/tmp/xltmp/${APP_DIR}"
+TMP_DIR="/opt/xltmp/${APP_DIR}"
 CONFIG_DIR="/opt/xlconfigs/${APP_DIR}"
 DATA_DIR="/opt/xldata/${APP_DIR}"
 
@@ -56,7 +56,7 @@ if [ -n "${MACHINE_NAME}" ]; then
 fi
 echo
 # 配置文件位置
-CONFIG_FILE="${CONFIG_DIR}/admin_${ENV}-api.yaml"
+CONFIG_FILE="${CONFIG_DIR}/config.yaml"
 # 检查配置文件是否存在
 if [ ! -f "${CONFIG_FILE}" ]; then
     echo "错误: 配置文件不存在: $CONFIG_FILE"

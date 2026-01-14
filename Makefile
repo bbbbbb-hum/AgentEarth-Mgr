@@ -3,7 +3,7 @@
 # ========================
 # Variables
 # ========================
-BINARY_NAME := agent-earth-manager
+BINARY_NAME := agent-earth-mgr-backend
 DIST_DIR := dist
 BINARY_DIR := $(DIST_DIR)/bin
 CONFIG_DIR := $(DIST_DIR)/config
@@ -40,7 +40,7 @@ build:
 	@go build $(GO_BUILD_FLAGS) -o $(BINARY_PATH) $(MAIN_PACKAGE)
 	@echo
 	@mkdir -p $(CONFIG_DIR)
-	@cp ./admin/etc/*.yaml "$(CONFIG_DIR)/"
+	@cp ./admin/etc/admin-api.yaml "$(CONFIG_DIR)/config.yaml"
 	@cp ./launch/*.sh "$(BINARY_DIR)/"
 	@cp ./pyutils/api_probe/mcpapiprober_basic.py "$(BINARY_DIR)/"
 	@cp ./pyutils/stress_probe/mcp_stress_basic.py "$(BINARY_DIR)/"
@@ -68,7 +68,7 @@ cross-build:
 	@GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GO_BUILD_FLAGS) -o $(BINARY_PATH) $(MAIN_PACKAGE)
 	@echo
 	@mkdir -p $(CONFIG_DIR)
-	@cp ./admin/etc/*.yaml "$(CONFIG_DIR)/"
+	@cp ./admin/etc/admin-api.yaml "$(CONFIG_DIR)/config.yaml"
 	@cp ./launch/*.sh "$(BINARY_DIR)/"
 	@chmod +x $(BINARY_DIR)/*.sh
 	@echo "Branch: ${CI_COMMIT_REF_NAME}, BuildNo: ${BUILD_NUMBER}, BuildTime: ${DATETIME}, CommitID: ${CI_COMMIT_ID}" > "$(DIST_DIR)/v_${CI_COMMIT_REF_NAME}_${BUILD_NUMBER}_${DATETIME}_${CI_COMMIT_ID}.txt"

@@ -6,15 +6,15 @@ RUN apt-get update \
   && update-ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /opt/xlapps/AEMgrBE/bin \
-  && mkdir -p /opt/xltmp/AEMgrBE/tmp \
-  && mkdir -p /opt/xldata/AEMgrBE/data
+RUN mkdir -p /opt/xlapps/AEMGRBE/bin \
+  && mkdir -p /opt/xltmp/AEMGRBE/tmp \
+  && mkdir -p /opt/xldata/AEMGRBE/data
 
-WORKDIR /opt/xlapps/AEMgrBE/bin
+WORKDIR /opt/xlapps/AEMGRBE/bin
 
-COPY bin/agent-earth-manager /opt/xlapps/AEMgrBE/bin/agent-earth-manager
+COPY bin/agent-earth-mgr-backend /opt/xlapps/AEMGRBE/bin/agent-earth-mgr-backend
 
-RUN chmod +x /opt/xlapps/AEMgrBE/bin/agent-earth-manager
+RUN chmod +x /opt/xlapps/AEMGRBE/bin/agent-earth-mgr-backend
 
 EXPOSE 9005
-CMD ["/opt/xlapps/AEMgrBE/bin/agent-earth-manager", "-f", "/opt/xlconfigs/AEMgrBE/admin-api.yaml"]
+CMD ["/opt/xlapps/AEMGRBE/bin/agent-earth-mgr-backend", "-f", "/opt/xlconfigs/AEMGRBE/config.yaml"]
