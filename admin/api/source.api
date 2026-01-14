@@ -39,9 +39,6 @@ service admin-api {
 	@handler ServiceTestStatusUpdate
 	post /service/test-status-update (ServiceTestStatusUpdateReq) returns (BaseResp)
 
-	// 从测试环境同步数据到生产环境（按id更新/不存在则新增，保持生产与测试一致）
-	@handler ServiceSyncTestToProd
-	post /service/sync-test-to-prod (IdsReq) returns (BaseResp)
 
 	// 源数据账号列表
 	@handler AccountList
@@ -51,9 +48,6 @@ service admin-api {
 	@handler AccountSync
 	post /account/sync (AccountSyncReq) returns (BaseResp)
 
-	// 从测试环境同步账号数据到生产环境（按id更新/不存在则新增，保持生产与测试一致）
-	@handler AccountSyncTestToProd
-	post /account/sync-test-to-prod (IdsReq) returns (BaseResp)
 }
 
 type (

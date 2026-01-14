@@ -196,11 +196,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: source.AccountSyncHandler(serverCtx),
 			},
 			{
-				Method:  http.MethodPost,
-				Path:    "/account/sync-test-to-prod",
-				Handler: source.AccountSyncTestToProdHandler(serverCtx),
-			},
-			{
 				Method:  http.MethodGet,
 				Path:    "/detail/:id",
 				Handler: source.DetailHandler(serverCtx),
@@ -219,11 +214,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/service/offline",
 				Handler: source.ServiceOfflineHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/service/sync-test-to-prod",
-				Handler: source.ServiceSyncTestToProdHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodPost,
