@@ -19,6 +19,8 @@ dist/
 
 # 配置文件
 admin/etc/admin_*-api.yaml
+.env
+.env.local
 
 # 模型生成文件
 models/*.txt
