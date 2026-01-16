@@ -14,14 +14,10 @@ import "./base.api"
 	group:  mcp
 	prefix: /manager/api/admin/mcp
 )
-service admin-api {
+	service admin-api {
 	// 获取MCP服务列表
 	@handler ServiceList
 	get /service/list (ServiceListReq) returns (BaseResp)
-
-	// 获取所有MCP服务及其关联账号 (Wrapper专用)
-	@handler FullServiceListWithAccounts
-	get /service/all-with-accounts (ServiceListReq) returns (BaseResp)
 
 	// 获取MCP服务详情
 	@handler ServiceDetail

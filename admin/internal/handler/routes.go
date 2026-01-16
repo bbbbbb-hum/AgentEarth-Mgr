@@ -150,11 +150,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: mcp.ServiceListHandler(serverCtx),
 			},
 			{
-				Method:  http.MethodGet,
-				Path:    "/service/all-with-accounts",
-				Handler: mcp.FullServiceListWithAccountsHandler(serverCtx),
-			},
-			{
 				Method:  http.MethodPost,
 				Path:    "/service/pre_install/create",
 				Handler: mcp.ServicePreInstallCreateHandler(serverCtx),
@@ -181,6 +176,17 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 		},
 		rest.WithPrefix("/manager/api/admin/mcp"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/mcpinfo",
+				Handler: mcp.InnerMcpInfoHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/manager-inner"),
 	)
 
 	server.AddRoutes(
