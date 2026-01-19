@@ -25,28 +25,42 @@ def setup_global_logger():
     config = load_config()
     log_config = config.get('LogConfig', {}) if config else {}
     
-    log_file_path = log_config.get('log_file_path')
     log_level_str = log_config.get('log_level', 'INFO').upper()
     log_level = getattr(logging, log_level_str, logging.INFO)
-    console_format = log_config.get('console_format', '%(message)s')
-    file_format = log_config.get('file_format', '%(asctime)s - %(levelname)s - %(message)s')
+    console_format = log_config.get('console_format')
     
     global_logger = logging.getLogger('MCPBasicProber')
     global_logger.setLevel(log_level)
     
     if not global_logger.handlers:
         console_handler = logging.StreamHandler(sys.stdout)
-        file_handler = logging.FileHandler(log_file_path, mode='a', encoding='utf-8')
-        console_formatter = logging.Formatter(console_format)
-        file_formatter = logging.Formatter(file_format)
+        console_formatter = JsonLogFormatter(console_format)
         console_handler.setFormatter(console_formatter)
-        file_handler.setFormatter(file_formatter)
         global_logger.addHandler(console_handler)
-        global_logger.addHandler(file_handler)
     
     global_logger.propagate = False
     
     return global_logger
+
+
+class JsonLogFormatter(logging.Formatter):
+    def __init__(self, console_format=None):
+        super().__init__()
+        self.console_format = console_format
+
+    def format(self, record):
+        log_entry = {
+            "timestamp": datetime.fromtimestamp(record.created).isoformat(timespec="seconds"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+        if self.console_format:
+            log_entry["format"] = self.console_format
+        return json.dumps(log_entry, ensure_ascii=False)
 
 def load_config():
     """从配置文件加载API配置

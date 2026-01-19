@@ -12,10 +12,6 @@
         "request_timeout": 120
     },
     "LogConfig": {
-        "log_file_path": "your-log-file-path",
-        "log_path": "your-log-path",
-        "log_level": "INFO",
-        "console_format": "%(message)s",
-        "file_format": "\t%(asctime)s\t-\t%(levelname)s\t-\t%(message)s\t"
+        "log_level": "INFO"
     }
 }
