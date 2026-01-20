@@ -6,7 +6,7 @@ package handler
 import (
 	"net/http"
 
-	"AgentEarth-Mgr/admin/internal/handler/auth"
+	auth "AgentEarth-Mgr/admin/internal/handler/auth"
 	data "AgentEarth-Mgr/admin/internal/handler/data"
 	mcp "AgentEarth-Mgr/admin/internal/handler/mcp"
 	source "AgentEarth-Mgr/admin/internal/handler/source"
@@ -23,12 +23,28 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/health",
 				Handler: HealthHandler(serverCtx),
 			},
+		},
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
 			{
 				Method:  http.MethodGet,
 				Path:    "/ready",
 				Handler: ReadyHandler(serverCtx),
 			},
 		},
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodPost,
+				Path:    "/login",
+				Handler: auth.LoginHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/manager/api/admin/auth"),
 	)
 
 	server.AddRoutes(
@@ -233,16 +249,5 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 		},
 		rest.WithPrefix("/manager/api/admin/source"),
-	)
-
-	server.AddRoutes(
-		[]rest.Route{
-			{
-				Method:  http.MethodPost,
-				Path:    "/login",
-				Handler: auth.LoginHandler(serverCtx),
-			},
-		},
-		rest.WithPrefix("/manager/api/admin/auth"),
 	)
 }

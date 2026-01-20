@@ -14,7 +14,7 @@ import "./base.api"
 	group:  mcp
 	prefix: /manager/api/admin/mcp
 )
-	service admin-api {
+service admin-api {
 	// 获取MCP服务列表
 	@handler ServiceList
 	get /service/list (ServiceListReq) returns (BaseResp)
@@ -83,16 +83,25 @@ import "./base.api"
 	post /service/config/account/update (ServiceConfigAccountUpdateReq) returns (BaseResp)
 }
 
+@server (
+	group:  mcp
+	prefix: /manager-inner
+)
+service admin-api {
+	@handler InnerMcpInfo
+	get /mcpinfo returns (BaseResp)
+}
+
 type (
 	ServiceListReq {
 		BaseListReq
 		Enabled   int64  `form:"enabled,optional"`
-		IsCreated int64  `form:"is_created,optional"`
 		IsInstall int64  `form:"is_install,optional"`
+		IsCreated int64  `form:"is_created,optional"`
 		ServerId  string `form:"server_id,optional"`
 	}
 	ServiceTaskCreateReq {
-		ServiceIds []int64 `json:"service_ids"`
+		Ids []int64 `json:"ids"`
 	}
 	ServiceInstallListReq {
 		BaseListReq

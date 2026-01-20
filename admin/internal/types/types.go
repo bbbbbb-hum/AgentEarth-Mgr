@@ -80,6 +80,23 @@ type IdsReq struct {
 	Ids []int64 `json:"ids"`
 }
 
+type LoginData struct {
+	Token    string `json:"token"`
+	UserId   string `json:"user_id"`
+	Username string `json:"username"`
+}
+
+type LoginReq struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type LoginResp struct {
+	Code    int64     `json:"code"`
+	Message string    `json:"message"`
+	Data    LoginData `json:"data"`
+}
+
 type ServiceBatchCloseReq struct {
 	Ids []int64 `json:"ids"`
 }
@@ -155,8 +172,8 @@ type ServiceInstallListReq struct {
 type ServiceListReq struct {
 	BaseListReq
 	Enabled   int64  `form:"enabled,optional"`
-	IsCreated int64  `form:"is_created,optional"`
 	IsInstall int64  `form:"is_install,optional"`
+	IsCreated int64  `form:"is_created,optional"`
 	ServerId  string `form:"server_id,optional"`
 }
 
@@ -173,7 +190,7 @@ type ServiceShellCreateReq struct {
 }
 
 type ServiceTaskCreateReq struct {
-	ServiceIds []int64 `json:"service_ids"`
+	Ids []int64 `json:"ids"`
 }
 
 type ServiceTestStatusUpdateReq struct {
@@ -233,27 +250,10 @@ type UpdateServiceConfigReq struct {
 }
 
 type UpdateServiceDescReq struct {
-	ServiceID string `json:"service_id"`
+	ServiceID string `json:"service_id,omitempty"`
 }
 
 type UpdateServiceOnlineReq struct {
 	Id           int64 `json:"id"`
 	OnlineStatus int64 `json:"online_status"`
-}
-
-type LoginData struct {
-	Token    string `json:"token"`
-	UserId   string `json:"user_id"`
-	Username string `json:"username"`
-}
-
-type LoginReq struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type LoginResp struct {
-	Code    int64     `json:"code"`
-	Message string    `json:"message"`
-	Data    LoginData `json:"data"`
 }

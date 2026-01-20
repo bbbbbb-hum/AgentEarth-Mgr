@@ -35,7 +35,7 @@ func (l *ServiceTaskCreateLogic) ServiceTaskCreate(req *types.ServiceTaskCreateR
 			{
 				Field:  "id",
 				Symbol: "IN",
-				Value:  req.ServiceIds,
+				Value:  req.Ids,
 			},
 		},
 	}, true)

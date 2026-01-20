@@ -4,6 +4,23 @@ import (
 	"./api/data_cleaning.api"
 	"./api/source.api"
 	"./api/mcp.api"
+	"./api/auth.api"
 )
+
+@server (
+	handler: Health
+)
+service admin-api {
+	@handler Health
+	get /health
+}
+
+@server (
+	handler: Ready
+)
+service admin-api {
+	@handler Ready
+	get /ready
+}
 
 // goctl api go -api .\admin.api -dir . --style=goZero
