@@ -208,6 +208,11 @@ type ServiceUpdateIsCreateReq struct {
 	IsCreated bool  `json:"is_created"`
 }
 
+type ServiceUpdatePriceReq struct {
+	ServerId string  `json:"server_id"`
+	Price    float64 `json:"price"`
+}
+
 type SourceListReq struct {
 	BaseListReq
 	TestStatus string `form:"test_status,optional"`

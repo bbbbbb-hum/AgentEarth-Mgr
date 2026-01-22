@@ -3,7 +3,6 @@ package users
 import (
 	"context"
 	"fmt"
-
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 

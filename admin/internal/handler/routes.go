@@ -190,6 +190,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/service/update/is_create",
 				Handler: mcp.ServiceUpdateIsCreateHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/update/price",
+				Handler: mcp.ServiceUpdatePriceHandler(serverCtx),
+			},
 		},
 		rest.WithPrefix("/manager/api/admin/mcp"),
 	)

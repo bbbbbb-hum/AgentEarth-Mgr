@@ -81,6 +81,10 @@ service admin-api {
 	// 更新账号信息
 	@handler ServiceConfigAccountUpdate
 	post /service/config/account/update (ServiceConfigAccountUpdateReq) returns (BaseResp)
+
+	// 更新服务价格
+	@handler ServiceUpdatePrice
+	post /service/update/price (ServiceUpdatePriceReq) returns (BaseResp)
 }
 
 @server (
@@ -155,5 +159,9 @@ type (
 		AuthInfo *string `json:"auth_info,omitempty"`
 		ConfigId *int64  `json:"config_id,omitempty"`
 		Status   string  `json:"status"`
+	}
+	ServiceUpdatePriceReq {
+		ServerId string  `json:"server_id"`
+		Price    float64 `json:"price"`
 	}
 )
