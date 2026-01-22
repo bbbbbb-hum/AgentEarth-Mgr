@@ -19,7 +19,7 @@ import (
 var (
 	aeMcpExternalServicesUserFieldNames          = builder.RawFieldNames(&AeMcpExternalServicesUser{}, true)
 	aeMcpExternalServicesUserRows                = strings.Join(aeMcpExternalServicesUserFieldNames, ",")
-	aeMcpExternalServicesUserRowsExpectAutoSet   = strings.Join(stringx.Remove(aeMcpExternalServicesUserFieldNames, "create_at", "create_time", "created_at", "update_at", "update_time", "updated_at"), ",")
+	aeMcpExternalServicesUserRowsExpectAutoSet   = strings.Join(stringx.Remove(aeMcpExternalServicesUserFieldNames, "id", "create_at", "create_time", "created_at", "update_at", "update_time", "updated_at"), ",")
 	aeMcpExternalServicesUserRowsWithPlaceHolder = builder.PostgreSqlJoin(stringx.Remove(aeMcpExternalServicesUserFieldNames, "id", "create_at", "create_time", "created_at", "update_at", "update_time", "updated_at"))
 )
 
@@ -76,8 +76,8 @@ func (m *defaultAeMcpExternalServicesUserModel) FindOne(ctx context.Context, id 
 }
 
 func (m *defaultAeMcpExternalServicesUserModel) Insert(ctx context.Context, data *AeMcpExternalServicesUser) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6)", m.table, aeMcpExternalServicesUserRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.Username, data.PasswordHash, data.Status, data.LastLoginAt)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5)", m.table, aeMcpExternalServicesUserRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.Username, data.PasswordHash, data.Status, data.LastLoginAt)
 	return ret, err
 }
 
