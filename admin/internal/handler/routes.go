@@ -195,7 +195,13 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/service/update/price",
 				Handler: mcp.ServiceUpdatePriceHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/batch-update-price",
+				Handler: mcp.ServiceBatchUpdatePriceHandler(serverCtx),
+			},
 		},
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/manager/api/admin/mcp"),
 	)
 

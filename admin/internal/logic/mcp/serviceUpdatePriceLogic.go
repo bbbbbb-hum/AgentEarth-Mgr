@@ -12,6 +12,12 @@ import (
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
+/**
+*
+* 单条更新服务价格
+*
+ */
+
 type ServiceUpdatePriceLogic struct {
 	logx.Logger
 	ctx    context.Context
@@ -39,13 +45,25 @@ func (l *ServiceUpdatePriceLogic) ServiceUpdatePrice(req *types.ServiceUpdatePri
 		return nil, err
 	}
 
-	mcpService.Price = req.Price
+	oldPrice := mcpService.Price
+	mcpService.Price = float64(req.Price)
 	mcpService.UpdateTime = time.Now()
 
 	err = l.svcCtx.McpServiceModel.Update(l.ctx, mcpService)
 	if err != nil {
 		return nil, err
 	}
+
+	// Audit Log
+	operatorId := l.ctx.Value("userId")
+	l.Logger.Infow("Price Modification Audit Log",
+		logx.Field("type", "AUDIT_LOG"),
+		logx.Field("action", "SINGLE_UPDATE"),
+		logx.Field("operator_id", operatorId),
+		logx.Field("mcp_id", req.ServerId),
+		logx.Field("old_price", oldPrice),
+		logx.Field("new_price", req.Price),
+	)
 
 	resp = &types.BaseResp{
 		Code:    0,

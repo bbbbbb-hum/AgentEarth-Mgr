@@ -13,6 +13,7 @@ import "./base.api"
 @server (
 	group:  mcp
 	prefix: /manager/api/admin/mcp
+	jwt:    Auth
 )
 service admin-api {
 	// 获取MCP服务列表
@@ -85,6 +86,10 @@ service admin-api {
 	// 更新服务价格
 	@handler ServiceUpdatePrice
 	post /service/update/price (ServiceUpdatePriceReq) returns (BaseResp)
+
+	// 批量更新服务价格
+	@handler ServiceBatchUpdatePrice
+	post /service/batch-update-price (ServiceBatchUpdatePriceReq) returns (BaseResp)
 }
 
 @server (
@@ -161,7 +166,17 @@ type (
 		Status   string  `json:"status"`
 	}
 	ServiceUpdatePriceReq {
-		ServerId string  `json:"server_id"`
-		Price    float64 `json:"price"`
+		ServerId string `json:"server_id"`
+		Price    int64  `json:"price"`
+	}
+	ServiceBatchUpdatePriceReq {
+		Ids       []int64 `json:"ids,optional"`
+		Price     int64   `json:"price"`
+		IsAll     bool    `json:"is_all,optional"`
+		Search    string  `json:"search,optional"`
+		Enabled   int     `json:"enabled,optional"`
+		IsInstall int     `json:"is_install,optional"`
+		IsCreated int     `json:"is_created,optional"`
+		ServerId  string  `json:"server_id,optional"`
 	}
 )

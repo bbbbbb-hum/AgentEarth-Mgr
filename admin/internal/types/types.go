@@ -209,8 +209,19 @@ type ServiceUpdateIsCreateReq struct {
 }
 
 type ServiceUpdatePriceReq struct {
-	ServerId string  `json:"server_id"`
-	Price    float64 `json:"price"`
+	ServerId string `json:"server_id"`
+	Price    int64  `json:"price"`
+}
+
+type ServiceBatchUpdatePriceReq struct {
+	Ids       []int64 `json:"ids,optional"`
+	Price     int64   `json:"price"`
+	IsAll     bool    `json:"is_all,optional"`
+	Search    string  `json:"search,optional"`
+	Enabled   int     `json:"enabled,optional"`
+	IsInstall int     `json:"is_install,optional"`
+	IsCreated int     `json:"is_created,optional"`
+	ServerId  string  `json:"server_id,optional"`
 }
 
 type SourceListReq struct {
