@@ -3,6 +3,7 @@ package mcp
 import (
 	"AgentEarth-Mgr/models"
 	"context"
+	"fmt"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
@@ -31,13 +32,14 @@ func NewServiceBatchUpdatePriceLogic(ctx context.Context, svcCtx *svc.ServiceCon
 }
 
 func (l *ServiceBatchUpdatePriceLogic) ServiceBatchUpdatePrice(req *types.ServiceBatchUpdatePriceReq) (resp *types.BaseResp, err error) {
-	var count int64
-	if req.IsAll {
-		// Global update mode
-		listConditions := models.ListConditions{
-			Conditions: []models.Condition{},
-		}
+	// 1. Build Conditions for Querying Targets
+	listConditions := models.ListConditions{
+		Conditions: []models.Condition{},
+	}
+	var searchStr string
 
+	if req.IsAll {
+		searchStr = req.Search
 		if req.Enabled != 0 {
 			var enabled bool
 			if req.Enabled == 1 {
@@ -78,10 +80,38 @@ func (l *ServiceBatchUpdatePriceLogic) ServiceBatchUpdatePrice(req *types.Servic
 				Value:  req.ServerId,
 			})
 		}
-
-		count, err = l.svcCtx.McpServiceModel.BatchUpdatePriceByCondition(l.ctx, listConditions, req.Search, req.Price)
 	} else {
 		// ID list mode
+		if len(req.Ids) > 0 {
+			listConditions.Conditions = append(listConditions.Conditions, models.Condition{
+				Field:  "id",
+				Symbol: "IN",
+				Value:  req.Ids,
+			})
+		}
+	}
+
+	// 2. Fetch Targets to be updated (for Audit Log)
+	// We want all matching records, so we don't set Pages (defaults to 0/0 -> no limit)
+	targets, _, err := l.svcCtx.McpServiceModel.GetListWithSearch(l.ctx, listConditions, searchStr, true)
+	if err != nil {
+		l.Logger.Errorf("Failed to fetch targets for batch price update: %v", err)
+		return nil, err
+	}
+
+	// 3. Extract IDs and Old Prices
+	var targetIds []int64
+	var oldPrices []float64
+	for _, t := range targets {
+		targetIds = append(targetIds, t.Id)
+		oldPrices = append(oldPrices, t.Price)
+	}
+
+	// 4. Perform Update
+	var count int64
+	if req.IsAll {
+		count, err = l.svcCtx.McpServiceModel.BatchUpdatePriceByCondition(l.ctx, listConditions, req.Search, req.Price)
+	} else {
 		count, err = l.svcCtx.McpServiceModel.BatchUpdatePrice(l.ctx, req.Ids, req.Price)
 	}
 
@@ -89,33 +119,43 @@ func (l *ServiceBatchUpdatePriceLogic) ServiceBatchUpdatePrice(req *types.Servic
 		return nil, err
 	}
 
-	// Audit Log
+	// 5. Audit Log with Username
 	operatorId := l.ctx.Value("userId")
-	if req.IsAll {
-		l.Logger.Infow("Price Modification Audit Log",
-			logx.Field("type", "AUDIT_LOG"),
-			logx.Field("action", "BATCH_UPDATE"),
-			logx.Field("operator_id", operatorId),
-			logx.Field("new_price", req.Price),
-			logx.Field("count", count),
-			logx.Field("filter_conditions", map[string]interface{}{
-				"enabled":    req.Enabled,
-				"is_install": req.IsInstall,
-				"is_created": req.IsCreated,
-				"server_id":  req.ServerId,
-				"search":     req.Search,
-			}),
-		)
+	var operatorName string
+	operatorIdStr := fmt.Sprintf("%v", operatorId)
+
+	if operatorIdStr != "" {
+		user, err := l.svcCtx.UserModel.FindOneByUserId(l.ctx, operatorIdStr)
+		if err == nil {
+			operatorName = user.Username
+		} else {
+			operatorName = operatorIdStr
+		}
 	} else {
-		l.Logger.Infow("Price Modification Audit Log",
-			logx.Field("type", "AUDIT_LOG"),
-			logx.Field("action", "BATCH_UPDATE"),
-			logx.Field("operator_id", operatorId),
-			logx.Field("new_price", req.Price),
-			logx.Field("count", count),
-			logx.Field("target_ids", req.Ids),
-		)
+		operatorName = "unknown"
 	}
+
+	logFields := []logx.LogField{
+		logx.Field("type", "AUDIT_LOG"),
+		logx.Field("action", "BATCH_UPDATE"),
+		logx.Field("operator_id", operatorName),
+		logx.Field("new_price", req.Price),
+		logx.Field("count", count),
+		logx.Field("target_ids", targetIds),
+		logx.Field("old_prices", oldPrices),
+	}
+
+	if req.IsAll {
+		logFields = append(logFields, logx.Field("filter_conditions", map[string]interface{}{
+			"enabled":    req.Enabled,
+			"is_install": req.IsInstall,
+			"is_created": req.IsCreated,
+			"server_id":  req.ServerId,
+			"search":     req.Search,
+		}))
+	}
+
+	l.Logger.Infow("Price Modification Audit Log", logFields...)
 
 	resp = &types.BaseResp{
 		Code:    0,

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -27,6 +28,12 @@ type (
 		UpdateCreatedGroup(ctx context.Context, ids []int64, createdGroup int64) error
 		// BatchClose 批量关闭服务（将 enabled 更新为 false）
 		BatchClose(ctx context.Context, ids []int64) error
+		// BatchUpdatePrice 批量更新服务价格
+		BatchUpdatePrice(ctx context.Context, ids []int64, price int64) (int64, error)
+		// BatchUpdatePriceByCondition 根据条件批量更新服务价格
+		BatchUpdatePriceByCondition(ctx context.Context, lp models.ListConditions, search string, price int64) (int64, error)
+		// GetListWithSearch gets list with search query
+		GetListWithSearch(ctx context.Context, lp models.ListConditions, search string, getList bool) (list []*AeMcpServices, total int64, err error)
 	}
 
 	customAeMcpServicesModel struct {
@@ -43,6 +50,79 @@ func NewAeMcpServicesModel(conn sqlx.SqlConn) AeMcpServicesModel {
 
 func (m *customAeMcpServicesModel) withSession(session sqlx.Session) AeMcpServicesModel {
 	return NewAeMcpServicesModel(sqlx.NewSqlConnFromSession(session))
+}
+
+func (m *customAeMcpServicesModel) GetListWithSearch(ctx context.Context, lp models.ListConditions, search string, getList bool) (list []*AeMcpServices, total int64, err error) {
+	countQuery := fmt.Sprintf("select count(*) as number from %s", m.table)
+	query := fmt.Sprintf("select %s from %s", aeMcpServicesRows, m.table)
+
+	// Process standard conditions
+	whereClause, args, err := models.DealWithWhereSafe(lp.Conditions...)
+	if err != nil {
+		return
+	}
+
+	// Handle search (ID or Name)
+	if search != "" {
+		prefix := " WHERE"
+		if whereClause != "" {
+			prefix = " AND"
+		}
+
+		argIdx := len(args) + 1
+		nameSearch := "%" + search + "%"
+
+		if id, err := strconv.ParseInt(search, 10, 64); err == nil {
+			// Search by ID OR Name
+			whereClause += fmt.Sprintf("%s (id = $%d OR server_name ILIKE $%d)", prefix, argIdx, argIdx+1)
+			args = append(args, id, nameSearch)
+		} else {
+			// Search by Name only
+			whereClause += fmt.Sprintf("%s (server_name ILIKE $%d)", prefix, argIdx)
+			args = append(args, nameSearch)
+		}
+	}
+
+	countQuery += whereClause
+	query += whereClause
+
+	var totals []models.Total
+	err = m.conn.QueryRowsCtx(ctx, &totals, countQuery, args...)
+	if err != nil {
+		return
+	}
+	total = totals[0].Number
+	if total == 0 {
+		return
+	}
+	if getList {
+		//排序
+		if len(lp.Sorts) > 0 && len(lp.Sorts[0].Filed) > 0 && len(lp.Sorts[0].Order) > 0 {
+			// 如果是搜索且没有手动排序，则 STRPOS 优先
+			if search != "" && len(lp.Sorts) >= 2 && lp.Sorts[0].Filed == "enabled" {
+				argIdx := len(args) + 1
+				// 直接构建排序，不调用 GetOrderBy，避免 double order by 或 split 失败
+				query += fmt.Sprintf(" ORDER BY STRPOS(LOWER(server_name), LOWER($%d)) ASC, enabled DESC, id DESC", argIdx)
+				args = append(args, search)
+			} else {
+				query = models.GetOrderBy(lp.Sorts, query)
+			}
+		} else {
+			if search != "" {
+				argIdx := len(args) + 1
+				query += fmt.Sprintf(" ORDER BY STRPOS(LOWER(server_name), LOWER($%d)) ASC, enabled DESC, id DESC", argIdx)
+				args = append(args, search)
+			} else {
+				query += " ORDER BY enabled DESC, id DESC"
+			}
+		}
+		if lp.Page > 0 && lp.Size > 0 {
+			var offset = (lp.Page - 1) * lp.Size
+			query += fmt.Sprintf(" limit %d offset %d", lp.Size, offset)
+		}
+		err = m.conn.QueryRowsCtx(ctx, &list, query, args...)
+	}
+	return
 }
 
 func (m *customAeMcpServicesModel) GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpServices, total int64, err error) {
@@ -73,7 +153,7 @@ func (m *customAeMcpServicesModel) GetList(ctx context.Context, lp models.ListCo
 		if len(lp.Sorts) > 0 && len(lp.Sorts[0].Filed) > 0 && len(lp.Sorts[0].Order) > 0 {
 			query = models.GetOrderBy(lp.Sorts, query)
 		} else {
-			query += " order by id desc"
+			query += " ORDER BY enabled DESC, id DESC"
 		}
 		if lp.Page > 0 && lp.Size > 0 {
 			var offset = (lp.Page - 1) * lp.Size
@@ -156,4 +236,91 @@ func (m *customAeMcpServicesModel) BatchClose(ctx context.Context, ids []int64) 
 	query := fmt.Sprintf("update %s set enabled = false where id in (%s)", m.table, strings.Join(placeholders, ","))
 	_, err := m.conn.ExecCtx(ctx, query, args...)
 	return err
+}
+
+// BatchUpdatePrice 批量更新服务价格
+func (m *customAeMcpServicesModel) BatchUpdatePrice(ctx context.Context, ids []int64, price int64) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	// 构建 IN 子句的占位符
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids)+1)
+	args[0] = price
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args[i+1] = id
+	}
+	query := fmt.Sprintf("update %s set price = $1 where id in (%s)", m.table, strings.Join(placeholders, ","))
+	result, err := m.conn.ExecCtx(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// BatchUpdatePriceByCondition 根据条件批量更新服务价格
+func (m *customAeMcpServicesModel) BatchUpdatePriceByCondition(ctx context.Context, lp models.ListConditions, search string, price int64) (int64, error) {
+	// Process standard conditions
+	whereClause, args, err := models.DealWithWhereSafe(lp.Conditions...)
+	if err != nil {
+		return 0, err
+	}
+
+	// Handle search (ID or Name)
+	if search != "" {
+		prefix := " WHERE"
+		if whereClause != "" {
+			prefix = " AND"
+		}
+
+		argIdx := len(args) + 1
+		nameSearch := "%" + search + "%"
+
+		if id, err := strconv.ParseInt(search, 10, 64); err == nil {
+			// Search by ID OR Name
+			whereClause += fmt.Sprintf("%s (id = $%d OR server_name ILIKE $%d)", prefix, argIdx, argIdx+1)
+			args = append(args, id, nameSearch)
+		} else {
+			// Search by Name only
+			whereClause += fmt.Sprintf("%s (server_name ILIKE $%d)", prefix, argIdx)
+			args = append(args, nameSearch)
+		}
+	}
+
+	// Insert price as the first argument for the update statement
+	// Current args are for the WHERE clause
+	// We need to shift all $n in whereClause by 1, and prepend price to args
+	// BUT, manual string manipulation of $n is error prone.
+	// EASIER: Use named args? Go sql doesn't support named args standardly.
+	// ALTERNATIVE: Rebuild the query carefully.
+
+	// Let's restart the arg construction.
+	// updateArgs := []interface{}{price} // $1 is price
+
+	// Re-process standard conditions with offset 1 (because $1 is price)
+	// Wait, DealWithWhereSafe starts with $1.
+	// We can let DealWithWhereSafe generate $1..$N, and we prepend "update ... set price=$1 where ..."
+	// No, price is $1, so where clause must start with $2.
+
+	// Since we can't easily change the start index of DealWithWhereSafe (assuming it's a fixed helper),
+	// We might need to manually adjust the whereClause string or use a different approach.
+	// If DealWithWhereSafe returns "WHERE field = $1", we can replace "$1" with "$2", "$2" with "$3"...
+	// This is risky.
+
+	// BETTER: Append price to the END of args?
+	// UPDATE table SET price = $N+1 WHERE ...
+	// Yes.
+
+	finalArgs := args
+	finalArgs = append(finalArgs, price)
+	priceArgIndex := len(finalArgs)
+
+	query := fmt.Sprintf("update %s set price = $%d %s", m.table, priceArgIndex, whereClause)
+
+	result, err := m.conn.ExecCtx(ctx, query, finalArgs...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

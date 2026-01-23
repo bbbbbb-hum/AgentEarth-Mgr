@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"fmt"
+
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
@@ -15,6 +16,7 @@ type (
 		aeMcpExternalServicesUserModel
 		withSession(session sqlx.Session) AeMcpExternalServicesUserModel
 		FindOneByUsername(ctx context.Context, username string) (*AeMcpExternalServicesUser, error)
+		FindOneByUserId(ctx context.Context, userId string) (*AeMcpExternalServicesUser, error)
 	}
 
 	customAeMcpExternalServicesUserModel struct {
@@ -31,6 +33,20 @@ func NewAeMcpExternalServicesUserModel(conn sqlx.SqlConn) AeMcpExternalServicesU
 
 func (m *customAeMcpExternalServicesUserModel) withSession(session sqlx.Session) AeMcpExternalServicesUserModel {
 	return NewAeMcpExternalServicesUserModel(sqlx.NewSqlConnFromSession(session))
+}
+
+func (m *customAeMcpExternalServicesUserModel) FindOneByUserId(ctx context.Context, userId string) (*AeMcpExternalServicesUser, error) {
+	var resp AeMcpExternalServicesUser
+	query := fmt.Sprintf("select %s from %s where user_id = $1 limit 1", aeMcpExternalServicesUserRows, m.table)
+	err := m.conn.QueryRowCtx(ctx, &resp, query, userId)
+	switch err {
+	case nil:
+		return &resp, nil
+	case sqlx.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
 }
 
 func (m *customAeMcpExternalServicesUserModel) FindOneByUsername(ctx context.Context, username string) (*AeMcpExternalServicesUser, error) {

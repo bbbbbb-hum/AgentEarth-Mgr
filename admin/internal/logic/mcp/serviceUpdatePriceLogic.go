@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"AgentEarth-Mgr/admin/internal/svc"
@@ -56,11 +57,26 @@ func (l *ServiceUpdatePriceLogic) ServiceUpdatePrice(req *types.ServiceUpdatePri
 
 	// Audit Log
 	operatorId := l.ctx.Value("userId")
+	var operatorName string
+	operatorIdStr := fmt.Sprintf("%v", operatorId)
+
+	if operatorIdStr != "" {
+		user, err := l.svcCtx.UserModel.FindOneByUserId(l.ctx, operatorIdStr)
+		if err == nil {
+			operatorName = user.Username
+		} else {
+			operatorName = operatorIdStr
+		}
+	} else {
+		operatorName = "unknown"
+	}
+
 	l.Logger.Infow("Price Modification Audit Log",
 		logx.Field("type", "AUDIT_LOG"),
 		logx.Field("action", "SINGLE_UPDATE"),
-		logx.Field("operator_id", operatorId),
+		logx.Field("operator_id", operatorName),
 		logx.Field("mcp_id", req.ServerId),
+		logx.Field("target_id", mcpService.TaskChainId),
 		logx.Field("old_price", oldPrice),
 		logx.Field("new_price", req.Price),
 	)
