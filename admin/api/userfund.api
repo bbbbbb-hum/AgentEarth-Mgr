@@ -1,0 +1,167 @@
+/*
+ * 文件名称: userfund.api
+ * 功能说明: 星量用户资金管理模块 - API 定义文件
+ * 创建时间: 2026-01-24
+ * 
+ * 主要功能:
+ * 1. 用户列表查询（含分页、搜索、日均消费计算）
+ * 2. 用户详情查询（含资金续航、日均消费）
+ * 3. 消费记录查询（支持7天/30天视图）
+ * 4. 余额历史查询（用于余额趋势图）
+ * 5. 资金变动明细（充值/扣减记录）
+ * 6. 人工充值功能
+ * 
+ * 涉及数据库表:
+ * - mcp_user: 用户基础信息
+ * - ae_user_balance_statistic_daily: 日余额统计表
+ * - ae_user_consumption_record_daily: 日消费记录表
+ * - ae_user_recharge_record: 充值记录表
+ * 
+ * API 路由前缀: /manager/api/userfund
+ */
+
+syntax = "v1"
+
+type (
+    UserFundStatsResp {
+        TotalUsers int64 `json:"total_users"`
+        DailyActiveUsers int64 `json:"daily_active_users"`
+        TotalRecharge24h float64 `json:"total_recharge_24h"`
+    }
+
+    UserListReq {
+        Page int `form:"page,default=1"`
+        PageSize int `form:"pageSize,default=10"`
+        Search string `form:"search,optional"`
+        Status string `form:"status,optional"` // active: 30天内登录, inactive: 超过30天未登录
+    }
+
+    UserListResp {
+        List []UserItem `json:"list"`
+        Total int64 `json:"total"`
+    }
+
+    UserItem {
+        Id int64 `json:"id"`
+        UserStrId string `json:"user_str_id"`
+        Username string `json:"username"`
+        Phone string `json:"phone"`
+        Email string `json:"email"`
+        AvatarUrl string `json:"avatar_url"`
+        Status string `json:"status"`
+        LastLoginAt string `json:"last_login_at"`
+        CreateTime string `json:"create_time"`
+        Balance float64 `json:"balance"`
+        DailyConsumption float64 `json:"daily_consumption"` // 日均消费
+    }
+
+    UserDetailReq {
+        UserStrId string `path:"user_str_id"`
+    }
+
+    UserDetailResp {
+        User UserItem `json:"user"`
+        CurrentBalance float64 `json:"current_balance"`
+        DailyConsumption float64 `json:"daily_consumption"`
+        FundRunway int64 `json:"fund_runway"` // 资金续航天数
+    }
+
+    ConsumptionRecordReq {
+        UserStrId string `path:"user_str_id"`
+        Days int `form:"days,default=7"` // 7 或 30
+    }
+
+    ConsumptionRecordItem {
+        Day string `json:"day"` // 日期 YYYY-MM-DD
+        XlcreditConsume float64 `json:"xlcredit_consume"` // 消费金额
+    }
+
+    ConsumptionRecordResp {
+        List []ConsumptionRecordItem `json:"list"`
+    }
+
+    BalanceHistoryReq {
+        UserStrId string `path:"user_str_id"`
+        Days int `form:"days,default=7"` // 7 或 30
+    }
+
+    BalanceHistoryItem {
+        Day string `json:"day"` // 日期 YYYY-MM-DD
+        Balance float64 `json:"balance"` // 余额
+    }
+
+    BalanceHistoryResp {
+        List []BalanceHistoryItem `json:"list"`
+    }
+
+    FundChangeRecordReq {
+        UserStrId string `path:"user_str_id"`
+        Filter string `form:"filter,optional"` // all, recharge, deduction
+    }
+
+    FundChangeRecordItem {
+        TransactionTime string `json:"transaction_time"` // 交易时间
+        TypeDescription string `json:"type_description"` // 类型说明
+        ChangeAmount float64 `json:"change_amount"` // 变动金额（正数为充值，负数为扣减）
+        Status string `json:"status"` // 状态
+        Remarks string `json:"remarks"` // 备注/原因
+    }
+
+    FundChangeRecordResp {
+        List []FundChangeRecordItem `json:"list"`
+    }
+
+    ManualRechargeReq {
+        UserStrId string `json:"user_str_id"`
+        Amount float64 `json:"amount"`
+        Remarks string `json:"remarks,optional"`
+    }
+
+    ManualRechargeResp {
+        Success bool `json:"success"`
+        Message string `json:"message"`
+        NewBalance float64 `json:"new_balance"`
+    }
+
+    ManualDeductionReq {
+        UserStrId string `json:"user_str_id"`
+        Amount float64 `json:"amount"`
+        Remarks string `json:"remarks,optional"`
+    }
+
+    ManualDeductionResp {
+        Success bool `json:"success"`
+        Message string `json:"message"`
+        NewBalance float64 `json:"new_balance"`
+    }
+)
+
+@server(
+    group: userfund
+    prefix: /manager/api/userfund
+)
+service admin-api {
+    @handler GetStats
+    get /stats returns (UserFundStatsResp)
+
+    @handler GetUserList
+    get /list (UserListReq) returns (UserListResp)
+
+    @handler GetUserDetail
+    get /user/:user_str_id (UserDetailReq) returns (UserDetailResp)
+
+    @handler GetConsumptionRecords
+    get /user/:user_str_id/consumption (ConsumptionRecordReq) returns (ConsumptionRecordResp)
+
+    @handler GetBalanceHistory
+    get /user/:user_str_id/balance (BalanceHistoryReq) returns (BalanceHistoryResp)
+
+    @handler GetFundChangeRecords
+    get /user/:user_str_id/fund-changes (FundChangeRecordReq) returns (FundChangeRecordResp)
+
+    @handler ManualRecharge
+    post /user/recharge (ManualRechargeReq) returns (ManualRechargeResp)
+
+    @handler ManualDeduction
+    post /user/deduction (ManualDeductionReq) returns (ManualDeductionResp)
+}

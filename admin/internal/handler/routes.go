@@ -10,6 +10,7 @@ import (
 	data "AgentEarth-Mgr/admin/internal/handler/data"
 	mcp "AgentEarth-Mgr/admin/internal/handler/mcp"
 	source "AgentEarth-Mgr/admin/internal/handler/source"
+	userfund "AgentEarth-Mgr/admin/internal/handler/userfund"
 	"AgentEarth-Mgr/admin/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest"
@@ -117,6 +118,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodPost,
+				Path:    "/service/batch-update-price",
+				Handler: mcp.ServiceBatchUpdatePriceHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
 				Path:    "/service/config/account/create",
 				Handler: mcp.ServiceConfigAccountCreateHandler(serverCtx),
 			},
@@ -195,11 +201,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/service/update/price",
 				Handler: mcp.ServiceUpdatePriceHandler(serverCtx),
 			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/service/batch-update-price",
-				Handler: mcp.ServiceBatchUpdatePriceHandler(serverCtx),
-			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/manager/api/admin/mcp"),
@@ -260,5 +261,51 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 		},
 		rest.WithPrefix("/manager/api/admin/source"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/list",
+				Handler: userfund.GetUserListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/stats",
+				Handler: userfund.GetStatsHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/user/:user_str_id",
+				Handler: userfund.GetUserDetailHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/user/:user_str_id/consumption",
+				Handler: userfund.GetConsumptionRecordsHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/user/:user_str_id/balance",
+				Handler: userfund.GetBalanceHistoryHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/user/:user_str_id/fund-changes",
+				Handler: userfund.GetFundChangeRecordsHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/user/recharge",
+				Handler: userfund.ManualRechargeHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/user/deduction",
+				Handler: userfund.ManualDeductionHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/manager/api/userfund"),
 	)
 }
