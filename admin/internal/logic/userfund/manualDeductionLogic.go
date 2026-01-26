@@ -38,6 +38,12 @@ func NewManualDeductionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *M
 }
 
 func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (resp *types.ManualDeductionResp, err error) {
+	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserStrId)
+	chargeType := req.ChargeType
+	if chargeType <= 0 {
+		chargeType = 1
+	}
+
 	// 1. 获取用户当前最新余额（可能是今天或之前的记录）
 	currentBalance, err := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, req.UserStrId)
 	if err != nil {
@@ -47,12 +53,22 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 
 	// 2. 插入扣减记录（金额为负数）
 	insertQuery := `
-		INSERT INTO ae_user_recharge_record (user_str_id, xlcredit_amount, pay_time, create_time, update_time, charge_source)
-		VALUES ($1, $2, $3, $4, $5, 1)
+		INSERT INTO ae_user_recharge_record (
+			user_str_id,
+			xlcredit_amount,
+			pay_time,
+			create_time,
+			update_time,
+			charge_source,
+			charge_type,
+			remark,
+			operator
+		)
+		VALUES ($1, $2, $3, $4, $5, -1, $6, $7, $8)
 	`
 	now := time.Now()
 	negativeAmount := -req.Amount
-	_, err = l.svcCtx.DB.ExecCtx(l.ctx, insertQuery, req.UserStrId, negativeAmount, now, now, now)
+	_, err = l.svcCtx.DB.ExecCtx(l.ctx, insertQuery, req.UserStrId, negativeAmount, now, now, now, chargeType, req.Remarks, operatorName)
 	if err != nil {
 		l.Logger.Errorf("Failed to insert deduction record: %v", err)
 		return &types.ManualDeductionResp{

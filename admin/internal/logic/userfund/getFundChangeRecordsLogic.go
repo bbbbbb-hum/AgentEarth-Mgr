@@ -30,6 +30,7 @@ package userfund
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -60,18 +61,26 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 
 	// 根据filter过滤
 	if req.Filter == "recharge" {
-		whereClause += fmt.Sprintf(" AND xlcredit_amount > 0")
+		whereClause += " AND xlcredit_amount > 0"
 	} else if req.Filter == "deduction" {
-		whereClause += fmt.Sprintf(" AND xlcredit_amount < 0")
+		whereClause += " AND xlcredit_amount < 0"
 	}
 	// filter == "all" 或不传，则不过滤
+
+	// 充值类型筛选
+	if req.ChargeType > 0 {
+		whereClause += fmt.Sprintf(" AND charge_type = %d", req.ChargeType)
+	}
 
 	// 查询充值记录表（包含充值和扣减）
 	query := fmt.Sprintf(`
 		SELECT 
 			pay_time,
 			xlcredit_amount,
-			charge_source
+			charge_source,
+			charge_type,
+			remark,
+			operator
 		FROM ae_user_recharge_record
 		WHERE %s
 		ORDER BY pay_time DESC
@@ -82,6 +91,9 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		PayTime        time.Time `db:"pay_time"`
 		XlcreditAmount float64   `db:"xlcredit_amount"`
 		ChargeSource   int64     `db:"charge_source"`
+		ChargeType     int64     `db:"charge_type"`
+		Remark         sql.NullString `db:"remark"`
+		Operator       sql.NullString `db:"operator"`
 	}
 
 	var rows []recordRow
@@ -111,11 +123,26 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			}
 		} else {
 			// 扣减类型：根据 charge_source 判断
-			if row.ChargeSource == 1 {
+			if row.ChargeSource == -1 {
+				typeDesc = "系统扣减"
+			} else if row.ChargeSource == 1 {
 				typeDesc = "管理员后台扣减"
 			} else {
 				typeDesc = "系统扣减"
 			}
+		}
+
+		// 类型说明（充值/扣减都展示选择的类型）
+		var chargeTypeDesc string
+		switch row.ChargeType {
+		case 1:
+			chargeTypeDesc = "用户常规充值"
+		case 2:
+			chargeTypeDesc = "系统故障补偿"
+		case 3:
+			chargeTypeDesc = "活动赠送"
+		default:
+			chargeTypeDesc = "未知"
 		}
 
 		records = append(records, types.FundChangeRecordItem{
@@ -123,7 +150,10 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			TypeDescription: typeDesc,
 			ChangeAmount:    row.XlcreditAmount,
 			Status:          "成功",
-			Remarks:         "-",
+			Remarks:         row.Remark.String,
+			ChargeType:      row.ChargeType,
+			ChargeTypeDesc:  chargeTypeDesc,
+			Operator:        row.Operator.String,
 		})
 	}
 

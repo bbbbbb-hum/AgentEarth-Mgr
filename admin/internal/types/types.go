@@ -334,6 +334,7 @@ type ConsumptionRecordResp struct {
 type ManualRechargeReq struct {
 	UserStrId string  `json:"user_str_id"`
 	Amount    float64 `json:"amount"`
+	ChargeType int64  `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
 	Remarks   string  `json:"remarks,optional"`
 }
 
@@ -346,6 +347,7 @@ type ManualRechargeResp struct {
 type ManualDeductionReq struct {
 	UserStrId string  `json:"user_str_id"`
 	Amount    float64 `json:"amount"`
+	ChargeType int64  `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
 	Remarks   string  `json:"remarks,optional"`
 }
 
@@ -372,6 +374,7 @@ type BalanceHistoryResp struct {
 type FundChangeRecordReq struct {
 	UserStrId string `path:"user_str_id"`
 	Filter    string `form:"filter,optional"` // all, recharge, deduction
+	ChargeType int64 `form:"charge_type,optional"` // 1常规 2系统故障补偿 3活动赠送
 }
 
 type FundChangeRecordItem struct {
@@ -380,6 +383,9 @@ type FundChangeRecordItem struct {
 	ChangeAmount    float64 `json:"change_amount"`    // 变动金额（正数为充值，负数为扣减）
 	Status          string  `json:"status"`           // 状态
 	Remarks         string  `json:"remarks"`          // 备注/原因
+	ChargeType      int64   `json:"charge_type"`      // 充值类型
+	ChargeTypeDesc  string  `json:"charge_type_desc"` // 充值类型说明
+	Operator        string  `json:"operator"`         // 操作人
 }
 
 type FundChangeRecordResp struct {
