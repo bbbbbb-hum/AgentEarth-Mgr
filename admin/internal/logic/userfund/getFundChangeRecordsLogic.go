@@ -145,6 +145,11 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			chargeTypeDesc = "未知"
 		}
 
+		operatorName := row.Operator.String
+		if operatorName == "" {
+			operatorName = "unknown"
+		}
+
 		records = append(records, types.FundChangeRecordItem{
 			TransactionTime: row.PayTime.Format("2006-01-02 15:04:05"),
 			TypeDescription: typeDesc,
@@ -153,7 +158,7 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			Remarks:         row.Remark.String,
 			ChargeType:      row.ChargeType,
 			ChargeTypeDesc:  chargeTypeDesc,
-			Operator:        row.Operator.String,
+			Operator:        operatorName,
 		})
 	}
 

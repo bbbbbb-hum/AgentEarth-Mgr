@@ -38,7 +38,7 @@ func NewManualDeductionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *M
 }
 
 func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (resp *types.ManualDeductionResp, err error) {
-	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserStrId)
+	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserStrId, -1)
 	chargeType := req.ChargeType
 	if chargeType <= 0 {
 		chargeType = 1

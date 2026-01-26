@@ -53,7 +53,7 @@ func NewManualRechargeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 }
 
 func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp *types.ManualRechargeResp, err error) {
-	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserStrId)
+	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserStrId, 1)
 	chargeType := req.ChargeType
 	if chargeType <= 0 {
 		chargeType = 1
