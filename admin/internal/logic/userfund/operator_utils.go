@@ -38,3 +38,17 @@ func resolveOperatorName(ctx context.Context, svcCtx *svc.ServiceContext, userSt
 
 	return "unknown"
 }
+
+// resolveTargetUsername resolves username for the target user.
+func resolveTargetUsername(ctx context.Context, svcCtx *svc.ServiceContext, userStrId string) string {
+	if userStrId != "" {
+		if user, err := svcCtx.McpUserModel.FindOneByUserStrId(ctx, userStrId); err == nil && user != nil {
+			if user.Username != "" {
+				return user.Username
+			}
+		}
+		return userStrId
+	}
+
+	return "unknown"
+}

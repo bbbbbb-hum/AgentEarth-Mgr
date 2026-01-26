@@ -54,6 +54,7 @@ func NewManualRechargeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 
 func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp *types.ManualRechargeResp, err error) {
 	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserStrId, 1)
+	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserStrId)
 	chargeType := req.ChargeType
 	if chargeType <= 0 {
 		chargeType = 1
@@ -115,6 +116,9 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 			Message: "余额更新失败",
 		}, nil
 	}
+
+	l.Logger.Infof("管理员资金操作: 操作管理员=%s, 操作用户=%s, user_str_id=%s, 类型=充值, 时间=%s, 原金额=%.2f, 变动金额=%.2f, 操作后金额=%.2f",
+		operatorName, targetUsername, req.UserStrId, now.Format(time.RFC3339), currentBalance, req.Amount, newBalance)
 
 	return &types.ManualRechargeResp{
 		Success:    true,
