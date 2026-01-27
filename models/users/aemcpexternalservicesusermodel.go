@@ -15,6 +15,7 @@ type (
 	AeMcpExternalServicesUserModel interface {
 		aeMcpExternalServicesUserModel
 		withSession(session sqlx.Session) AeMcpExternalServicesUserModel
+		TableName() string
 		FindOneByUsername(ctx context.Context, username string) (*AeMcpExternalServicesUser, error)
 		FindOneByUserId(ctx context.Context, userId string) (*AeMcpExternalServicesUser, error)
 	}
@@ -33,6 +34,10 @@ func NewAeMcpExternalServicesUserModel(conn sqlx.SqlConn) AeMcpExternalServicesU
 
 func (m *customAeMcpExternalServicesUserModel) withSession(session sqlx.Session) AeMcpExternalServicesUserModel {
 	return NewAeMcpExternalServicesUserModel(sqlx.NewSqlConnFromSession(session))
+}
+
+func (m *customAeMcpExternalServicesUserModel) TableName() string {
+	return m.table
 }
 
 func (m *customAeMcpExternalServicesUserModel) FindOneByUserId(ctx context.Context, userId string) (*AeMcpExternalServicesUser, error) {

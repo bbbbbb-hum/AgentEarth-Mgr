@@ -51,7 +51,7 @@ type (
 func newAeMcpExternalServicesUserModel(conn sqlx.SqlConn) *defaultAeMcpExternalServicesUserModel {
 	return &defaultAeMcpExternalServicesUserModel{
 		conn:  conn,
-		table: `"public"."ae_mcp_external_services_user"`,
+		table: `"public"."ae_mgrsystem_user"`,
 	}
 }
 
