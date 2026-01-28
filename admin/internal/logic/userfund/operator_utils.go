@@ -10,7 +10,7 @@ import (
 // resolveOperatorName resolves operator based on charge source.
 // - chargeSource == 1 or -1: use admin username
 // - otherwise: use user username
-func resolveOperatorName(ctx context.Context, svcCtx *svc.ServiceContext, userStrId string, chargeSource int64) string {
+func resolveOperatorName(ctx context.Context, svcCtx *svc.ServiceContext, userId string, chargeSource int64) string {
 	if chargeSource == 1 || chargeSource == -1 {
 		operatorId := ctx.Value("userId")
 		if operatorId != nil {
@@ -27,27 +27,27 @@ func resolveOperatorName(ctx context.Context, svcCtx *svc.ServiceContext, userSt
 		return "unknown"
 	}
 
-	if userStrId != "" {
-		if user, err := svcCtx.McpUserModel.FindOneByUserStrId(ctx, userStrId); err == nil && user != nil {
+	if userId != "" {
+		if user, err := svcCtx.McpUserModel.FindOneByUserId(ctx, userId); err == nil && user != nil {
 			if user.Username != "" {
 				return user.Username
 			}
 		}
-		return userStrId
+		return userId
 	}
 
 	return "unknown"
 }
 
 // resolveTargetUsername resolves username for the target user.
-func resolveTargetUsername(ctx context.Context, svcCtx *svc.ServiceContext, userStrId string) string {
-	if userStrId != "" {
-		if user, err := svcCtx.McpUserModel.FindOneByUserStrId(ctx, userStrId); err == nil && user != nil {
+func resolveTargetUsername(ctx context.Context, svcCtx *svc.ServiceContext, userId string) string {
+	if userId != "" {
+		if user, err := svcCtx.McpUserModel.FindOneByUserId(ctx, userId); err == nil && user != nil {
 			if user.Username != "" {
 				return user.Username
 			}
 		}
-		return userStrId
+		return userId
 	}
 
 	return "unknown"

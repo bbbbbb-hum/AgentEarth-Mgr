@@ -167,7 +167,7 @@ type (
 	}
 	ServiceUpdatePriceReq {
 		ServerId string `json:"server_id"`
-		Price    int64  `json:"price"`
+		Price    float64  `json:"price"`
 	}
 	ServiceBatchUpdatePriceReq {
 		Ids       []int64 `json:"ids,optional"`

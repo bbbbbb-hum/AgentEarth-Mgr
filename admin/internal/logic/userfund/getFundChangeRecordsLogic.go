@@ -11,6 +11,7 @@
  * 数据来源:
  * - ae_user_recharge_record: 充值记录表
  *   字段: pay_time, xlcredit_amount, charge_source
+ * - ae_mgrsystem_user: 管理员表 (用于关联操作人名称)
  *
  * 充值方式映射:
  * - 1: 管理员后台充值
@@ -55,43 +56,46 @@ func NewGetFundChangeRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContex
 }
 
 func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRecordReq) (resp *types.FundChangeRecordResp, err error) {
-	// 构建查询条件
-	whereClause := "user_id = $1"
+	// 构建查询条件 (使用别名 r 指代 ae_user_recharge_record)
+	whereClause := "r.user_id = $1"
 	args := []interface{}{req.UserId}
 
 	// 根据filter过滤
 	if req.Filter == "recharge" {
-		whereClause += " AND xlcredit_amount > 0"
+		whereClause += " AND r.xlcredit_amount > 0"
 	} else if req.Filter == "deduction" {
-		whereClause += " AND xlcredit_amount < 0"
+		whereClause += " AND r.xlcredit_amount < 0"
 	}
 	// filter == "all" 或不传，则不过滤
 
 	// 充值类型筛选
 	if req.ChargeType > 0 {
-		whereClause += fmt.Sprintf(" AND charge_type = %d", req.ChargeType)
+		whereClause += fmt.Sprintf(" AND r.charge_type = %d", req.ChargeType)
 	}
 
-	// 查询充值记录表（包含充值和扣减）
+	// 查询充值记录表（包含充值和扣减），并关联管理员表获取用户名
+	// 如果 r.operator 是 ID，尝试关联 ae_mgrsystem_user.user_id
+	// COALESCE(u.username, r.operator) 优先显示关联到的用户名，否则显示原值
 	query := fmt.Sprintf(`
 		SELECT 
-			pay_time,
-			xlcredit_amount,
-			charge_source,
-			charge_type,
-			remark,
-			operator
-		FROM ae_user_recharge_record
+			r.pay_time,
+			r.xlcredit_amount,
+			r.charge_source,
+			r.charge_type,
+			r.remark,
+			COALESCE(u.username, r.operator) as operator
+		FROM ae_user_recharge_record r
+		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
 		WHERE %s
-		ORDER BY pay_time DESC
+		ORDER BY r.pay_time DESC
 		LIMIT 100
 	`, whereClause)
 
 	type recordRow struct {
-		PayTime        time.Time `db:"pay_time"`
-		XlcreditAmount float64   `db:"xlcredit_amount"`
-		ChargeSource   int64     `db:"charge_source"`
-		ChargeType     int64     `db:"charge_type"`
+		PayTime        time.Time      `db:"pay_time"`
+		XlcreditAmount float64        `db:"xlcredit_amount"`
+		ChargeSource   int64          `db:"charge_source"`
+		ChargeType     int64          `db:"charge_type"`
 		Remark         sql.NullString `db:"remark"`
 		Operator       sql.NullString `db:"operator"`
 	}

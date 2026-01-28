@@ -29,9 +29,9 @@ type (
 		// BatchClose 批量关闭服务（将 enabled 更新为 false）
 		BatchClose(ctx context.Context, ids []int64) error
 		// BatchUpdatePrice 批量更新服务价格
-		BatchUpdatePrice(ctx context.Context, ids []int64, price int64) (int64, error)
+		BatchUpdatePrice(ctx context.Context, ids []int64, price float64) (int64, error)
 		// BatchUpdatePriceByCondition 根据条件批量更新服务价格
-		BatchUpdatePriceByCondition(ctx context.Context, lp models.ListConditions, search string, price int64) (int64, error)
+		BatchUpdatePriceByCondition(ctx context.Context, lp models.ListConditions, search string, price float64) (int64, error)
 		// GetListWithSearch gets list with search query
 		GetListWithSearch(ctx context.Context, lp models.ListConditions, search string, getList bool) (list []*AeMcpServices, total int64, err error)
 	}
@@ -239,7 +239,7 @@ func (m *customAeMcpServicesModel) BatchClose(ctx context.Context, ids []int64) 
 }
 
 // BatchUpdatePrice 批量更新服务价格
-func (m *customAeMcpServicesModel) BatchUpdatePrice(ctx context.Context, ids []int64, price int64) (int64, error) {
+func (m *customAeMcpServicesModel) BatchUpdatePrice(ctx context.Context, ids []int64, price float64) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
 	}
@@ -260,7 +260,7 @@ func (m *customAeMcpServicesModel) BatchUpdatePrice(ctx context.Context, ids []i
 }
 
 // BatchUpdatePriceByCondition 根据条件批量更新服务价格
-func (m *customAeMcpServicesModel) BatchUpdatePriceByCondition(ctx context.Context, lp models.ListConditions, search string, price int64) (int64, error) {
+func (m *customAeMcpServicesModel) BatchUpdatePriceByCondition(ctx context.Context, lp models.ListConditions, search string, price float64) (int64, error) {
 	// Process standard conditions
 	whereClause, args, err := models.DealWithWhereSafe(lp.Conditions...)
 	if err != nil {
