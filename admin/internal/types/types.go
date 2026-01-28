@@ -106,14 +106,14 @@ type ServiceBatchCreateReq struct {
 }
 
 type ServiceBatchUpdatePriceReq struct {
-	Ids       []int64 `json:"ids,optional"`
+	Ids       []int64 `json:"ids,omitempty"`
 	Price     int64   `json:"price"`
-	IsAll     bool    `json:"is_all,optional"`
-	Search    string  `json:"search,optional"`
-	Enabled   int     `json:"enabled,optional"`
-	IsInstall int     `json:"is_install,optional"`
-	IsCreated int     `json:"is_created,optional"`
-	ServerId  string  `json:"server_id,optional"`
+	IsAll     bool    `json:"is_all,omitempty"`
+	Search    string  `json:"search,omitempty"`
+	Enabled   int     `json:"enabled,omitempty"`
+	IsInstall int     `json:"is_install,omitempty"`
+	IsCreated int     `json:"is_created,omitempty"`
+	ServerId  string  `json:"server_id,omitempty"`
 }
 
 type ServiceConfigAccountCreateReq struct {
