@@ -42,7 +42,7 @@ func (m *customAeMcpExternalServicesUserModel) TableName() string {
 
 func (m *customAeMcpExternalServicesUserModel) FindOneByUserId(ctx context.Context, userId string) (*AeMcpExternalServicesUser, error) {
 	var resp AeMcpExternalServicesUser
-	query := fmt.Sprintf("select %s from %s where user_str_id = $1 limit 1", aeMcpExternalServicesUserRows, m.table)
+	query := fmt.Sprintf("select %s from %s where user_id = $1 limit 1", aeMcpExternalServicesUserRows, m.table)
 	err := m.conn.QueryRowCtx(ctx, &resp, query, userId)
 	switch err {
 	case nil:

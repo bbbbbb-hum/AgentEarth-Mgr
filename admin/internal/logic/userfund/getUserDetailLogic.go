@@ -8,7 +8,7 @@
  * - 计算用户日均消费（最近30天平均值）
  * - 计算资金续航天数 = 当前余额 / 日均消费
  *
- * API路由: GET /manager/api/userfund/user/:user_str_id
+ * API路由: GET /manager/api/userfund/user/:user_id
  */
 package userfund
 
@@ -38,7 +38,7 @@ func NewGetUserDetailLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Get
 }
 
 func (l *GetUserDetailLogic) GetUserDetail(req *types.UserDetailReq) (resp *types.UserDetailResp, err error) {
-	user, err := l.svcCtx.McpUserModel.FindOneByUserStrId(l.ctx, req.UserStrId)
+	user, err := l.svcCtx.McpUserModel.FindOneByUserId(l.ctx, req.UserId)
 	if err != nil {
 		if err == sqlx.ErrNotFound {
 			return nil, err
@@ -48,9 +48,9 @@ func (l *GetUserDetailLogic) GetUserDetail(req *types.UserDetailReq) (resp *type
 	}
 
 	// 获取最新余额（从日余额统计表）
-	currentBalance, err := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, req.UserStrId)
+	currentBalance, err := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, req.UserId)
 	if err != nil {
-		l.Logger.Errorf("Failed to get latest balance for user %s: %v", req.UserStrId, err)
+		l.Logger.Errorf("Failed to get latest balance for user %s: %v", req.UserId, err)
 		currentBalance = 0
 	}
 
@@ -59,13 +59,13 @@ func (l *GetUserDetailLogic) GetUserDetail(req *types.UserDetailReq) (resp *type
 	consumptionQuery := `
 		SELECT COALESCE(AVG(xlcredit_consume), 0) as avg_consumption
 		FROM ae_user_consumption_record_daily
-		WHERE user_str_id = $1
+		WHERE user_id = $1
 		AND day >= CURRENT_DATE - INTERVAL '30 days'
 		AND xlcredit_consume > 0
 	`
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &dailyConsumption, consumptionQuery, req.UserStrId)
+	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &dailyConsumption, consumptionQuery, req.UserId)
 	if err != nil {
-		l.Logger.Errorf("Failed to get daily consumption for user %s: %v", req.UserStrId, err)
+		l.Logger.Errorf("Failed to get daily consumption for user %s: %v", req.UserId, err)
 		dailyConsumption = 0
 	}
 
@@ -87,7 +87,7 @@ func (l *GetUserDetailLogic) GetUserDetail(req *types.UserDetailReq) (resp *type
 	return &types.UserDetailResp{
 		User: types.UserItem{
 			Id:               user.Id,
-			UserStrId:        user.UserStrId,
+			UserId:        user.UserId,
 			Username:         user.Username,
 			Phone:            user.Phone,
 			Email:            user.Email,

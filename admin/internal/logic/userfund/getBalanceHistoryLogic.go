@@ -10,7 +10,7 @@
  * 数据来源:
  * - ae_user_balance_statistic_daily: 日余额统计表（字段: day, balance）
  *
- * API路由: GET /manager/api/userfund/user/:user_str_id/balance?days=7
+ * API路由: GET /manager/api/userfund/user/:user_id/balance?days=7
  *
  * 注意事项:
  * - 返回日期格式为 YYYY-MM-DD
@@ -64,7 +64,7 @@ func (l *GetBalanceHistoryLogic) GetBalanceHistory(req *types.BalanceHistoryReq)
 			COALESCE((
 				SELECT s.balance
 				FROM ae_user_balance_statistic_daily s
-				WHERE s.user_str_id = $1
+				WHERE s.user_id = $1
 				AND s.day <= ds.day
 				ORDER BY s.day DESC
 				LIMIT 1
@@ -79,7 +79,7 @@ func (l *GetBalanceHistoryLogic) GetBalanceHistory(req *types.BalanceHistoryReq)
 	}
 
 	var rows []balanceRow
-	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, req.UserStrId, days)
+	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, req.UserId, days)
 	if err != nil {
 		l.Logger.Errorf("Failed to query balance history: %v", err)
 		return &types.BalanceHistoryResp{List: []types.BalanceHistoryItem{}}, nil

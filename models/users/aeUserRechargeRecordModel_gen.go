@@ -28,7 +28,7 @@ type (
 		Update(ctx context.Context, data *AeUserRechargeRecord) error
 		Delete(ctx context.Context, id int64) error
 		Sum24hRecharge(ctx context.Context) (float64, error)
-		GetBalance(ctx context.Context, userStrId string) (float64, error)
+		GetBalance(ctx context.Context, userId string) (float64, error)
 	}
 
 	defaultAeUserRechargeRecordModel struct {
@@ -38,7 +38,7 @@ type (
 
 	AeUserRechargeRecord struct {
 		Id             int64     `db:"id"`
-		UserStrId      string    `db:"user_str_id"`
+		UserId      string    `db:"user_id"`
 		XlcreditAmount float64   `db:"xlcredit_amount"`
 		PayTime        time.Time `db:"pay_time"`
 		CreateTime     time.Time `db:"create_time"`
@@ -76,13 +76,13 @@ func (m *defaultAeUserRechargeRecordModel) FindOne(ctx context.Context, id int64
 
 func (m *defaultAeUserRechargeRecordModel) Insert(ctx context.Context, data *AeUserRechargeRecord) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (%s)", m.table, aeUserRechargeRecordRowsExpectAutoSet, aeUserRechargeRecordRowsWithPlaceHolder)
-	ret, err := m.conn.ExecCtx(ctx, query, data.UserStrId, data.XlcreditAmount, data.PayTime, data.ChargeSource)
+	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource)
 	return ret, err
 }
 
 func (m *defaultAeUserRechargeRecordModel) Update(ctx context.Context, data *AeUserRechargeRecord) error {
-	query := fmt.Sprintf("update %s set %s where id = $1", m.table, "user_str_id=$2, xlcredit_amount=$3, pay_time=$4, charge_source=$5")
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserStrId, data.XlcreditAmount, data.PayTime, data.ChargeSource)
+	query := fmt.Sprintf("update %s set %s where id = $1", m.table, "user_id=$2, xlcredit_amount=$3, pay_time=$4, charge_source=$5")
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource)
 	return err
 }
 
@@ -100,9 +100,9 @@ func (m *defaultAeUserRechargeRecordModel) Sum24hRecharge(ctx context.Context) (
 	return total, err
 }
 
-func (m *defaultAeUserRechargeRecordModel) GetBalance(ctx context.Context, userStrId string) (float64, error) {
-	query := fmt.Sprintf("select COALESCE(sum(xlcredit_amount), 0) from %s where user_str_id = $1", m.table)
+func (m *defaultAeUserRechargeRecordModel) GetBalance(ctx context.Context, userId string) (float64, error) {
+	query := fmt.Sprintf("select COALESCE(sum(xlcredit_amount), 0) from %s where user_id = $1", m.table)
 	var total float64
-	err := m.conn.QueryRowCtx(ctx, &total, query, userStrId)
+	err := m.conn.QueryRowCtx(ctx, &total, query, userId)
 	return total, err
 }

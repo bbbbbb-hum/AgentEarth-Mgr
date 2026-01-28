@@ -19,7 +19,7 @@
  *    - 如果当天记录不存在: 创建新记录
  *
  * API路由: POST /manager/api/userfund/user/recharge
- * 请求体: {"user_str_id": "xxx", "amount": 100.00, "remarks": "活动赠送"}
+ * 请求体: {"user_id": "xxx", "amount": 100.00, "remarks": "活动赠送"}
  *
  * 安全提示:
  * - 前端有二次确认弹窗，避免误操作
@@ -53,15 +53,15 @@ func NewManualRechargeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 }
 
 func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp *types.ManualRechargeResp, err error) {
-	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserStrId, 1)
-	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserStrId)
+	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, 1)
+	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserId)
 	chargeType := req.ChargeType
 	if chargeType <= 0 {
 		chargeType = 1
 	}
 
 	// 1. 先获取用户当前最新余额（可能是今天或之前的记录）
-	currentBalance, err := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, req.UserStrId)
+	currentBalance, err := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, req.UserId)
 	if err != nil {
 		l.Logger.Errorf("Failed to get current balance: %v", err)
 		// 如果获取失败，默认使用 0
@@ -71,7 +71,7 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 	// 2. 插入充值记录
 	insertQuery := `
 		INSERT INTO ae_user_recharge_record (
-			user_str_id,
+			user_id,
 			xlcredit_amount,
 			pay_time,
 			create_time,
@@ -84,7 +84,7 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 		VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8)
 	`
 	now := time.Now()
-	_, err = l.svcCtx.DB.ExecCtx(l.ctx, insertQuery, req.UserStrId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName)
+	_, err = l.svcCtx.DB.ExecCtx(l.ctx, insertQuery, req.UserId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName)
 	if err != nil {
 		l.Logger.Errorf("Failed to insert recharge record: %v", err)
 		return &types.ManualRechargeResp{
@@ -97,9 +97,9 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 	// 关键修复：如果当天没有记录，INSERT 时使用 当前余额 + 充值金额
 	// 如果当天有记录，UPDATE 时使用 当天余额 + 充值金额
 	updateQuery := `
-		INSERT INTO ae_user_balance_statistic_daily (user_str_id, day, balance, create_time, update_time)
+		INSERT INTO ae_user_balance_statistic_daily (user_id, day, balance, create_time, update_time)
 		VALUES ($1, CURRENT_DATE, $2, $3, $4)
-		ON CONFLICT (user_str_id, day)
+		ON CONFLICT (user_id, day)
 		DO UPDATE SET
 			balance = ae_user_balance_statistic_daily.balance + $5,
 			update_time = $4
@@ -108,7 +108,7 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 	// 计算新余额：当前余额 + 充值金额（用于 INSERT，如果当天没有记录）
 	newBalanceForInsert := currentBalance + req.Amount
 	var newBalance float64
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &newBalance, updateQuery, req.UserStrId, newBalanceForInsert, now, now, req.Amount)
+	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &newBalance, updateQuery, req.UserId, newBalanceForInsert, now, now, req.Amount)
 	if err != nil {
 		l.Logger.Errorf("Failed to update balance: %v", err)
 		return &types.ManualRechargeResp{
@@ -117,8 +117,8 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 		}, nil
 	}
 
-	l.Logger.Infof("管理员资金操作: 操作管理员=%s, 操作用户=%s, user_str_id=%s, 类型=充值, 时间=%s, 原金额=%.2f, 变动金额=%.2f, 操作后金额=%.2f",
-		operatorName, targetUsername, req.UserStrId, now.Format(time.RFC3339), currentBalance, req.Amount, newBalance)
+	l.Logger.Infof("管理员资金操作: 操作管理员=%s, 操作用户=%s, user_id=%s, 类型=充值, 时间=%s, 原金额=%.2f, 变动金额=%.2f, 操作后金额=%.2f",
+		operatorName, targetUsername, req.UserId, now.Format(time.RFC3339), currentBalance, req.Amount, newBalance)
 
 	return &types.ManualRechargeResp{
 		Success:    true,

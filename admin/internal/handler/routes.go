@@ -277,22 +277,22 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodGet,
-				Path:    "/user/:user_str_id",
+				Path:    "/user/:user_id",
 				Handler: userfund.GetUserDetailHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
-				Path:    "/user/:user_str_id/consumption",
+				Path:    "/user/:user_id/consumption",
 				Handler: userfund.GetConsumptionRecordsHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
-				Path:    "/user/:user_str_id/balance",
+				Path:    "/user/:user_id/balance",
 				Handler: userfund.GetBalanceHistoryHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
-				Path:    "/user/:user_str_id/fund-changes",
+				Path:    "/user/:user_id/fund-changes",
 				Handler: userfund.GetFundChangeRecordsHandler(serverCtx),
 			},
 			{

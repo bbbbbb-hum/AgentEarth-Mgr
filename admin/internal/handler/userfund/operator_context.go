@@ -56,7 +56,7 @@ func withOperatorUsernameCtx(r *http.Request, svcCtx *svc.ServiceContext) contex
 			var result struct {
 				Username string `db:"username"`
 			}
-			query := fmt.Sprintf(`select username from %s where user_str_id = $1 limit 1`, svcCtx.UserModel.TableName())
+			query := fmt.Sprintf(`select username from %s where user_id = $1 limit 1`, svcCtx.UserModel.TableName())
 			if err := svcCtx.DB.QueryRowCtx(ctx, &result, query, userId); err == nil {
 				if result.Username != "" {
 					username = result.Username

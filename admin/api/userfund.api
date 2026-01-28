@@ -43,7 +43,7 @@ type (
 
     UserItem {
         Id int64 `json:"id"`
-        UserStrId string `json:"user_str_id"`
+        UserId string `json:"user_id"`
         Username string `json:"username"`
         Phone string `json:"phone"`
         Email string `json:"email"`
@@ -56,7 +56,7 @@ type (
     }
 
     UserDetailReq {
-        UserStrId string `path:"user_str_id"`
+        UserId string `path:"user_id"`
     }
 
     UserDetailResp {
@@ -67,7 +67,7 @@ type (
     }
 
     ConsumptionRecordReq {
-        UserStrId string `path:"user_str_id"`
+        UserId string `path:"user_id"`
         Days int `form:"days,default=7"` // 7 或 30
     }
 
@@ -81,7 +81,7 @@ type (
     }
 
     BalanceHistoryReq {
-        UserStrId string `path:"user_str_id"`
+        UserId string `path:"user_id"`
         Days int `form:"days,default=7"` // 7 或 30
     }
 
@@ -95,7 +95,7 @@ type (
     }
 
     FundChangeRecordReq {
-        UserStrId string `path:"user_str_id"`
+        UserId string `path:"user_id"`
         Filter string `form:"filter,optional"` // all, recharge, deduction
     }
 
@@ -112,7 +112,7 @@ type (
     }
 
     ManualRechargeReq {
-        UserStrId string `json:"user_str_id"`
+        UserId string `json:"user_id"`
         Amount float64 `json:"amount"`
         Remarks string `json:"remarks,optional"`
     }
@@ -124,7 +124,7 @@ type (
     }
 
     ManualDeductionReq {
-        UserStrId string `json:"user_str_id"`
+        UserId string `json:"user_id"`
         Amount float64 `json:"amount"`
         Remarks string `json:"remarks,optional"`
     }
@@ -148,16 +148,16 @@ service admin-api {
     get /list (UserListReq) returns (UserListResp)
 
     @handler GetUserDetail
-    get /user/:user_str_id (UserDetailReq) returns (UserDetailResp)
+    get /user/:user_id (UserDetailReq) returns (UserDetailResp)
 
     @handler GetConsumptionRecords
-    get /user/:user_str_id/consumption (ConsumptionRecordReq) returns (ConsumptionRecordResp)
+    get /user/:user_id/consumption (ConsumptionRecordReq) returns (ConsumptionRecordResp)
 
     @handler GetBalanceHistory
-    get /user/:user_str_id/balance (BalanceHistoryReq) returns (BalanceHistoryResp)
+    get /user/:user_id/balance (BalanceHistoryReq) returns (BalanceHistoryResp)
 
     @handler GetFundChangeRecords
-    get /user/:user_str_id/fund-changes (FundChangeRecordReq) returns (FundChangeRecordResp)
+    get /user/:user_id/fund-changes (FundChangeRecordReq) returns (FundChangeRecordResp)
 
     @handler ManualRecharge
     post /user/recharge (ManualRechargeReq) returns (ManualRechargeResp)

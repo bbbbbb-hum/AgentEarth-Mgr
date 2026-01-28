@@ -10,7 +10,7 @@ import (
 // AeUserBalanceStatisticDailyModel 用于访问 ae_user_balance_statistic_daily 用户日余额表
 // 只提供查询最近一条余额数据的方法，统计写入由其他系统负责。
 type AeUserBalanceStatisticDailyModel interface {
-	GetLatestBalance(ctx context.Context, userStrId string) (float64, error)
+	GetLatestBalance(ctx context.Context, userId string) (float64, error)
 }
 
 type defaultAeUserBalanceStatisticDailyModel struct {
@@ -27,17 +27,17 @@ func NewAeUserBalanceStatisticDailyModel(conn sqlx.SqlConn) AeUserBalanceStatist
 
 // GetLatestBalance 获取某个用户在余额统计表中最近一天的余额
 // 如果没有记录，则返回 0，不视为错误。
-func (m *defaultAeUserBalanceStatisticDailyModel) GetLatestBalance(ctx context.Context, userStrId string) (float64, error) {
+func (m *defaultAeUserBalanceStatisticDailyModel) GetLatestBalance(ctx context.Context, userId string) (float64, error) {
 	query := fmt.Sprintf(`
 		select balance
 		from %s
-		where user_str_id = $1
+		where user_id = $1
 		order by day desc
 		limit 1
 	`, m.table)
 
 	var balance float64
-	err := m.conn.QueryRowCtx(ctx, &balance, query, userStrId)
+	err := m.conn.QueryRowCtx(ctx, &balance, query, userId)
 	switch err {
 	case nil:
 		return balance, nil

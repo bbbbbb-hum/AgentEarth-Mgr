@@ -10,7 +10,7 @@
  * 数据来源:
  * - ae_user_consumption_record_daily: 日消费记录（字段: day, xlcredit_consume）
  *
- * API路由: GET /manager/api/userfund/user/:user_str_id/consumption?days=7
+ * API路由: GET /manager/api/userfund/user/:user_id/consumption?days=7
  *
  * 注意事项:
  * - 前端堆叠柱状图同时显示自行消费（绿色）和系统扣减（红色）
@@ -63,7 +63,7 @@ func (l *GetConsumptionRecordsLogic) GetConsumptionRecords(req *types.Consumptio
 				day,
 				COALESCE(SUM(xlcredit_consume), 0) AS self_consume
 			FROM ae_user_consumption_record_daily
-			WHERE user_str_id = $1
+			WHERE user_id = $1
 			AND day >= CURRENT_DATE - INTERVAL '1 day' * ($2 - 1)
 			AND day <= CURRENT_DATE
 			GROUP BY day
@@ -73,7 +73,7 @@ func (l *GetConsumptionRecordsLogic) GetConsumptionRecords(req *types.Consumptio
 				pay_time::date AS day,
 				COALESCE(ABS(SUM(xlcredit_amount)), 0) AS system_deduct
 			FROM ae_user_recharge_record
-			WHERE user_str_id = $1
+			WHERE user_id = $1
 			AND xlcredit_amount < 0
 			AND pay_time::date >= CURRENT_DATE - INTERVAL '1 day' * ($2 - 1)
 			AND pay_time::date <= CURRENT_DATE
@@ -96,7 +96,7 @@ func (l *GetConsumptionRecordsLogic) GetConsumptionRecords(req *types.Consumptio
 	}
 
 	var rows []recordRow
-	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, req.UserStrId, days)
+	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, req.UserId, days)
 	if err != nil {
 		l.Logger.Errorf("Failed to query consumption records: %v", err)
 		return &types.ConsumptionRecordResp{List: []types.ConsumptionRecordItem{}}, nil

@@ -52,16 +52,16 @@ func (l *GetUserListLogic) GetUserList(req *types.UserListReq) (resp *types.User
 	var list []types.UserItem
 	for _, u := range users {
 		// 优先从日余额统计表中获取最新余额
-		balance, err := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, u.UserStrId)
+		balance, err := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, u.UserId)
 		if err != nil {
-			l.Logger.Errorf("Failed to get latest balance for user %s: %v", u.UserStrId, err)
+			l.Logger.Errorf("Failed to get latest balance for user %s: %v", u.UserId, err)
 			balance = 0
 		} else {
 			// 调试日志：打印查询到的余额（如果为0也打印，方便排查）
 			if balance == 0 {
-				l.Logger.Infof("User %s (username: %s) balance is 0 from daily table", u.UserStrId, u.Username)
+				l.Logger.Infof("User %s (username: %s) balance is 0 from daily table", u.UserId, u.Username)
 			} else {
-				l.Logger.Infof("User %s (username: %s) balance: %.2f", u.UserStrId, u.Username, balance)
+				l.Logger.Infof("User %s (username: %s) balance: %.2f", u.UserId, u.Username, balance)
 			}
 		}
 
@@ -76,26 +76,26 @@ func (l *GetUserListLogic) GetUserList(req *types.UserListReq) (resp *types.User
 		}
 
 		// 调试日志：打印邮箱数据
-		l.Logger.Infof("User %s (username: %s) email: [%s]", u.UserStrId, u.Username, u.Email)
+		l.Logger.Infof("User %s (username: %s) email: [%s]", u.UserId, u.Username, u.Email)
 
 		// 计算日均消费（最近30天）
 		dailyConsumption := 0.0
 		consumptionQuery := `
 			SELECT COALESCE(AVG(xlcredit_consume), 0) as avg_consumption
 			FROM ae_user_consumption_record_daily
-			WHERE user_str_id = $1
+			WHERE user_id = $1
 			AND day >= CURRENT_DATE - INTERVAL '30 days'
 			AND xlcredit_consume > 0
 		`
-		err = l.svcCtx.DB.QueryRowCtx(l.ctx, &dailyConsumption, consumptionQuery, u.UserStrId)
+		err = l.svcCtx.DB.QueryRowCtx(l.ctx, &dailyConsumption, consumptionQuery, u.UserId)
 		if err != nil {
-			l.Logger.Errorf("Failed to get daily consumption for user %s: %v", u.UserStrId, err)
+			l.Logger.Errorf("Failed to get daily consumption for user %s: %v", u.UserId, err)
 			dailyConsumption = 0
 		}
 
 		list = append(list, types.UserItem{
 			Id:               u.Id,
-			UserStrId:        u.UserStrId,
+			UserId:        u.UserId,
 			Username:         u.Username,
 			Phone:            u.Phone,
 			Email:            u.Email,

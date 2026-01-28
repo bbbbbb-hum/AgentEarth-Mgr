@@ -23,7 +23,7 @@
  * - xlcredit_amount > 0: 充值（前端显示绿色 +）
  * - xlcredit_amount < 0: 扣减（前端显示红色 -）
  *
- * API路由: GET /manager/api/userfund/user/:user_str_id/fund-changes?filter=all
+ * API路由: GET /manager/api/userfund/user/:user_id/fund-changes?filter=all
  */
 
 package userfund
@@ -56,8 +56,8 @@ func NewGetFundChangeRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContex
 
 func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRecordReq) (resp *types.FundChangeRecordResp, err error) {
 	// 构建查询条件
-	whereClause := "user_str_id = $1"
-	args := []interface{}{req.UserStrId}
+	whereClause := "user_id = $1"
+	args := []interface{}{req.UserId}
 
 	// 根据filter过滤
 	if req.Filter == "recharge" {

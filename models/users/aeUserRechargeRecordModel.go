@@ -16,7 +16,7 @@ type (
 		aeUserRechargeRecordModel
 		withSession(session sqlx.Session) AeUserRechargeRecordModel
 		Sum24hRecharge(ctx context.Context) (float64, error)
-		GetBalance(ctx context.Context, userStrId string) (float64, error)
+		GetBalance(ctx context.Context, userId string) (float64, error)
 	}
 
 	customAeUserRechargeRecordModel struct {
@@ -50,9 +50,9 @@ func (m *customAeUserRechargeRecordModel) Sum24hRecharge(ctx context.Context) (f
 	return total, err
 }
 
-func (m *customAeUserRechargeRecordModel) GetBalance(ctx context.Context, userStrId string) (float64, error) {
-	query := fmt.Sprintf("select COALESCE(SUM(amount), 0) from %s where user_str_id = $1", m.table)
+func (m *customAeUserRechargeRecordModel) GetBalance(ctx context.Context, userId string) (float64, error) {
+	query := fmt.Sprintf("select COALESCE(SUM(amount), 0) from %s where user_id = $1", m.table)
 	var balance float64
-	err := m.conn.QueryRowCtx(ctx, &balance, query, userStrId)
+	err := m.conn.QueryRowCtx(ctx, &balance, query, userId)
 	return balance, err
 }

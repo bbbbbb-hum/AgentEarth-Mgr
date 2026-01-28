@@ -25,7 +25,7 @@ type (
 	mcpUserModel interface {
 		Insert(ctx context.Context, data *McpUser) (sql.Result, error)
 		FindOne(ctx context.Context, id int64) (*McpUser, error)
-		FindOneByUserStrId(ctx context.Context, userStrId string) (*McpUser, error)
+		FindOneByUserId(ctx context.Context, userStrId string) (*McpUser, error)
 		Update(ctx context.Context, data *McpUser) error
 		Delete(ctx context.Context, id int64) error
 		FindList(ctx context.Context, page, pageSize int, search, status string) ([]*McpUser, int64, error)
@@ -40,7 +40,7 @@ type (
 
 	McpUser struct {
 		Id            int64     `db:"id"`
-		UserStrId     string    `db:"user_str_id"`
+		UserId     string    `db:"user_id"`
 		Username      string    `db:"username"`
 		PasswordHash  string    `db:"password_hash"`
 		Phone         string    `db:"phone"`
@@ -82,8 +82,8 @@ func (m *defaultMcpUserModel) FindOne(ctx context.Context, id int64) (*McpUser, 
 	}
 }
 
-func (m *defaultMcpUserModel) FindOneByUserStrId(ctx context.Context, userStrId string) (*McpUser, error) {
-	query := fmt.Sprintf("select %s from %s where user_str_id = $1 limit 1", mcpUserRows, m.table)
+func (m *defaultMcpUserModel) FindOneByUserId(ctx context.Context, userStrId string) (*McpUser, error) {
+	query := fmt.Sprintf("select %s from %s where user_id = $1 limit 1", mcpUserRows, m.table)
 	var resp McpUser
 	err := m.conn.QueryRowCtx(ctx, &resp, query, userStrId)
 	switch err {
@@ -98,13 +98,13 @@ func (m *defaultMcpUserModel) FindOneByUserStrId(ctx context.Context, userStrId 
 
 func (m *defaultMcpUserModel) Insert(ctx context.Context, data *McpUser) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (%s)", m.table, mcpUserRowsExpectAutoSet, mcpUserRowsWithPlaceHolder)
-	ret, err := m.conn.ExecCtx(ctx, query, data.UserStrId, data.Username, data.PasswordHash, data.Phone, data.Email, data.AvatarUrl, data.Status, data.LastLoginAt, data.OauthId, data.OauthProvider)
+	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.Username, data.PasswordHash, data.Phone, data.Email, data.AvatarUrl, data.Status, data.LastLoginAt, data.OauthId, data.OauthProvider)
 	return ret, err
 }
 
 func (m *defaultMcpUserModel) Update(ctx context.Context, data *McpUser) error {
-	query := fmt.Sprintf("update %s set %s where id = $1", m.table, "user_str_id=$2, username=$3, password_hash=$4, phone=$5, email=$6, avatar_url=$7, status=$8, last_login_at=$9, oauth_id=$10, oauth_provider=$11") // Simplified update for brevity, usually auto-generated
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserStrId, data.Username, data.PasswordHash, data.Phone, data.Email, data.AvatarUrl, data.Status, data.LastLoginAt, data.OauthId, data.OauthProvider)
+	query := fmt.Sprintf("update %s set %s where id = $1", m.table, "user_id=$2, username=$3, password_hash=$4, phone=$5, email=$6, avatar_url=$7, status=$8, last_login_at=$9, oauth_id=$10, oauth_provider=$11") // Simplified update for brevity, usually auto-generated
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.Username, data.PasswordHash, data.Phone, data.Email, data.AvatarUrl, data.Status, data.LastLoginAt, data.OauthId, data.OauthProvider)
 	return err
 }
 
@@ -116,7 +116,7 @@ func (m *defaultMcpUserModel) FindList(ctx context.Context, page, pageSize int, 
 	
 	where := "1=1"
 	if search != "" {
-		where += " AND (username ILIKE $1 OR phone ILIKE $1 OR email ILIKE $1 OR user_str_id ILIKE $1)"
+		where += " AND (username ILIKE $1 OR phone ILIKE $1 OR email ILIKE $1 OR user_id ILIKE $1)"
 		args = append(args, "%"+search+"%")
 	}
 	

@@ -48,7 +48,7 @@ func (m *customMcpUserModel) FindList(ctx context.Context, page, pageSize int, s
 	paramIndex := 1
 
 	// 搜索逻辑：
-	// - 同时在 user_str_id / phone / username / email 字段上模糊匹配
+	// - 同时在 user_id / phone / username / email 字段上模糊匹配
 	// - 忽略大小写（使用 ILIKE）
 	// - 排序按匹配位置优先：前缀匹配（position = 1）最前，其次位置越靠前越优先
 	if search != "" {
@@ -60,7 +60,7 @@ func (m *customMcpUserModel) FindList(ctx context.Context, page, pageSize int, s
 			username ILIKE $%d OR
 			phone ILIKE $%d OR
 			email ILIKE $%d OR
-			user_str_id::text ILIKE $%d
+			user_id::text ILIKE $%d
 		)`, paramIndex, paramIndex, paramIndex, paramIndex)
 		
 		whereConditions = append(whereConditions, searchCondition)
@@ -107,7 +107,7 @@ func (m *customMcpUserModel) FindList(ctx context.Context, page, pageSize int, s
 					NULLIF(position($2 in LOWER(username)), 0),
 					NULLIF(position($2 in LOWER(phone)), 0),
 					NULLIF(position($2 in LOWER(email)), 0),
-					NULLIF(position($2 in LOWER(user_str_id::text)), 0)
+					NULLIF(position($2 in LOWER(user_id::text)), 0)
 				) asc,
 				last_login_at desc nulls last
 			limit $3 offset $4
