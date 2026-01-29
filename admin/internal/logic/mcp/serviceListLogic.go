@@ -1,11 +1,10 @@
 package mcp
 
 import (
-	"AgentEarth-Mgr/models"
-	"context"
-
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
+	"AgentEarth-Mgr/models"
+	"context"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -31,19 +30,31 @@ func (l *ServiceListLogic) ServiceList(req *types.ServiceListReq) (resp *types.B
 			Page: req.Page,
 			Size: req.Size,
 		},
-		Sorts: []models.Sort{
-			{
-				Filed: "create_time",
-				Order: "desc",
-			},
-		},
+		Sorts: []models.Sort{},
+	}
+
+	if len(req.Sort) > 0 {
+		sortField := req.Sort
+		if sortField == "price" {
+			sortField = "xlcredit_price"
+		}
+		listConditions.Sorts = append(listConditions.Sorts, models.Sort{
+			Filed: sortField,
+			Order: req.Order,
+		})
+	} else {
+		// 默认排序：可用优先，然后按 ID 倒序
+		listConditions.Sorts = append(listConditions.Sorts, models.Sort{
+			Filed: "enabled",
+			Order: "desc",
+		})
+		listConditions.Sorts = append(listConditions.Sorts, models.Sort{
+			Filed: "id",
+			Order: "desc",
+		})
 	}
 	if len(req.Search) > 0 {
-		listConditions.Conditions = append(listConditions.Conditions, models.Condition{
-			Field:  "server_name",
-			Symbol: "ILIKE",
-			Value:  "%" + req.Search + "%",
-		})
+		// Search logic is handled in GetListWithSearch
 	}
 	if req.Enabled != 0 {
 		var enabled bool
@@ -85,8 +96,9 @@ func (l *ServiceListLogic) ServiceList(req *types.ServiceListReq) (resp *types.B
 			Value:  req.ServerId,
 		})
 	}
-	list, total, err := l.svcCtx.McpServiceModel.GetList(l.ctx, listConditions, true)
+	list, total, err := l.svcCtx.McpServiceModel.GetListWithSearch(l.ctx, listConditions, req.Search, true)
 	if err != nil {
+		l.Logger.Errorf("GetListWithSearch error: %v", err)
 		return
 	}
 	resp = &types.BaseResp{

@@ -44,7 +44,7 @@ type (
 		Month        int64     `db:"month"`         // 月
 		Day          int64     `db:"day"`           // 日
 		Hour         int64     `db:"hour"`          // 小时
-		ResponseTime int64     `db:"response_time"` // 小时平均响应时间(毫秒)
+		ResponseTime float64   `db:"response_time"` // 小时平均响应时间(毫秒)
 		RequestTotal int64     `db:"request_total"` // 小时内请求次数
 		CreateTime   time.Time `db:"create_time"`   // 创建时间
 	}

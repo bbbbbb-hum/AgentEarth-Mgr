@@ -3,7 +3,9 @@ Host: 0.0.0.0                             # 服务监听地址，0.0.0.0 表示�
 Port: 9005                                # 服务监听端口
 
 DB:                                       # 数据库配置
-  DataSource: "postgres://wcs:123@8.146.236.193:9002/agent_earth?sslmode=disable"
+  #DataSource: "postgres://wcs:123@8.146.236.193:9002/agent_earth?sslmode=disable"
+  DataSource: "postgres://postgres:123456@localhost:5432/postgres?sslmode=disable"
+
 
 Auth:                                     # JWT 鉴权配置
   AccessSecret: "ae-mgr-secret-2025"      # JWT 签名密钥，用于生成和验证 Token

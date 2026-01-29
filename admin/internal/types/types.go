@@ -105,6 +105,17 @@ type ServiceBatchCreateReq struct {
 	Ids []int64 `json:"ids"` // 数据源ID列表
 }
 
+type ServiceBatchUpdatePriceReq struct {
+	Ids       []int64 `json:"ids,optional"`
+	Price     float64 `json:"price"`
+	IsAll     bool    `json:"is_all,optional"`
+	Search    string  `json:"search,optional"`
+	Enabled   int     `json:"enabled,optional"`
+	IsInstall int     `json:"is_install,optional"`
+	IsCreated int     `json:"is_created,optional"`
+	ServerId  string  `json:"server_id,optional"`
+}
+
 type ServiceConfigAccountCreateReq struct {
 	Name     string `json:"name"`
 	AuthInfo string `json:"auth_info"`
@@ -208,6 +219,11 @@ type ServiceUpdateIsCreateReq struct {
 	IsCreated bool  `json:"is_created"`
 }
 
+type ServiceUpdatePriceReq struct {
+	ServerId string  `json:"server_id"`
+	Price    float64 `json:"price,optional"`
+}
+
 type SourceListReq struct {
 	BaseListReq
 	TestStatus string `form:"test_status,optional"`
@@ -256,4 +272,122 @@ type UpdateServiceDescReq struct {
 type UpdateServiceOnlineReq struct {
 	Id           int64 `json:"id"`
 	OnlineStatus int64 `json:"online_status"`
+}
+
+type UserFundStatsResp struct {
+	TotalUsers       int64   `json:"total_users"`
+	DailyActiveUsers int64   `json:"daily_active_users"`
+	TotalRecharge24h float64 `json:"total_recharge_24h"`
+}
+
+type UserItem struct {
+	Id               int64   `json:"id"`
+	UserId           string  `json:"user_id"`
+	Username         string  `json:"username"`
+	Phone            string  `json:"phone"`
+	Email            string  `json:"email"`
+	AvatarUrl        string  `json:"avatar_url"`
+	Status           string  `json:"status"`
+	LastLoginAt      string  `json:"last_login_at"`
+	CreateTime       string  `json:"create_time"`
+	Balance          float64 `json:"balance"`
+	DailyConsumption float64 `json:"daily_consumption"` // 日均消费
+}
+
+type UserListReq struct {
+	Page     int    `form:"page,default=1"`
+	PageSize int    `form:"pageSize,default=10"`
+	Search   string `form:"search,optional"`
+}
+
+type UserListResp struct {
+	List  []UserItem `json:"list"`
+	Total int64      `json:"total"`
+}
+
+type UserDetailReq struct {
+	UserId string `path:"user_id"`
+}
+
+type UserDetailResp struct {
+	User             UserItem `json:"user"`
+	CurrentBalance   float64  `json:"current_balance"`
+	DailyConsumption float64  `json:"daily_consumption"`
+	FundRunway       int64    `json:"fund_runway"` // 资金续航天数
+}
+
+type ConsumptionRecordReq struct {
+	UserId string `path:"user_id"`
+	Days   int    `form:"days,default=7"` // 7 或 30
+}
+
+type ConsumptionRecordItem struct {
+	Day          string  `json:"day"`           // 日期 YYYY-MM-DD
+	SelfConsume  float64 `json:"self_consume"`  // 自行消费金额
+	SystemDeduct float64 `json:"system_deduct"` // 系统扣减金额（来自充值表负值）
+}
+
+type ConsumptionRecordResp struct {
+	List []ConsumptionRecordItem `json:"list"`
+}
+
+type ManualRechargeReq struct {
+	UserId     string  `json:"user_id"`
+	Amount     float64 `json:"amount"`
+	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
+	Remarks    string  `json:"remarks,optional"`
+}
+
+type ManualRechargeResp struct {
+	Success    bool    `json:"success"`
+	Message    string  `json:"message"`
+	NewBalance float64 `json:"new_balance"`
+}
+
+type ManualDeductionReq struct {
+	UserId     string  `json:"user_id"`
+	Amount     float64 `json:"amount"`
+	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
+	Remarks    string  `json:"remarks,optional"`
+}
+
+type ManualDeductionResp struct {
+	Success    bool    `json:"success"`
+	Message    string  `json:"message"`
+	NewBalance float64 `json:"new_balance"`
+}
+
+type BalanceHistoryReq struct {
+	UserId string `path:"user_id"`
+	Days   int    `form:"days,default=7"` // 7 或 30
+}
+
+type BalanceHistoryItem struct {
+	Day     string  `json:"day"`     // 日期 YYYY-MM-DD
+	Balance float64 `json:"balance"` // 余额
+}
+
+type BalanceHistoryResp struct {
+	List []BalanceHistoryItem `json:"list"`
+}
+
+type FundChangeRecordReq struct {
+	UserId     string `path:"user_id"`
+	Filter     string `form:"filter,optional"`      // all, recharge, deduction
+	ChargeType int64  `form:"charge_type,optional"` // 1常规 2系统故障补偿 3活动赠送
+}
+
+type FundChangeRecordItem struct {
+	TransactionTime string  `json:"transaction_time"` // 交易时间
+	TypeDescription string  `json:"type_description"` // 类型说明
+	ChangeAmount    float64 `json:"change_amount"`    // 变动金额（正数为充值，负数为扣减）
+	Status          string  `json:"status"`           // 状态
+	Remarks         string  `json:"remarks"`          // 备注/原因
+	ChargeType      int64   `json:"charge_type"`      // 充值类型
+	ChargeTypeDesc  string  `json:"charge_type_desc"` // 充值类型说明
+	Operator        string  `json:"operator"`         // 操作人
+}
+
+type FundChangeRecordResp struct {
+	List []FundChangeRecordItem `json:"list"`
 }

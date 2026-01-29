@@ -22,6 +22,9 @@ type ServiceContext struct {
 	TaskNodeConfigModel             configModel.AeMcpExternalServicesConfigModel
 	TaskNodeConfigAccountModel      configModel.AeMcpExternalServicesAccountModel
 	UserModel                       users.AeMcpExternalServicesUserModel
+	McpUserModel                    users.McpUserModel
+	UserRechargeRecordModel         users.AeUserRechargeRecordModel
+	UserBalanceDailyModel           users.AeUserBalanceStatisticDailyModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -38,5 +41,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		TaskNodeConfigModel:             configModel.NewAeMcpExternalServicesConfigModel(db),
 		TaskNodeConfigAccountModel:      configModel.NewAeMcpExternalServicesAccountModel(db),
 		UserModel:                       users.NewAeMcpExternalServicesUserModel(db),
+		McpUserModel:                    users.NewMcpUserModel(db),
+		UserRechargeRecordModel:         users.NewAeUserRechargeRecordModel(db),
+		UserBalanceDailyModel:           users.NewAeUserBalanceStatisticDailyModel(db),
 	}
 }

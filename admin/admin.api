@@ -5,6 +5,7 @@ import (
 	"./api/source.api"
 	"./api/mcp.api"
 	"./api/auth.api"
+	"./api/userfund.api"
 )
 
 @server (

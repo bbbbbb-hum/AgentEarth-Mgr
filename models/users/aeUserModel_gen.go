@@ -39,17 +39,19 @@ type (
 	}
 
 	AeUser struct {
-		Id           int64     `db:"id"`            // 自增ID
-		UserId       string    `db:"user_id"`       // 唯一标识
-		Username     string    `db:"username"`      // 用户名
-		PasswordHash string    `db:"password_hash"` // 用户密码
-		Phone        string    `db:"phone"`         // 手机号码
-		Email        string    `db:"email"`         // 邮箱地址
-		AvatarUrl    string    `db:"avatar_url"`    // 用户头像URL
-		Status       string    `db:"status"`        // 账号状态：active-正常, inactive-未激活
-		LastLoginAt  time.Time `db:"last_login_at"` // 最后登录时间
-		CreateTime   time.Time `db:"create_time"`   // 创建时间
-		UpdateTime   time.Time `db:"update_time"`   // 更新时间
+		Id            int64     `db:"id"`             // 自增ID
+		UserId        string    `db:"user_id"`        // 唯一标识
+		Username      string    `db:"username"`       // 用户名
+		PasswordHash  string    `db:"password_hash"`  // 用户密码
+		Phone         string    `db:"phone"`          // 手机号码
+		Email         string    `db:"email"`          // 邮箱地址
+		AvatarUrl     string    `db:"avatar_url"`     // 用户头像URL
+		Status        string    `db:"status"`         // 账号状态：active-正常, inactive-未激活
+		LastLoginAt   time.Time `db:"last_login_at"`  // 最后登录时间
+		CreateTime    time.Time `db:"create_time"`    // 创建时间
+		UpdateTime    time.Time `db:"update_time"`    // 更新时间
+		OauthId       string    `db:"oauth_id"`       // OAuth唯一标识
+		OauthProvider string    `db:"oauth_provider"` // OAuth平台
 	}
 )
 
@@ -109,14 +111,14 @@ func (m *defaultAeUserModel) FindOneByUsername(ctx context.Context, username str
 }
 
 func (m *defaultAeUserModel) Insert(ctx context.Context, data *AeUser) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)", m.table, aeUserRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.Username, data.PasswordHash, data.Phone, data.Email, data.AvatarUrl, data.Status, data.LastLoginAt)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)", m.table, aeUserRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.Username, data.PasswordHash, data.Phone, data.Email, data.AvatarUrl, data.Status, data.LastLoginAt, data.OauthId, data.OauthProvider)
 	return ret, err
 }
 
 func (m *defaultAeUserModel) Update(ctx context.Context, newData *AeUser) error {
 	query := fmt.Sprintf("update %s set %s where user_id = $1", m.table, aeUserRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, newData.UserId, newData.Id, newData.Username, newData.PasswordHash, newData.Phone, newData.Email, newData.AvatarUrl, newData.Status, newData.LastLoginAt)
+	_, err := m.conn.ExecCtx(ctx, query, newData.UserId, newData.Id, newData.Username, newData.PasswordHash, newData.Phone, newData.Email, newData.AvatarUrl, newData.Status, newData.LastLoginAt, newData.OauthId, newData.OauthProvider)
 	return err
 }
 

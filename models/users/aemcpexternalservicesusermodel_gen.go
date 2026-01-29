@@ -38,7 +38,7 @@ type (
 
 	AeMcpExternalServicesUser struct {
 		Id           int64     `db:"id"`            // 自增ID
-		UserId       string    `db:"user_id"`       // 唯一标识
+		UserId       string    `db:"user_id"`   // 唯一标识
 		Username     string    `db:"username"`      // 用户名
 		PasswordHash string    `db:"password_hash"` // 用户密码
 		Status       string    `db:"status"`        // 账号状态：active-正常, inactive-未激活
@@ -51,7 +51,7 @@ type (
 func newAeMcpExternalServicesUserModel(conn sqlx.SqlConn) *defaultAeMcpExternalServicesUserModel {
 	return &defaultAeMcpExternalServicesUserModel{
 		conn:  conn,
-		table: `"public"."ae_mcp_external_services_user"`,
+		table: `"public"."ae_mgrsystem_user"`,
 	}
 }
 

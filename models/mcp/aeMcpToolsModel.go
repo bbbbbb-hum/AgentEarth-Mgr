@@ -53,7 +53,7 @@ func (m *customAeMcpToolsModel) FindByServiceId(ctx context.Context, serviceId i
 	for rows.Next() {
 		var tool AeMcpTools
 		err = rows.Scan(&tool.Id, &tool.ServiceId, &tool.Name, &tool.Description,
-			&tool.ArgsSchema, &tool.CreateTime, &tool.UpdateTime)
+			&tool.ArgsSchema, &tool.CreateTime, &tool.UpdateTime, &tool.XlcreditPrice)
 		if err != nil {
 			continue
 		}

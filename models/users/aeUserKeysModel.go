@@ -101,7 +101,7 @@ func (m *customAeUserKeysModel) FindByUserId(ctx context.Context, userId string,
 	for rows.Next() {
 		var key AeUserKeys
 		err = rows.Scan(&key.Id, &key.UserId, &key.KeyName, &key.KeyValue, &key.KeyType,
-			&key.Status, &key.Permissions, &key.ExpiresAt, &key.LastUsedAt, &key.UsageCount,
+			&key.Status, &key.Permissions, &key.ExpiresAt, &key.LastUsedAt,
 			&key.CreateTime, &key.UpdateTime)
 		if err != nil {
 			continue
@@ -140,7 +140,7 @@ func (m *customAeUserKeysModel) FindByUserIdWithSearch(ctx context.Context, user
 	for rows.Next() {
 		var key AeUserKeys
 		err = rows.Scan(&key.Id, &key.UserId, &key.KeyName, &key.KeyValue, &key.KeyType,
-			&key.Status, &key.Permissions, &key.ExpiresAt, &key.LastUsedAt, &key.UsageCount,
+			&key.Status, &key.Permissions, &key.ExpiresAt, &key.LastUsedAt,
 			&key.CreateTime, &key.UpdateTime)
 		if err != nil {
 			continue
