@@ -54,7 +54,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 
 	// 2. 插入扣减记录（金额为负数）
 	insertQuery := `
-		INSERT INTO ae_user_recharge_record (
+		INSERT INTO public.ae_user_recharge_record (
 			user_id,
 			xlcredit_amount,
 			pay_time,
@@ -66,17 +66,36 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 			operator
 		)
 		VALUES ($1, $2, $3, $4, $5, -1, $6, $7, $8)
+		RETURNING id
+	`
+	fallbackInsertQuery := `
+		INSERT INTO public.ae_user_recharge_record (
+			user_id,
+			xlcredit_amount,
+			pay_time,
+			create_time,
+			update_time,
+			charge_source
+		)
+		VALUES ($1, $2, $3, $4, $5, -1)
+		RETURNING id
 	`
 	now := time.Now()
 	negativeAmount := -req.Amount
-	_, err = l.svcCtx.DB.ExecCtx(l.ctx, insertQuery, req.UserId, negativeAmount, now, now, now, chargeType, req.Remarks, operatorName)
+	var insertedId int64
+	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, insertQuery, req.UserId, negativeAmount, now, now, now, chargeType, req.Remarks, operatorName)
 	if err != nil {
-		l.Logger.Errorf("Failed to insert deduction record: %v", err)
-		return &types.ManualDeductionResp{
-			Success: false,
-			Message: "扣减记录插入失败",
-		}, nil
+		l.Logger.Errorf("Failed to insert deduction record (full): %v, trying fallback", err)
+		fallbackErr := l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, fallbackInsertQuery, req.UserId, negativeAmount, now, now, now)
+		if fallbackErr != nil {
+			l.Logger.Errorf("Failed to insert deduction record (fallback): %v", fallbackErr)
+			return &types.ManualDeductionResp{
+				Success: false,
+				Message: "扣减记录插入失败",
+			}, nil
+		}
 	}
+	l.Logger.Infof("扣减记录插入成功: record_id=%d user_id=%s amount=%.2f", insertedId, req.UserId, negativeAmount)
 
 	// 3. 更新日余额统计（使用 ON CONFLICT DO UPDATE）
 	updateQuery := `
