@@ -82,7 +82,7 @@
 ┌──────────────────▼──────────────────────────────────┐
 │               数据库层 (PostgreSQL)                   │
 │  ┌──────────────────────────────────────────────┐   │
-│  │  mcp_user                                   │   │
+│  │  ae_user                                    │   │
 │  │  ae_user_balance_statistic_daily             │   │
 │  │  ae_user_consumption_record_daily            │   │
 │  │  ae_user_recharge_record                     │   │
@@ -96,7 +96,7 @@
 
 ### 表结构说明
 
-#### 1. `mcp_user` - 用户基础信息表
+#### 1. `ae_user` - 用户基础信息表
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | int8 | 主键ID |

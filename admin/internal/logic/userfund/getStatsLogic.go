@@ -8,7 +8,7 @@
  * - 24小时充值总额统计（只统计正数充值，排除扣减）
  *
  * 数据来源:
- * - mcp_user: 总用户数、今日活跃用户
+ * - ae_user: 总用户数、今日活跃用户
  * - ae_user_recharge_record: 24小时充值金额（xlcredit_amount > 0）
  *
  * API路由: GET /manager/api/userfund/stats

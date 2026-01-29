@@ -40,7 +40,7 @@ type (
 
 	McpUser struct {
 		Id            int64     `db:"id"`
-		UserId     string    `db:"user_id"`
+		UserId        string    `db:"user_id"`
 		Username      string    `db:"username"`
 		PasswordHash  string    `db:"password_hash"`
 		Phone         string    `db:"phone"`
@@ -58,7 +58,7 @@ type (
 func newMcpUserModel(conn sqlx.SqlConn) *defaultMcpUserModel {
 	return &defaultMcpUserModel{
 		conn:  conn,
-		table: `"public"."mcp_user"`,
+		table: `"public"."ae_user"`,
 	}
 }
 
@@ -113,13 +113,13 @@ func (m *defaultMcpUserModel) FindList(ctx context.Context, page, pageSize int, 
 	var resp []*McpUser
 	var query string
 	var args []interface{}
-	
+
 	where := "1=1"
 	if search != "" {
 		where += " AND (username ILIKE $1 OR phone ILIKE $1 OR email ILIKE $1 OR user_id ILIKE $1)"
 		args = append(args, "%"+search+"%")
 	}
-	
+
 	// 状态筛选：active = 30天内登录, inactive = 超过30天未登录或从未登录
 	if status == "active" {
 		where += " AND last_login_at >= CURRENT_DATE - INTERVAL '30 days'"
@@ -138,7 +138,7 @@ func (m *defaultMcpUserModel) FindList(ctx context.Context, page, pageSize int, 
 	// List
 	query = fmt.Sprintf("select %s from %s where %s order by last_login_at desc nulls last limit $%d offset $%d", mcpUserRows, m.table, where, len(args)+1, len(args)+2)
 	args = append(args, pageSize, offset)
-	
+
 	err = m.conn.QueryRowsCtx(ctx, &resp, query, args...)
 	return resp, count, err
 }
@@ -147,7 +147,7 @@ func (m *defaultMcpUserModel) CountTodayActive(ctx context.Context) (int64, erro
 	// today start
 	now := time.Now()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	
+
 	query := fmt.Sprintf("select count(*) from %s where last_login_at >= $1", m.table)
 	var count int64
 	err := m.conn.QueryRowCtx(ctx, &count, query, todayStart)

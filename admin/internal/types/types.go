@@ -107,7 +107,7 @@ type ServiceBatchCreateReq struct {
 
 type ServiceBatchUpdatePriceReq struct {
 	Ids       []int64 `json:"ids,optional"`
-	Price     float64   `json:"price"`
+	Price     float64 `json:"price"`
 	IsAll     bool    `json:"is_all,optional"`
 	Search    string  `json:"search,optional"`
 	Enabled   int     `json:"enabled,optional"`
@@ -220,8 +220,8 @@ type ServiceUpdateIsCreateReq struct {
 }
 
 type ServiceUpdatePriceReq struct {
-	ServerId string `json:"server_id"`
-	Price    float64  `json:"price"`
+	ServerId string  `json:"server_id"`
+	Price    float64 `json:"price,optional"`
 }
 
 type SourceListReq struct {
@@ -282,7 +282,7 @@ type UserFundStatsResp struct {
 
 type UserItem struct {
 	Id               int64   `json:"id"`
-	UserId        string  `json:"user_id"`
+	UserId           string  `json:"user_id"`
 	Username         string  `json:"username"`
 	Phone            string  `json:"phone"`
 	Email            string  `json:"email"`
@@ -318,7 +318,7 @@ type UserDetailResp struct {
 
 type ConsumptionRecordReq struct {
 	UserId string `path:"user_id"`
-	Days      int    `form:"days,default=7"` // 7 或 30
+	Days   int    `form:"days,default=7"` // 7 或 30
 }
 
 type ConsumptionRecordItem struct {
@@ -332,7 +332,7 @@ type ConsumptionRecordResp struct {
 }
 
 type ManualRechargeReq struct {
-	UserId  string  `json:"user_id"`
+	UserId     string  `json:"user_id"`
 	Amount     float64 `json:"amount"`
 	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
 	Remarks    string  `json:"remarks,optional"`
@@ -345,7 +345,7 @@ type ManualRechargeResp struct {
 }
 
 type ManualDeductionReq struct {
-	UserId  string  `json:"user_id"`
+	UserId     string  `json:"user_id"`
 	Amount     float64 `json:"amount"`
 	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
 	Remarks    string  `json:"remarks,optional"`
@@ -359,7 +359,7 @@ type ManualDeductionResp struct {
 
 type BalanceHistoryReq struct {
 	UserId string `path:"user_id"`
-	Days      int    `form:"days,default=7"` // 7 或 30
+	Days   int    `form:"days,default=7"` // 7 或 30
 }
 
 type BalanceHistoryItem struct {
@@ -372,7 +372,7 @@ type BalanceHistoryResp struct {
 }
 
 type FundChangeRecordReq struct {
-	UserId  string `path:"user_id"`
+	UserId     string `path:"user_id"`
 	Filter     string `form:"filter,optional"`      // all, recharge, deduction
 	ChargeType int64  `form:"charge_type,optional"` // 1常规 2系统故障补偿 3活动赠送
 }

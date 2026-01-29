@@ -57,7 +57,7 @@ type (
 		ProjectName     string         `db:"project_name"`     // 项目名称
 		IsInstall       bool           `db:"is_install"`       // 是否需要安装：true 是 false 否
 		CreatedGroup    int64          `db:"created_group"`    // 服务启动分组（按分组启动服务）
-		Price           float64        `db:"price"`            // 单价（每次）
+		XlcreditPrice   float64        `db:"xlcredit_price"`   // 单价（每个字符）
 	}
 )
 
@@ -90,13 +90,13 @@ func (m *defaultAeMcpServicesModel) FindOne(ctx context.Context, serverId string
 
 func (m *defaultAeMcpServicesModel) Insert(ctx context.Context, data *AeMcpServices) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)", m.table, aeMcpServicesRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall, data.CreatedGroup, data.Price)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall, data.CreatedGroup, data.XlcreditPrice)
 	return ret, err
 }
 
 func (m *defaultAeMcpServicesModel) Update(ctx context.Context, data *AeMcpServices) error {
 	query := fmt.Sprintf("update %s set %s where server_id = $1", m.table, aeMcpServicesRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.ServerId, data.Id, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall, data.CreatedGroup, data.Price)
+	_, err := m.conn.ExecCtx(ctx, query, data.ServerId, data.Id, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.CallSuccessNum, data.ResponseTime, data.IsCreated, data.ProjectName, data.IsInstall, data.CreatedGroup, data.XlcreditPrice)
 	return err
 }
 

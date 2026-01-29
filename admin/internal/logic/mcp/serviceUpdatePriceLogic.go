@@ -46,8 +46,8 @@ func (l *ServiceUpdatePriceLogic) ServiceUpdatePrice(req *types.ServiceUpdatePri
 		return nil, err
 	}
 
-	oldPrice := mcpService.Price
-	mcpService.Price = req.Price
+	oldPrice := mcpService.XlcreditPrice
+	mcpService.XlcreditPrice = req.Price
 	mcpService.UpdateTime = time.Now()
 
 	err = l.svcCtx.McpServiceModel.Update(l.ctx, mcpService)

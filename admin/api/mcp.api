@@ -167,11 +167,11 @@ type (
 	}
 	ServiceUpdatePriceReq {
 		ServerId string `json:"server_id"`
-		Price    float64  `json:"price"`
+		Price    float64  `json:"price,optional"`
 	}
 	ServiceBatchUpdatePriceReq {
 		Ids       []int64 `json:"ids,optional"`
-		Price     int64   `json:"price"`
+		Price     float64 `json:"price"`
 		IsAll     bool    `json:"is_all,optional"`
 		Search    string  `json:"search,optional"`
 		Enabled   int     `json:"enabled,optional"`

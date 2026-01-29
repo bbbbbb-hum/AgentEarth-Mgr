@@ -34,8 +34,12 @@ func (l *ServiceListLogic) ServiceList(req *types.ServiceListReq) (resp *types.B
 	}
 
 	if len(req.Sort) > 0 {
+		sortField := req.Sort
+		if sortField == "price" {
+			sortField = "xlcredit_price"
+		}
 		listConditions.Sorts = append(listConditions.Sorts, models.Sort{
-			Filed: req.Sort,
+			Filed: sortField,
 			Order: req.Order,
 		})
 	} else {

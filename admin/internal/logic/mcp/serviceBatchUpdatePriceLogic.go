@@ -104,7 +104,7 @@ func (l *ServiceBatchUpdatePriceLogic) ServiceBatchUpdatePrice(req *types.Servic
 	var oldPrices []float64
 	for _, t := range targets {
 		targetIds = append(targetIds, t.Id)
-		oldPrices = append(oldPrices, t.Price)
+		oldPrices = append(oldPrices, t.XlcreditPrice)
 	}
 
 	// 4. Perform Update

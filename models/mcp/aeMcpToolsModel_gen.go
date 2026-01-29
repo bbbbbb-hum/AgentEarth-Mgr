@@ -37,13 +37,14 @@ type (
 	}
 
 	AeMcpTools struct {
-		Id          int64     `db:"id"`          // 主键
-		ServiceId   int64     `db:"service_id"`  // 服务ID
-		Name        string    `db:"name"`        // 工具名称
-		Description string    `db:"description"` // 工具描述
-		ArgsSchema  string    `db:"args_schema"` // 参数
-		CreateTime  time.Time `db:"create_time"` // 创建时间
-		UpdateTime  time.Time `db:"update_time"` // 更新时间
+		Id            int64     `db:"id"`             // 主键
+		ServiceId     int64     `db:"service_id"`     // 服务ID
+		Name          string    `db:"name"`           // 工具名称
+		Description   string    `db:"description"`    // 工具描述
+		ArgsSchema    string    `db:"args_schema"`    // 参数
+		CreateTime    time.Time `db:"create_time"`    // 创建时间
+		UpdateTime    time.Time `db:"update_time"`    // 更新时间
+		XlcreditPrice float64   `db:"xlcredit_price"` // 价格（每次）
 	}
 )
 
@@ -75,14 +76,14 @@ func (m *defaultAeMcpToolsModel) FindOne(ctx context.Context, id int64) (*AeMcpT
 }
 
 func (m *defaultAeMcpToolsModel) Insert(ctx context.Context, data *AeMcpTools) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4)", m.table, aeMcpToolsRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.ServiceId, data.Name, data.Description, data.ArgsSchema)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5)", m.table, aeMcpToolsRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.ServiceId, data.Name, data.Description, data.ArgsSchema, data.XlcreditPrice)
 	return ret, err
 }
 
 func (m *defaultAeMcpToolsModel) Update(ctx context.Context, data *AeMcpTools) error {
 	query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeMcpToolsRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServiceId, data.Name, data.Description, data.ArgsSchema)
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.ServiceId, data.Name, data.Description, data.ArgsSchema, data.XlcreditPrice)
 	return err
 }
 

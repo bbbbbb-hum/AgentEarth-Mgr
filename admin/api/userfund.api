@@ -12,7 +12,7 @@
  * 6. 人工充值功能
  * 
  * 涉及数据库表:
- * - mcp_user: 用户基础信息
+ * - ae_user: 用户基础信息
  * - ae_user_balance_statistic_daily: 日余额统计表
  * - ae_user_consumption_record_daily: 日消费记录表
  * - ae_user_recharge_record: 充值记录表

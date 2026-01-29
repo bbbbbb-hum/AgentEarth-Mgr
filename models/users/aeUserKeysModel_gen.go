@@ -47,7 +47,6 @@ type (
 		Permissions string    `db:"permissions"`  // 钥权限范围JSON数组
 		ExpiresAt   time.Time `db:"expires_at"`   // 密钥过期时间
 		LastUsedAt  time.Time `db:"last_used_at"` // 最后使用时间
-		UsageCount  int64     `db:"usage_count"`  // 密钥使用次数统计
 		CreateTime  time.Time `db:"create_time"`  // 创建时间
 		UpdateTime  time.Time `db:"update_time"`  // 更新时间
 	}
@@ -95,14 +94,14 @@ func (m *defaultAeUserKeysModel) FindOneByKeyValue(ctx context.Context, keyValue
 }
 
 func (m *defaultAeUserKeysModel) Insert(ctx context.Context, data *AeUserKeys) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)", m.table, aeUserKeysRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.KeyName, data.KeyValue, data.KeyType, data.Status, data.Permissions, data.ExpiresAt, data.LastUsedAt, data.UsageCount)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8)", m.table, aeUserKeysRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.KeyName, data.KeyValue, data.KeyType, data.Status, data.Permissions, data.ExpiresAt, data.LastUsedAt)
 	return ret, err
 }
 
 func (m *defaultAeUserKeysModel) Update(ctx context.Context, newData *AeUserKeys) error {
 	query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeUserKeysRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, newData.Id, newData.UserId, newData.KeyName, newData.KeyValue, newData.KeyType, newData.Status, newData.Permissions, newData.ExpiresAt, newData.LastUsedAt, newData.UsageCount)
+	_, err := m.conn.ExecCtx(ctx, query, newData.Id, newData.UserId, newData.KeyName, newData.KeyValue, newData.KeyType, newData.Status, newData.Permissions, newData.ExpiresAt, newData.LastUsedAt)
 	return err
 }
 

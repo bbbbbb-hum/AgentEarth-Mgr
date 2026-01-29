@@ -9,7 +9,7 @@
  * - 自动计算每个用户的日均消费（最近30天平均值）
  *
  * 数据来源:
- * - mcp_user: 用户基础信息
+ * - ae_user: 用户基础信息
  * - ae_user_balance_statistic_daily: 最新余额
  * - ae_user_consumption_record_daily: 日均消费计算（AVG(xlcredit_consume), xlcredit_consume > 0）
  *
@@ -95,7 +95,7 @@ func (l *GetUserListLogic) GetUserList(req *types.UserListReq) (resp *types.User
 
 		list = append(list, types.UserItem{
 			Id:               u.Id,
-			UserId:        u.UserId,
+			UserId:           u.UserId,
 			Username:         u.Username,
 			Phone:            u.Phone,
 			Email:            u.Email,

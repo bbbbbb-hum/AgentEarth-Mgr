@@ -177,9 +177,9 @@ func (m *customAeMcpServicesModel) GetAllTags(ctx context.Context) []string {
 // InsertWithoutId inserts without providing the auto-increment id.
 func (m *customAeMcpServicesModel) InsertWithoutId(ctx context.Context, data *AeMcpServices) (sql.Result, error) {
 	// Explicit column list without id
-	columns := "server_id, server_name, logo, protocol_version, enabled, tags, description, task_chain_id, x_net_service_id, call_num,project_name,is_install"
-	query := fmt.Sprintf("insert into %s (%s) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)", m.table, columns)
-	return m.conn.ExecCtx(ctx, query, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.ProjectName, data.IsInstall)
+	columns := "server_id, server_name, logo, protocol_version, enabled, tags, description, task_chain_id, x_net_service_id, call_num,project_name,is_install,xlcredit_price"
+	query := fmt.Sprintf("insert into %s (%s) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", m.table, columns)
+	return m.conn.ExecCtx(ctx, query, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.ProjectName, data.IsInstall, data.XlcreditPrice)
 }
 
 func (m *customAeMcpServicesModel) FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpServices, error) {
@@ -251,7 +251,7 @@ func (m *customAeMcpServicesModel) BatchUpdatePrice(ctx context.Context, ids []i
 		placeholders[i] = fmt.Sprintf("$%d", i+2)
 		args[i+1] = id
 	}
-	query := fmt.Sprintf("update %s set price = $1 where id in (%s)", m.table, strings.Join(placeholders, ","))
+	query := fmt.Sprintf("update %s set xlcredit_price = $1 where id in (%s)", m.table, strings.Join(placeholders, ","))
 	result, err := m.conn.ExecCtx(ctx, query, args...)
 	if err != nil {
 		return 0, err
@@ -316,7 +316,7 @@ func (m *customAeMcpServicesModel) BatchUpdatePriceByCondition(ctx context.Conte
 	finalArgs = append(finalArgs, price)
 	priceArgIndex := len(finalArgs)
 
-	query := fmt.Sprintf("update %s set price = $%d %s", m.table, priceArgIndex, whereClause)
+	query := fmt.Sprintf("update %s set xlcredit_price = $%d %s", m.table, priceArgIndex, whereClause)
 
 	result, err := m.conn.ExecCtx(ctx, query, finalArgs...)
 	if err != nil {

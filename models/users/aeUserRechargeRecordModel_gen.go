@@ -38,8 +38,8 @@ type (
 
 	AeUserRechargeRecord struct {
 		Id             int64     `db:"id"`
-		UserId      string    `db:"user_id"`
-		XlcreditAmount float64   `db:"xlcredit_amount"`
+		UserId         string    `db:"user_id"`
+		XlcreditAmount int64     `db:"xlcredit_amount"`
 		PayTime        time.Time `db:"pay_time"`
 		CreateTime     time.Time `db:"create_time"`
 		UpdateTime     time.Time `db:"update_time"`
@@ -86,7 +86,7 @@ func (m *defaultAeUserRechargeRecordModel) Update(ctx context.Context, data *AeU
 	return err
 }
 
-func (m *defaultAeUserRechargeRecordModel) Sum24hRecharge(ctx context.Context) (float64, error) {
+func (m *defaultAeUserRechargeRecordModel) Sum24hRecharge(ctx context.Context) (int64, error) {
 	// 统计24小时内所有用户充值的总和
 	// 使用 pay_time 字段，只统计正值（充值），排除负值（扣减）
 	// xlcredit_amount > 0 表示充值，< 0 表示扣减
@@ -95,14 +95,14 @@ func (m *defaultAeUserRechargeRecordModel) Sum24hRecharge(ctx context.Context) (
 
 	// Postgres uses COALESCE to handle null sum
 	query := fmt.Sprintf("select COALESCE(sum(xlcredit_amount), 0) from %s where pay_time >= $1 and xlcredit_amount > 0", m.table)
-	var total float64
+	var total int64
 	err := m.conn.QueryRowCtx(ctx, &total, query, startTime)
 	return total, err
 }
 
-func (m *defaultAeUserRechargeRecordModel) GetBalance(ctx context.Context, userId string) (float64, error) {
+func (m *defaultAeUserRechargeRecordModel) GetBalance(ctx context.Context, userId string) (int64, error) {
 	query := fmt.Sprintf("select COALESCE(sum(xlcredit_amount), 0) from %s where user_id = $1", m.table)
-	var total float64
+	var total int64
 	err := m.conn.QueryRowCtx(ctx, &total, query, userId)
 	return total, err
 }
