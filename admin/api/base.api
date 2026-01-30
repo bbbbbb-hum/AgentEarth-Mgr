@@ -1,0 +1,31 @@
+syntax = "v1"
+
+info (
+    title:   "基础类型"
+    desc:    "基础类型定义"
+    author:  "wcs"
+    email:   ""
+    version: "v1.0.0"
+)
+
+type (
+    BaseListReq {
+        Page   int64  `form:"page,optional"`
+        Size   int64  `form:"size,optional"`
+        Search string `form:"search,optional"`
+        Sort   string `form:"sort,optional"`
+        Order  string `form:"order,optional"`
+    }
+    BaseResp {
+        Code    int64                  `json:"code"`
+        Message string                 `json:"message"`
+        Data    map[string]interface{} `json:"data"`
+    }
+    DetailReq {
+        Id int64 `path:"id"`
+    }
+    IdsReq {
+        Ids []int64 `json:"ids"`
+    }
+)
+

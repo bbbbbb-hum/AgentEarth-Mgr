@@ -1,0 +1,25 @@
+Name: agent-earth-mgr-backend             # 服务名称，用于服务发现和日志标识
+Host: 0.0.0.0                             # 服务监听地址，0.0.0.0 表示监听所有网卡（支持局域网访问）
+Port: 9005                                # 服务监听端口
+
+DB:                                       # 数据库配置
+  #DataSource: "postgres://wcs:123@8.146.236.193:9002/agent_earth?sslmode=disable"
+  DataSource: "postgres://postgres:zhang@localhost:5432/test1?sslmode=disable"
+
+
+Auth:                                     # JWT 鉴权配置
+  AccessSecret: "ae-mgr-secret-2025"      # JWT 签名密钥，用于生成和验证 Token
+  AccessExpire: 86400                     # Token 过期时间，单位：秒 (86400秒 = 24小时)
+
+# Prometheus 监控配置
+Prometheus:                               # 用于导出监控指标，供 Prometheus 抓取
+  Host: 0.0.0.0                           # 监控服务监听地址
+  Port: 9006                              # 监控服务监听端口
+  Path: /metrics                          # 监控指标的访问路径
+
+Log:                                      # 日志配置
+  ServiceName: agent-earth-mgr-backend    # 日志中记录的服务名称
+  Mode: console                           # 日志输出模式：console(控制台), file(文件), volume(卷)
+  Encoding: json                          # 日志格式：json(结构化) 或 plain(纯文本)
+  Level: info                             # 日志级别：info, error, severe
+  StackCooldownMillis: 100                # 相同错误堆栈打印的冷却时间，防止日志刷屏 (单位：毫秒)

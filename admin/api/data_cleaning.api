@@ -1,0 +1,143 @@
+syntax = "v1"
+
+info (
+	title:   "清洗数据模块"
+	desc:    "清洗数据接口"
+	author:  "wcs"
+	email:   ""
+	version: "v1.0.0"
+)
+
+import "./base.api"
+
+@server (
+	group:  data
+	prefix: /manager/api/admin/data
+)
+service admin-api {
+	// 生成外部服务配置
+	@handler CreateConfig
+	post /create/config (CreateConfigReq) returns (BaseResp)
+
+	// 生成服务以及关联链，节点
+	@handler CreateServices
+	post /create/services returns (BaseResp)
+
+	// 单独生成服务
+	@handler CreateService
+	post /create/service returns (BaseResp)
+
+	// 更新服务的描述字段
+	@handler UpdateServiceDesc
+	post /update/service/desc (UpdateServiceDescReq) returns (BaseResp)
+
+	// 生成(更新)服务与配置
+	@handler CreateServiceAndConfig
+	post /create/service-and-config (CreateServiceAndConfigReq) returns (BaseResp)
+
+	// 生成链与节点
+	@handler CreateChainAndNode
+	post /create/chain-and-node (CreateChainAndNodeReq) returns (BaseResp)
+
+	//批量关闭服务
+	@handler BatchCloseServices
+	post /batch/close/services (BatchCloseServicesReq) returns (BaseResp)
+
+	// 手动创建服务配置
+	@handler CreateServiceConfigManual
+	post /create/service-config-manual (CreateServiceConfigManualReq) returns (BaseResp)
+
+	// 获取服务配置列表
+	@handler GetServiceConfigList
+	get /service-config/list (GetServiceConfigListReq) returns (BaseResp)
+
+	// 更新服务配置
+	@handler UpdateServiceConfig
+	post /update/service-config (UpdateServiceConfigReq) returns (BaseResp)
+
+	// 更新服务上线状态
+	@handler UpdateServiceOnline
+	post /update-service-online (UpdateServiceOnlineReq) returns (BaseResp)
+}
+
+type (
+	CreateConfigReq {
+		TestStatus int64 `json:"test_status"`
+	}
+	UpdateServiceDescReq {
+		ServiceID string `json:"service_id,omitempty"`
+	}
+	CreateServiceAndConfigReq {
+		TestStatus int64 `json:"test_status"`
+	}
+	CreateChainAndNodeReq {
+		Ids []int64 `json:"ids,omitempty"`
+	}
+	BatchCloseServicesReq {
+		TestStatus int64 `json:"test_status"`
+	}
+	CreateServiceConfigManualReq {
+		Name            string `json:"name"`
+		Type            string `json:"type"`
+		Description     string `json:"description"`
+		ProjectName     string `json:"project_name"`
+		MaxInstance     int64  `json:"max_instance"`
+		LaunchInfo      string `json:"launch_info"`
+		ConnectInfo     string `json:"connect_info"`
+		InstallInfo     string `json:"install_info"`
+		AccountRequired int64  `json:"account_required"`
+		TestStatus      int64  `json:"test_status"`
+		OnlineStatus    int64  `json:"online_status"`
+	}
+	UpdateServiceConfigReq {
+		Id              int64   `json:"id"`
+		Name            string  `json:"name"`
+		Type            string  `json:"type"`
+		Description     string  `json:"description"`
+		ProjectName     string  `json:"project_name"`
+		MaxInstance     int64   `json:"max_instance"`
+		LaunchInfo      *string `json:"launch_info,omitempty"`
+		ConnectInfo     *string `json:"connect_info,omitempty"`
+		InstallInfo     *string `json:"install_info,omitempty"`
+		AccountRequired *int64  `json:"account_required,omitempty"`
+		TestStatus      *int64  `json:"test_status,omitempty"`
+		OnlineStatus    *int64  `json:"online_status,omitempty"`
+	}
+	UpdateServiceOnlineReq {
+		Id           int64 `json:"id"`
+		OnlineStatus int64 `json:"online_status"`
+	}
+	GetServiceConfigListReq {
+		BaseListReq
+		FilterName            string `form:"filter_name,optional"`
+		FilterType            string `form:"filter_type,optional"`
+		FilterAccountRequired string `form:"filter_account_required,optional"`
+		FilterTestStatus      string `form:"filter_test_status,optional"`
+		FilterOnlineStatus    string `form:"filter_online_status,optional"`
+		SortField             string `form:"sort_field,optional"`
+		SortOrder             string `form:"sort_order,optional"`
+	}
+	ServiceConfigItem {
+		Id                int64  `json:"id"`
+		Name              string `json:"name"`
+		Type              string `json:"type"`
+		Description       string `json:"description"`
+		ProjectName       string `json:"project_name"`
+		MaxInstance       int64  `json:"max_instance"`
+		LaunchInfo        string `json:"launch_info"`
+		ConnectInfo       string `json:"connect_info"`
+		InstallInfo       string `json:"install_info"`
+		AccountRequired   int64  `json:"account_required"`
+		TestStatus        int64  `json:"test_status"`
+		OnlineStatus      int64  `json:"online_status"`
+		ExternalServiceId string `json:"external_service_id"`
+		ServerId          string `json:"server_id"`
+		CreateStatus      bool   `json:"create_status"`
+		CreateTime        string `json:"create_time"`
+		UpdateTime        string `json:"update_time"`
+	}
+	GetServiceConfigListResp {
+		List  []ServiceConfigItem `json:"list"`
+		Total int64               `json:"total"`
+	}
+)

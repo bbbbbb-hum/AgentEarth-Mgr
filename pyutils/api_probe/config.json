@@ -1,0 +1,12 @@
+{
+    "ApiInfo": {
+        "addr": "your-api-addr",
+        "X-API-Key": "your-x-api-key"
+    },
+    "ServiceListApi": {
+        "url": "your_service-list-api-url"
+    },
+    "LogConfig": {
+        "log_level": "INFO"
+    }
+}

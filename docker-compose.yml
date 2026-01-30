@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./dist
+      dockerfile: ../Dockerfile
+    container_name: ae-mgr-api
+    ports:
+      - "9005:9005"
+    volumes:
+      - ./dist/config:/opt/xlconfigs/AEMGRBE:ro
+      - ./dist/data:/opt/xldata/AEMGRBE/data
+      - ./dist/tmp:/opt/xltmp/AEMGRBE/tmp
+    environment:
+      - DB_DATASOURCE=${DB_DATASOURCE} # 从宿主机的环境变量或 .env 文件中读取
+    restart: always
+
+networks:
+  default:
+    name: ae-mgr-net
