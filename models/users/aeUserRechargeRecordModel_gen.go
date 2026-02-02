@@ -37,13 +37,18 @@ type (
 	}
 
 	AeUserRechargeRecord struct {
-		Id             int64     `db:"id"`
-		UserId         string    `db:"user_id"`
-		XlcreditAmount int64     `db:"xlcredit_amount"`
-		PayTime        time.Time `db:"pay_time"`
-		CreateTime     time.Time `db:"create_time"`
-		UpdateTime     time.Time `db:"update_time"`
-		ChargeSource   int64     `db:"charge_source"`
+		Id              int64         `db:"id"`
+		UserId          string        `db:"user_id"`
+		XlcreditAmount  float64       `db:"xlcredit_amount"`
+		PayTime         time.Time     `db:"pay_time"`
+		CreateTime      time.Time     `db:"create_time"`
+		UpdateTime      time.Time     `db:"update_time"`
+		ChargeSource    int64         `db:"charge_source"`
+		ChargeType      int64         `db:"charge_type"`
+		Remark          sql.NullString `db:"remark"`
+		Operator        sql.NullString `db:"operator"`
+		ExpireTime      sql.NullTime  `db:"expire_time"`
+		RelatedParentId sql.NullInt64 `db:"related_parent_id"`
 	}
 )
 
@@ -76,17 +81,17 @@ func (m *defaultAeUserRechargeRecordModel) FindOne(ctx context.Context, id int64
 
 func (m *defaultAeUserRechargeRecordModel) Insert(ctx context.Context, data *AeUserRechargeRecord) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (%s)", m.table, aeUserRechargeRecordRowsExpectAutoSet, aeUserRechargeRecordRowsWithPlaceHolder)
-	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource)
+	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource, data.ChargeType, data.Remark, data.Operator, data.ExpireTime, data.RelatedParentId)
 	return ret, err
 }
 
 func (m *defaultAeUserRechargeRecordModel) Update(ctx context.Context, data *AeUserRechargeRecord) error {
-	query := fmt.Sprintf("update %s set %s where id = $1", m.table, "user_id=$2, xlcredit_amount=$3, pay_time=$4, charge_source=$5")
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource)
+	query := fmt.Sprintf("update %s set %s where id = $1", m.table, "user_id=$2, xlcredit_amount=$3, pay_time=$4, charge_source=$5, charge_type=$6, remark=$7, operator=$8, expire_time=$9, related_parent_id=$10")
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource, data.ChargeType, data.Remark, data.Operator, data.ExpireTime, data.RelatedParentId)
 	return err
 }
 
-func (m *defaultAeUserRechargeRecordModel) Sum24hRecharge(ctx context.Context) (int64, error) {
+func (m *defaultAeUserRechargeRecordModel) Sum24hRecharge(ctx context.Context) (float64, error) {
 	// 统计24小时内所有用户充值的总和
 	// 使用 pay_time 字段，只统计正值（充值），排除负值（扣减）
 	// xlcredit_amount > 0 表示充值，< 0 表示扣减
@@ -95,14 +100,14 @@ func (m *defaultAeUserRechargeRecordModel) Sum24hRecharge(ctx context.Context) (
 
 	// Postgres uses COALESCE to handle null sum
 	query := fmt.Sprintf("select COALESCE(sum(xlcredit_amount), 0) from %s where pay_time >= $1 and xlcredit_amount > 0", m.table)
-	var total int64
+	var total float64
 	err := m.conn.QueryRowCtx(ctx, &total, query, startTime)
 	return total, err
 }
 
-func (m *defaultAeUserRechargeRecordModel) GetBalance(ctx context.Context, userId string) (int64, error) {
+func (m *defaultAeUserRechargeRecordModel) GetBalance(ctx context.Context, userId string) (float64, error) {
 	query := fmt.Sprintf("select COALESCE(sum(xlcredit_amount), 0) from %s where user_id = $1", m.table)
-	var total int64
+	var total float64
 	err := m.conn.QueryRowCtx(ctx, &total, query, userId)
 	return total, err
 }

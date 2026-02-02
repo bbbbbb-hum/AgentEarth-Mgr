@@ -38,6 +38,7 @@ import (
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
 
+	"github.com/shopspring/decimal"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -74,15 +75,16 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 	}
 
 	// 查询充值记录表（包含充值和扣减），并关联管理员表获取用户名
-	// 如果 r.operator 是 ID，尝试关联 ae_mgrsystem_user.user_id
-	// COALESCE(u.username, r.operator) 优先显示关联到的用户名，否则显示原值
+	// r.id、r.expire_time 用于充值时展示批次剩余额度和过期状态
 	query := fmt.Sprintf(`
 		SELECT 
+			r.id,
 			r.pay_time,
 			r.xlcredit_amount,
 			r.charge_source,
 			r.charge_type,
 			r.remark,
+			r.expire_time,
 			COALESCE(u.username, r.operator) as operator
 		FROM ae_user_recharge_record r
 		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
@@ -92,11 +94,13 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 	`, whereClause)
 
 	type recordRow struct {
+		Id             int64          `db:"id"`
 		PayTime        time.Time      `db:"pay_time"`
 		XlcreditAmount float64        `db:"xlcredit_amount"`
 		ChargeSource   int64          `db:"charge_source"`
 		ChargeType     int64          `db:"charge_type"`
 		Remark         sql.NullString `db:"remark"`
+		ExpireTime     sql.NullTime   `db:"expire_time"`
 		Operator       sql.NullString `db:"operator"`
 	}
 
@@ -145,6 +149,10 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			chargeTypeDesc = "系统故障补偿"
 		case 3:
 			chargeTypeDesc = "活动赠送"
+		case 4:
+			chargeTypeDesc = "过期扣减"
+		case 5:
+			chargeTypeDesc = "管理员扣减"
 		default:
 			chargeTypeDesc = "未知"
 		}
@@ -154,7 +162,7 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			operatorName = "unknown"
 		}
 
-		records = append(records, types.FundChangeRecordItem{
+		item := types.FundChangeRecordItem{
 			TransactionTime: row.PayTime.Format("2006-01-02 15:04:05"),
 			TypeDescription: typeDesc,
 			ChangeAmount:    row.XlcreditAmount,
@@ -163,7 +171,43 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			ChargeType:      row.ChargeType,
 			ChargeTypeDesc:  chargeTypeDesc,
 			Operator:        operatorName,
-		})
+		}
+
+		// 仅充值时计算批次剩余额度、过期时间、状态
+		if row.XlcreditAmount > 0 {
+			item.BatchId = row.Id
+			item.InitialAmount = row.XlcreditAmount
+			initialAmt := decimal.NewFromFloat(row.XlcreditAmount)
+			remaining, errBalance := CalculateRealTimeBalance(l.ctx, l.svcCtx.DB, row.Id, initialAmt)
+			if errBalance == nil {
+				item.RemainingAmount, _ = remaining.Float64()
+			}
+			if row.ExpireTime.Valid {
+				item.ExpireTime = row.ExpireTime.Time.Format("2006-01-02")
+				now := time.Now()
+				if row.ExpireTime.Time.Before(now) {
+					item.BatchStatus = "已过期"
+					// 已过期时：查询过期扣减的那笔金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」
+					var expiredDeduct float64
+					_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &expiredDeduct,
+						`SELECT COALESCE(SUM(ABS(xlcredit_amount)), 0) FROM ae_user_recharge_record WHERE related_parent_id = $1 AND xlcredit_amount < 0`, row.Id)
+					item.RemainingAtExpire = expiredDeduct
+				} else if item.RemainingAmount <= 0 {
+					item.BatchStatus = "已耗尽"
+				} else {
+					item.BatchStatus = "使用中"
+				}
+			} else {
+				item.ExpireTime = "永久有效"
+				if item.RemainingAmount <= 0 {
+					item.BatchStatus = "已耗尽"
+				} else {
+					item.BatchStatus = "使用中"
+				}
+			}
+		}
+
+		records = append(records, item)
 	}
 
 	return &types.FundChangeRecordResp{

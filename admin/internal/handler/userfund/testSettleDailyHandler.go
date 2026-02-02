@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.9.2
-
 package userfund
 
 import (
@@ -13,16 +10,16 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
-func GetUserListHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+func TestSettleDailyHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.UserListReq
+		var req types.TestSettleReq
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
 
-		l := userfund.NewGetUserListLogic(r.Context(), svcCtx)
-		resp, err := l.GetUserList(&req)
+		l := userfund.NewTestSettleDailyLogic(r.Context(), svcCtx)
+		resp, err := l.TestSettleDaily(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 		} else {

@@ -30,6 +30,8 @@ package userfund
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 	"time"
 
 	"AgentEarth-Mgr/admin/internal/svc"
@@ -68,8 +70,34 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 		currentBalance = 0
 	}
 
-	// 2. 插入充值记录
+	// 2. 解析可选过期时间（格式 YYYY-MM-DD，不传或空为永久有效）
+	var expireTime sql.NullTime
+	if strings.TrimSpace(req.ExpireTime) != "" {
+		if t, parseErr := time.ParseInLocation("2006-01-02", strings.TrimSpace(req.ExpireTime), time.Local); parseErr == nil {
+			// 设为该日 23:59:59，表示该日结束前有效
+			endOfDay := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 0, time.Local)
+			expireTime = sql.NullTime{Time: endOfDay, Valid: true}
+		}
+	}
+
+	// 3. 插入充值记录（含可选 expire_time）
 	insertQuery := `
+		INSERT INTO public.ae_user_recharge_record (
+			user_id,
+			xlcredit_amount,
+			pay_time,
+			create_time,
+			update_time,
+			charge_source,
+			charge_type,
+			remark,
+			operator,
+			expire_time
+		)
+		VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8, $9)
+		RETURNING id
+	`
+	fallbackInsertQuery := `
 		INSERT INTO public.ae_user_recharge_record (
 			user_id,
 			xlcredit_amount,
@@ -84,24 +112,12 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 		VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8)
 		RETURNING id
 	`
-	fallbackInsertQuery := `
-		INSERT INTO public.ae_user_recharge_record (
-			user_id,
-			xlcredit_amount,
-			pay_time,
-			create_time,
-			update_time,
-			charge_source
-		)
-		VALUES ($1, $2, $3, $4, $5, 1)
-		RETURNING id
-	`
 	now := time.Now()
 	var insertedId int64
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, insertQuery, req.UserId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName)
+	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, insertQuery, req.UserId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName, expireTime)
 	if err != nil {
 		l.Logger.Errorf("Failed to insert recharge record (full): %v, trying fallback", err)
-		fallbackErr := l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, fallbackInsertQuery, req.UserId, req.Amount, now, now, now)
+		fallbackErr := l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, fallbackInsertQuery, req.UserId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName)
 		if fallbackErr != nil {
 			l.Logger.Errorf("Failed to insert recharge record (fallback): %v", fallbackErr)
 			return &types.ManualRechargeResp{
@@ -110,9 +126,9 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 			}, nil
 		}
 	}
-	l.Logger.Infof("充值记录插入成功: record_id=%d user_id=%s amount=%.2f", insertedId, req.UserId, req.Amount)
+	l.Logger.Infof("充值记录插入成功: record_id=%d user_id=%s amount=%.2f expire_time=%v", insertedId, req.UserId, req.Amount, expireTime)
 
-	// 3. 更新日余额统计（使用 ON CONFLICT DO UPDATE）
+	// 4. 更新日余额统计（使用 ON CONFLICT DO UPDATE）
 	// 关键修复：如果当天没有记录，INSERT 时使用 当前余额 + 充值金额
 	// 如果当天有记录，UPDATE 时使用 当天余额 + 充值金额
 	updateQuery := `

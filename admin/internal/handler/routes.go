@@ -305,6 +305,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/user/deduction",
 				Handler: userfund.ManualDeductionHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/job/settle",
+				Handler: userfund.TestSettleDailyHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/job/expire",
+				Handler: userfund.TestExpireCheckHandler(serverCtx),
+			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/manager/api/userfund"),

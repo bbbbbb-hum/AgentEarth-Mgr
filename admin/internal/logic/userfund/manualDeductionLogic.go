@@ -24,11 +24,12 @@ import (
 )
 
 type ManualDeductionLogic struct {
-	logx.Logger
-	ctx    context.Context
-	svcCtx *svc.ServiceContext
+	logx.Logger                     //日志工具
+	ctx         context.Context     //上下文(用于超时控制，链路追踪)
+	svcCtx      *svc.ServiceContext //服务上下文(包含数据库连接、Redis、配置等资源)
 }
 
+// 构造函数（工厂方法），初始化上面的ManualDeductionLogic结构体
 func NewManualDeductionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ManualDeductionLogic {
 	return &ManualDeductionLogic{
 		Logger: logx.WithContext(ctx),
@@ -38,7 +39,8 @@ func NewManualDeductionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *M
 }
 
 func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (resp *types.ManualDeductionResp, err error) {
-	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, -1)
+	// operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, -1)
+	operatorName := "System_Auto"
 	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserId)
 	chargeType := req.ChargeType
 	if chargeType <= 0 {
@@ -66,7 +68,6 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 			operator
 		)
 		VALUES ($1, $2, $3, $4, $5, -1, $6, $7, $8)
-		RETURNING id
 	`
 	fallbackInsertQuery := `
 		INSERT INTO public.ae_user_recharge_record (
@@ -78,15 +79,13 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 			charge_source
 		)
 		VALUES ($1, $2, $3, $4, $5, -1)
-		RETURNING id
 	`
 	now := time.Now()
 	negativeAmount := -req.Amount
-	var insertedId int64
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, insertQuery, req.UserId, negativeAmount, now, now, now, chargeType, req.Remarks, operatorName)
+	_, err = l.svcCtx.DB.ExecCtx(l.ctx, insertQuery, req.UserId, negativeAmount, now, now, now, chargeType, req.Remarks, operatorName)
 	if err != nil {
 		l.Logger.Errorf("Failed to insert deduction record (full): %v, trying fallback", err)
-		fallbackErr := l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, fallbackInsertQuery, req.UserId, negativeAmount, now, now, now)
+		_, fallbackErr := l.svcCtx.DB.ExecCtx(l.ctx, fallbackInsertQuery, req.UserId, negativeAmount, now, now, now)
 		if fallbackErr != nil {
 			l.Logger.Errorf("Failed to insert deduction record (fallback): %v", fallbackErr)
 			return &types.ManualDeductionResp{
@@ -95,7 +94,6 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 			}, nil
 		}
 	}
-	l.Logger.Infof("扣减记录插入成功: record_id=%d user_id=%s amount=%.2f", insertedId, req.UserId, negativeAmount)
 
 	// 3. 更新日余额统计（使用 ON CONFLICT DO UPDATE）
 	updateQuery := `

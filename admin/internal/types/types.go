@@ -336,6 +336,7 @@ type ManualRechargeReq struct {
 	Amount     float64 `json:"amount"`
 	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
 	Remarks    string  `json:"remarks,optional"`
+	ExpireTime string  `json:"expire_time,optional"` // 可选，格式 YYYY-MM-DD，不传或空为永久有效
 }
 
 type ManualRechargeResp struct {
@@ -355,6 +356,15 @@ type ManualDeductionResp struct {
 	Success    bool    `json:"success"`
 	Message    string  `json:"message"`
 	NewBalance float64 `json:"new_balance"`
+}
+
+type TestSettleReq struct {
+	Date string `json:"date,optional"` // YYYY-MM-DD
+}
+
+type TestResp struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 type BalanceHistoryReq struct {
@@ -378,14 +388,21 @@ type FundChangeRecordReq struct {
 }
 
 type FundChangeRecordItem struct {
-	TransactionTime string  `json:"transaction_time"` // 交易时间
-	TypeDescription string  `json:"type_description"` // 类型说明
-	ChangeAmount    float64 `json:"change_amount"`    // 变动金额（正数为充值，负数为扣减）
-	Status          string  `json:"status"`           // 状态
-	Remarks         string  `json:"remarks"`          // 备注/原因
-	ChargeType      int64   `json:"charge_type"`      // 充值类型
-	ChargeTypeDesc  string  `json:"charge_type_desc"` // 充值类型说明
-	Operator        string  `json:"operator"`         // 操作人
+	TransactionTime string  `json:"transaction_time"`   // 交易时间
+	TypeDescription string  `json:"type_description"`   // 类型说明
+	ChangeAmount    float64 `json:"change_amount"`      // 变动金额（正数为充值，负数为扣减）
+	Status          string  `json:"status"`             // 状态
+	Remarks         string  `json:"remarks"`            // 备注/原因
+	ChargeType      int64   `json:"charge_type"`       // 充值类型
+	ChargeTypeDesc  string  `json:"charge_type_desc"`   // 充值类型说明
+	Operator        string  `json:"operator"`            // 操作人
+	// 仅充值时有效：批次信息（剩余额度、过期时间、状态）
+	BatchId        int64   `json:"batch_id,omitempty"`         // 批次ID（充值记录id）
+	InitialAmount  float64 `json:"initial_amount,omitempty"`   // 初始金额
+	RemainingAmount float64 `json:"remaining_amount,omitempty"` // 剩余额度（实时）
+	RemainingAtExpire float64 `json:"remaining_at_expire,omitempty"` // 已过期时：过期那一刻的剩余金额（被过期扣减的那笔）
+	ExpireTime     string  `json:"expire_time,omitempty"`      // 过期时间 YYYY-MM-DD 或 永久有效
+	BatchStatus    string  `json:"batch_status,omitempty"`     // 批次状态：使用中/已耗尽/已过期
 }
 
 type FundChangeRecordResp struct {

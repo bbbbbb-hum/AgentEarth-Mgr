@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"AgentEarth-Mgr/admin/internal/config"
+	"AgentEarth-Mgr/admin/internal/cron"
 	"AgentEarth-Mgr/admin/internal/handler"
 	"AgentEarth-Mgr/admin/internal/middleware"
 	"AgentEarth-Mgr/admin/internal/svc"
@@ -97,6 +98,11 @@ func main() {
 		}
 	}
 	handler.RegisterHandlers(server, ctx)
+
+	// Start Cron Job Scheduler
+	scheduler := cron.NewJobScheduler(context.Background(), ctx)
+	scheduler.Start()
+	defer scheduler.Stop()
 
 	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
 	server.Start()
