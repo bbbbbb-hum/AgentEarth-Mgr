@@ -8,6 +8,7 @@ import (
 	"AgentEarth-Mgr/models/mcp"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -99,7 +100,7 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 				var pqErr *pq.Error
 				if errors.As(err1, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "mcp_task_node_pkey" {
 					if resetErr := l.resetTaskNodeSeq(); resetErr != nil {
-						return err1
+						return resetErr
 					}
 					nodeId, err1 = nodeModel.InsertReturningId(ctx, &node)
 				}
@@ -118,7 +119,7 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 				var pqErr *pq.Error
 				if errors.As(err2, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "mcp_task_chain_pkey" {
 					if resetErr := l.resetTaskChainSeq(); resetErr != nil {
-						return err2
+						return resetErr
 					}
 					chainId, err2 = chainModel.InsertReturningId(ctx, &chain)
 				}
@@ -152,13 +153,24 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 }
 
 func (l *ServiceTaskCreateLogic) resetTaskNodeSeq() error {
-	query := `select setval('"public"."ae_mcp_task_node_id_seq"', (select coalesce(max(id), 0) + 1 from "public"."ae_mcp_task_node"), false)`
-	_, err := l.svcCtx.DB.ExecCtx(l.ctx, query)
-	return err
+	return l.resetSeq("public.ae_mcp_task_node", "id")
 }
 
 func (l *ServiceTaskCreateLogic) resetTaskChainSeq() error {
-	query := `select setval('"public"."ae_mcp_task_chain_id_seq"', (select coalesce(max(id), 0) + 1 from "public"."ae_mcp_task_chain"), false)`
-	_, err := l.svcCtx.DB.ExecCtx(l.ctx, query)
+	return l.resetSeq("public.ae_mcp_task_chain", "id")
+}
+
+func (l *ServiceTaskCreateLogic) resetSeq(table string, column string) error {
+	var seq string
+	seqQuery := `select pg_get_serial_sequence($1, $2)`
+	err := l.svcCtx.DB.QueryRowCtx(l.ctx, &seq, seqQuery, table, column)
+	if err != nil {
+		return err
+	}
+	if seq == "" {
+		return errors.New("序列不存在")
+	}
+	setvalQuery := fmt.Sprintf(`select setval($1, (select coalesce(max(%s), 0) + 1 from %s), false)`, column, table)
+	_, err = l.svcCtx.DB.ExecCtx(l.ctx, setvalQuery, seq)
 	return err
 }

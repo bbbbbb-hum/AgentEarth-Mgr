@@ -5,10 +5,12 @@ import (
 	configModel "AgentEarth-Mgr/models/config"
 	"AgentEarth-Mgr/models/mcp"
 	"context"
+	"errors"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
 
+	"github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -87,6 +89,12 @@ func (l *ServiceDeleteLogic) ServiceDelete(req *types.ServiceDeleteReq) (resp *t
 						Value: service.ServerId,
 					},
 				})
+				if err1 != nil {
+					var pqErr *pq.Error
+					if errors.As(err1, &pqErr) && pqErr.Code == "42P01" {
+						err1 = nil
+					}
+				}
 				if err1 != nil {
 					return err1
 				}

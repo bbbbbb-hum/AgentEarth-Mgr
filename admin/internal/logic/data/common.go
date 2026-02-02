@@ -20,7 +20,17 @@ func FormatServerId(id int64) string {
 }
 
 func NextServiceId(ctx context.Context, conn sqlx.SqlConn) (int64, error) {
-	query := `select nextval('"public"."ae_mcp_server_id_seq"')`
+	// 核心逻辑：确保生成的 ID 永远大于当前数据库中的最大 ID
+	// 1. 使用 GREATEST 函数对比 (序列下一个值) 和 (当前表最大 ID + 1)
+	// 2. 在较大的那个值基础上，再增加 0-9 的随机数
+	// 这样即便序列号(Sequence)因为数据库迁移或手动修改落后于实际数据，也能自动校准并跳过已存在的 ID
+	query := `
+		SELECT setval('"public"."ae_mcp_server_id_seq"', 
+			GREATEST(
+				nextval('"public"."ae_mcp_server_id_seq"'), 
+				(SELECT coalesce(max(id), 0) + 1 FROM "public"."ae_mcp_services")
+			) + floor(random() * 9)::bigint
+		)`
 	var id int64
 	if err := conn.QueryRowCtx(ctx, &id, query); err != nil {
 		return 0, err
