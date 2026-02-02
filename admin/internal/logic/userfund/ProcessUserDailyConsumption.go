@@ -26,28 +26,36 @@ func NewSettlementLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Settle
 	}
 }
 
+// SettlementStats 单条日消费核销的统计，用于汇总日志
+type SettlementStats struct {
+	WasRepeated   bool  // 该条日消费是否已有核销记录（重复执行）
+	NewAllocCount int64 // 本次实际新增的核销记录条数
+}
+
 // ProcessUserDailyConsumption 核销用户每日消费记录的定时任务逻辑
 // 逻辑说明:
 // 1. 获取用户当日总消费金额
 // 2. 查找用户所有有效充值记录(正值、未过期)，按FEFO原则(先过期先扣)排序
 // 3. 逐笔计算实时余额并进行扣减，生成核销记录
 // 4. 支持事务，确保资金操作的原子性
-func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserConsumptionRecordDaily) error {
+// 返回: 统计信息（是否重复执行、本次新增核销条数）、error
+func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserConsumptionRecordDaily) (stats SettlementStats, err error) {
 	// 将 float64 转换为 decimal 方便计算
 	//1.定义还要扣多少钱
 	amountToDeduct := decimal.NewFromFloat(dailyRecord.XlcreditConsume)
 
 	// 如果没有消费，直接返回，如果当前用户今天没有消费记录，直接返回，不扣减
 	if amountToDeduct.LessThanOrEqual(decimal.Zero) {
-		return nil
+		return stats, nil
 	}
 
 	// 开启事务
-	return l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
+	err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
 		// 0. 重复执行检测：若该日消费已有核销记录，则本次为重复执行，仅做幂等检查
 		var existingCount int64
 		_ = session.QueryRowCtx(ctx, &existingCount, "SELECT COUNT(*) FROM ae_recharge_allocation WHERE consumption_daily_id = $1", dailyRecord.Id)
 		if existingCount > 0 {
+			stats.WasRepeated = true
 			l.Logger.Infof("[ProcessUserDailyConsumption] 用户 %s 日消费ID=%d 已有 %d 条核销记录，本次为重复执行，将进行幂等检查（重复记录将跳过）", dailyRecord.UserId, dailyRecord.Id, existingCount)
 		}
 
@@ -140,6 +148,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 				amountToDeduct = amountToDeduct.Sub(actualDeduct)
 				continue
 			}
+			stats.NewAllocCount++
 
 			// --- 日志记录 ---
 			// 记录本次扣减的详细信息：用户、金额、充值批次ID、过期时间、操作时间
@@ -164,6 +173,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 
 		return nil
 	})
+	return stats, err
 }
 
 // SettleAllUsersConsumption 处理指定日期所有用户的消费结算 (Cron任务入口)
@@ -194,14 +204,21 @@ func (l *SettlementLogic) SettleAllUsersConsumption(targetDate time.Time) error 
 
 	l.Logger.Infof("[SettleAllUsers] 开始核销日期 %s 的消费记录，共 %d 条用户日消费（重复执行时已存在的核销记录将跳过）", dateStr, len(dailyRecords))
 
-	// 2. 遍历处理 (遇到错误记录日志但不中断循环)
+	// 2. 遍历处理 (遇到错误记录日志但不中断循环)，并汇总统计
+	var repeatCount int
+	var totalNewAllocs int64
 	for _, record := range dailyRecords {
-		if err := l.ProcessUserDailyConsumption(&record); err != nil {
-			l.Logger.Errorf("[SettleAllUsers] Failed to settle for user %s: %v", record.UserId, err)
+		stats, procErr := l.ProcessUserDailyConsumption(&record)
+		if procErr != nil {
+			l.Logger.Errorf("[SettleAllUsers] Failed to settle for user %s: %v", record.UserId, procErr)
 			continue
 		}
+		if stats.WasRepeated {
+			repeatCount++
+		}
+		totalNewAllocs += stats.NewAllocCount
 	}
 
-	l.Logger.Infof("[SettleAllUsers] 日期 %s 资金核销任务执行完毕", dateStr)
+	l.Logger.Infof("[SettleAllUsers] 日期 %s 核销完成：共 %d 条日消费，其中 %d 条为重复执行（已存在核销记录），实际新增 %d 条核销", dateStr, len(dailyRecords), repeatCount, totalNewAllocs)
 	return nil
 }
