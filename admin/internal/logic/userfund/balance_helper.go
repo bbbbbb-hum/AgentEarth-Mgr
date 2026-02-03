@@ -21,7 +21,7 @@ func CalculateRealTimeBalance(ctx context.Context, conn Queryable, recordID int6
 		SELECT
 			$2::numeric
 			- COALESCE((SELECT SUM(deducted_amount) FROM ae_recharge_allocation WHERE recharge_record_id = $1), 0)
-			- COALESCE((SELECT SUM(ABS(xlcredit_amount)) FROM ae_user_recharge_record WHERE related_parent_id = $1 AND xlcredit_amount < 0), 0)
+			- COALESCE((SELECT SUM(ABS(xlcredit_amount)) FROM ae_user_recharge_record WHERE related_recharge_id = $1 AND xlcredit_amount < 0), 0)
 	`
 
 	// 使用 string 承接 numeric，避免驱动/框架对 Decimal 的扫描不兼容

@@ -39,7 +39,7 @@ func (l *ExpirationLogic) ProcessExpirationLogic(checkTime time.Time) error {
 	// 注意: 只能在 SQL 层面筛选出肯定需要检查的记录 (正向充值且时间已过)
 	// 至于"剩余余额是否大于0"，需要后续逐条精确计算
 	query := `
-		SELECT id, user_id, xlcredit_amount, pay_time, create_time, update_time, charge_source, charge_type, remark, operator, expire_time, related_parent_id
+		SELECT id, user_id, xlcredit_amount, pay_time, create_time, update_time, charge_source, charge_type, remark, operator, expire_time, related_recharge_id
 		FROM ae_user_recharge_record
 		WHERE expire_time < NOW() AND xlcredit_amount > 0
 	`
@@ -72,7 +72,8 @@ func (l *ExpirationLogic) ProcessExpirationLogic(checkTime time.Time) error {
 		}
 	}
 
-	l.Logger.Infof("[ProcessExpirationLogic] Summary: expired_records=%d, deducted=%d", len(expiredRecords), deductedCount)
+	skippedCount := len(expiredRecords) - deductedCount
+	l.Logger.Infof("[ProcessExpirationLogic] Summary: 检查过期记录=%d, 本次扣减=%d, 暂无过期余额跳过=%d", len(expiredRecords), deductedCount, skippedCount)
 	return nil
 }
 
@@ -97,7 +98,8 @@ func (l *ExpirationLogic) processSingleRecord(record users.AeUserRechargeRecord)
 
 		// --- 判断 ---
 		if balance.LessThanOrEqual(decimal.Zero) {
-			// 余额为0或负数，说明已经花光了，无需处理
+			// 余额为0或负数，说明过期扣减已执行过或已扣光，暂时没有过期的余额可扣（仅 Debug 级别打印逐条，避免刷屏）
+			l.Logger.Debugf("[ProcessExpirationLogic] 用户=%s 充值批次ID=%d 暂无过期余额可扣，跳过", userDisplayName, record.Id)
 			return nil
 		}
 
@@ -116,7 +118,7 @@ func (l *ExpirationLogic) processSingleRecord(record users.AeUserRechargeRecord)
 				charge_source,
 				charge_type,
 				remark,
-				related_parent_id,
+				related_recharge_id,
 				operator
 			)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -145,7 +147,7 @@ func (l *ExpirationLogic) processSingleRecord(record users.AeUserRechargeRecord)
 			chargeSource,   // charge_source
 			chargeType,     // charge_type
 			remark,         // remark
-			record.Id,      // related_parent_id
+			record.Id,      // related_recharge_id
 			operatorName,   // operator
 		)
 

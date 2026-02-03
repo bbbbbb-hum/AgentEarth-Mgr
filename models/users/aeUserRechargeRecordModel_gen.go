@@ -37,18 +37,18 @@ type (
 	}
 
 	AeUserRechargeRecord struct {
-		Id              int64         `db:"id"`
-		UserId          string        `db:"user_id"`
-		XlcreditAmount  float64       `db:"xlcredit_amount"`
-		PayTime         time.Time     `db:"pay_time"`
-		CreateTime      time.Time     `db:"create_time"`
-		UpdateTime      time.Time     `db:"update_time"`
-		ChargeSource    int64         `db:"charge_source"`
-		ChargeType      int64         `db:"charge_type"`
-		Remark          sql.NullString `db:"remark"`
-		Operator        sql.NullString `db:"operator"`
-		ExpireTime      sql.NullTime  `db:"expire_time"`
-		RelatedParentId sql.NullInt64 `db:"related_parent_id"`
+		Id                int64          `db:"id"`
+		UserId            string         `db:"user_id"`
+		XlcreditAmount    float64        `db:"xlcredit_amount"`
+		PayTime           time.Time      `db:"pay_time"`
+		CreateTime        time.Time      `db:"create_time"`
+		UpdateTime        time.Time      `db:"update_time"`
+		ChargeSource      int64          `db:"charge_source"`
+		ChargeType        int64          `db:"charge_type"`
+		Remark            sql.NullString `db:"remark"`
+		Operator          sql.NullString `db:"operator"`
+		ExpireTime        sql.NullTime   `db:"expire_time"`
+		RelatedRechargeId sql.NullInt64  `db:"related_recharge_id"`
 	}
 )
 
@@ -81,13 +81,13 @@ func (m *defaultAeUserRechargeRecordModel) FindOne(ctx context.Context, id int64
 
 func (m *defaultAeUserRechargeRecordModel) Insert(ctx context.Context, data *AeUserRechargeRecord) (sql.Result, error) {
 	query := fmt.Sprintf("insert into %s (%s) values (%s)", m.table, aeUserRechargeRecordRowsExpectAutoSet, aeUserRechargeRecordRowsWithPlaceHolder)
-	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource, data.ChargeType, data.Remark, data.Operator, data.ExpireTime, data.RelatedParentId)
+	ret, err := m.conn.ExecCtx(ctx, query, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource, data.ChargeType, data.Remark, data.Operator, data.ExpireTime, data.RelatedRechargeId)
 	return ret, err
 }
 
 func (m *defaultAeUserRechargeRecordModel) Update(ctx context.Context, data *AeUserRechargeRecord) error {
-	query := fmt.Sprintf("update %s set %s where id = $1", m.table, "user_id=$2, xlcredit_amount=$3, pay_time=$4, charge_source=$5, charge_type=$6, remark=$7, operator=$8, expire_time=$9, related_parent_id=$10")
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource, data.ChargeType, data.Remark, data.Operator, data.ExpireTime, data.RelatedParentId)
+	query := fmt.Sprintf("update %s set %s where id = $1", m.table, "user_id=$2, xlcredit_amount=$3, pay_time=$4, charge_source=$5, charge_type=$6, remark=$7, operator=$8, expire_time=$9, related_recharge_id=$10")
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.UserId, data.XlcreditAmount, data.PayTime, data.ChargeSource, data.ChargeType, data.Remark, data.Operator, data.ExpireTime, data.RelatedRechargeId)
 	return err
 }
 

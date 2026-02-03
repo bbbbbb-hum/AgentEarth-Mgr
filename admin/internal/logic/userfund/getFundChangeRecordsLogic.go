@@ -190,7 +190,7 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 					// 已过期时：查询过期扣减的那笔金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」
 					var expiredDeduct float64
 					_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &expiredDeduct,
-						`SELECT COALESCE(SUM(ABS(xlcredit_amount)), 0) FROM ae_user_recharge_record WHERE related_parent_id = $1 AND xlcredit_amount < 0`, row.Id)
+						`SELECT COALESCE(SUM(ABS(xlcredit_amount)), 0) FROM ae_user_recharge_record WHERE related_recharge_id = $1 AND xlcredit_amount < 0`, row.Id)
 					item.RemainingAtExpire = expiredDeduct
 				} else if item.RemainingAmount <= 0 {
 					item.BatchStatus = "已耗尽"

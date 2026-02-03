@@ -84,7 +84,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 		// 你的需求: "expire_time ASC" -> 在 Postgres 中 NULL 默认是最大的，所以 NULL 会排在最后，符合"永久有效最后扣"的逻辑。
 
 		query := `
-			SELECT id, user_id, xlcredit_amount, pay_time, create_time, update_time, charge_source, charge_type, remark, operator, expire_time, related_parent_id
+			SELECT id, user_id, xlcredit_amount, pay_time, create_time, update_time, charge_source, charge_type, remark, operator, expire_time, related_recharge_id
 			FROM ae_user_recharge_record
 			WHERE user_id = $1 
 			  AND xlcredit_amount > 0 
