@@ -17,12 +17,13 @@ import (
 )
 
 func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
+	//go-zero的核心方法，往路由器里添加规则
 	server.AddRoutes(
-		[]rest.Route{
+		[]rest.Route{ //定义了一个rest.Route结构体的切片
 			{
 				Method:  http.MethodGet,
 				Path:    "/health",
-				Handler: HealthHandler(serverCtx),
+				Handler: HealthHandler(serverCtx), //调用方法
 			},
 		},
 	)
@@ -45,6 +46,7 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: auth.LoginHandler(serverCtx),
 			},
 		},
+		//告诉server，上面切片中的所有路径，都要加上这个前缀,代码更简洁
 		rest.WithPrefix("/manager/api/admin/auth"),
 	)
 
@@ -202,8 +204,8 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: mcp.ServiceUpdatePriceHandler(serverCtx),
 			},
 		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
-		rest.WithPrefix("/manager/api/admin/mcp"),
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret), //开启JWT认证
+		rest.WithPrefix("/manager/api/admin/mcp"), //统一前缀
 	)
 
 	server.AddRoutes(

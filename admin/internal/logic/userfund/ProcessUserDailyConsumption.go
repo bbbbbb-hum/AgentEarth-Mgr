@@ -28,7 +28,7 @@ func NewSettlementLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Settle
 
 // SettlementStats 单条日消费核销的统计，用于汇总日志
 type SettlementStats struct {
-	WasRepeated   bool  // 该条日消费是否已有核销记录（重复执行）
+	WasRepeated   bool  // 该条日消费已有核销记录却仍进入流程（疑似重复执行，需排查）
 	NewAllocCount int64 // 本次实际新增的核销记录条数
 }
 
@@ -38,7 +38,7 @@ type SettlementStats struct {
 // 2. 查找用户所有有效充值记录(正值、未过期)，按FEFO原则(先过期先扣)排序
 // 3. 逐笔计算实时余额并进行扣减，生成核销记录
 // 4. 支持事务，确保资金操作的原子性
-// 返回: 统计信息（是否重复执行、本次新增核销条数）、error
+// 返回: 统计信息（是否异常重复进入、本次新增核销条数）、error
 func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserConsumptionRecordDaily) (stats SettlementStats, err error) {
 	// 将 float64 转换为 decimal 方便计算
 	//1.定义还要扣多少钱
@@ -49,14 +49,29 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 		return stats, nil
 	}
 
+	// 解析用户名用于日志展示（查不到则用 user_id 兜底）
+	userDisplayName := dailyRecord.UserId
+	if u, findErr := l.svcCtx.McpUserModel.FindOneByUserId(l.ctx, dailyRecord.UserId); findErr == nil && u.Username != "" {
+		userDisplayName = u.Username
+	}
+
+	// 核销前检查：若该条日消费已在资金核销表中被完全分摊，则不再核销，避免短时间重复触发造成失误
+	var allocatedSumStr string
+	if errQuery := l.svcCtx.DB.QueryRowCtx(l.ctx, &allocatedSumStr, "SELECT COALESCE(SUM(deducted_amount), 0) FROM ae_recharge_allocation WHERE consumption_daily_id = $1", dailyRecord.Id); errQuery == nil {
+		if allocatedSum, parseErr := decimal.NewFromString(allocatedSumStr); parseErr == nil && allocatedSum.GreaterThanOrEqual(amountToDeduct) {
+			l.Logger.Infof("[ProcessUserDailyConsumption] 日消费ID=%d 用户=%s 已成功分摊（已核销总额 %s >= 消费金额 %s），不再核销", dailyRecord.Id, userDisplayName, allocatedSum.String(), amountToDeduct.String())
+			return stats, nil
+		}
+	}
+
 	// 开启事务
 	err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
-		// 0. 重复执行检测：若该日消费已有核销记录，则本次为重复执行，仅做幂等检查
+		// 0. 异常检测：正常应每天只执行一次，若该日消费已有核销记录却仍进入流程，说明可能重复触发或定时任务异常
 		var existingCount int64
 		_ = session.QueryRowCtx(ctx, &existingCount, "SELECT COUNT(*) FROM ae_recharge_allocation WHERE consumption_daily_id = $1", dailyRecord.Id)
 		if existingCount > 0 {
 			stats.WasRepeated = true
-			l.Logger.Infof("[ProcessUserDailyConsumption] 用户 %s 日消费ID=%d 已有 %d 条核销记录，本次为重复执行，将进行幂等检查（重复记录将跳过）", dailyRecord.UserId, dailyRecord.Id, existingCount)
+			l.Logger.Errorf("[ProcessUserDailyConsumption] 异常：用户 %s 日消费ID=%d 已有 %d 条核销记录却仍进入核销流程，疑似定时任务重复执行或配置异常，请排查。本次将仅做幂等处理（不重复插入）", userDisplayName, dailyRecord.Id, existingCount)
 		}
 
 		// 1. 查找候选记录
@@ -84,7 +99,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 		}
 
 		if len(candidates) == 0 {
-			l.Logger.Infof("[ProcessUserDailyConsumption] 用户 %s 没有任何可用的充值记录来扣减 %v", dailyRecord.UserId, amountToDeduct)
+			l.Logger.Infof("[ProcessUserDailyConsumption] 用户 %s 没有任何可用的充值记录来扣减 %v", userDisplayName, amountToDeduct)
 			// No return here, let it fall through to the insufficient balance check
 		}
 
@@ -140,7 +155,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 				return err
 			}
 			if rowsAffected == 0 {
-				l.Logger.Infof("[ProcessUserDailyConsumption] 重复执行跳过: 日消费ID=%d 充值批次ID=%d 已存在核销记录", dailyRecord.Id, record.Id)
+				l.Logger.Infof("[ProcessUserDailyConsumption] 幂等跳过: 日消费ID=%d 充值批次ID=%d 已存在核销记录", dailyRecord.Id, record.Id)
 				// 已经结算过，不应该重复扣减 amountToDeduct，也不应该记日志说又扣了一次
 				// 但这里因为 amountToDeduct 是循环变量，如果不扣减，会导致死循环或者重复尝试下一条
 				// 正确的逻辑是：如果发现已经结算过，说明这笔消费的这部分金额已经被处理了。
@@ -157,7 +172,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 				expireTimeStr = record.ExpireTime.Time.Format(time.RFC3339)
 			}
 			l.Logger.Infof("[ProcessUserDailyConsumption] 核销详情: 用户=%s, 扣减金额=%s, 充值批次ID=%d, 批次过期时间=%s, 操作时间=%s, 剩余需扣=%s",
-				dailyRecord.UserId, actualDeduct.String(), record.Id, expireTimeStr, time.Now().Format(time.RFC3339), amountToDeduct.Sub(actualDeduct).String())
+				userDisplayName, actualDeduct.String(), record.Id, expireTimeStr, time.Now().Format(time.RFC3339), amountToDeduct.Sub(actualDeduct).String())
 
 			// --- 更新 amountToDeduct ---
 			amountToDeduct = amountToDeduct.Sub(actualDeduct)
@@ -165,8 +180,8 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 
 		// 3. 兜底检查
 		if amountToDeduct.GreaterThan(decimal.Zero) {
-			l.Logger.Errorf("[ProcessUserDailyConsumption] User %s daily consumption %v insufficient balance, remaining to deduct: %v",
-				dailyRecord.UserId, dailyRecord.XlcreditConsume, amountToDeduct)
+			l.Logger.Errorf("[ProcessUserDailyConsumption] 用户 %s 日消费 %v 余额不足，剩余待扣: %v",
+				userDisplayName, dailyRecord.XlcreditConsume, amountToDeduct)
 			// 这里不返回 error，允许事务提交，因为已经扣减的部分是有效的。
 			// 剩余未扣减的部分构成了"坏账"或"透支"，需要在后续流程处理或通知管理员。
 		}
@@ -202,7 +217,7 @@ func (l *SettlementLogic) SettleAllUsersConsumption(targetDate time.Time) error 
 		return nil
 	}
 
-	l.Logger.Infof("[SettleAllUsers] 开始核销日期 %s 的消费记录，共 %d 条用户日消费（重复执行时已存在的核销记录将跳过）", dateStr, len(dailyRecords))
+	l.Logger.Infof("[SettleAllUsers] 开始核销日期 %s 的消费记录，共 %d 条用户日消费（已完全分摊的将跳过；若异常重复进入则仅做幂等处理）", dateStr, len(dailyRecords))
 
 	// 2. 遍历处理 (遇到错误记录日志但不中断循环)，并汇总统计
 	var repeatCount int
@@ -219,6 +234,6 @@ func (l *SettlementLogic) SettleAllUsersConsumption(targetDate time.Time) error 
 		totalNewAllocs += stats.NewAllocCount
 	}
 
-	l.Logger.Infof("[SettleAllUsers] 日期 %s 核销完成：共 %d 条日消费，其中 %d 条为重复执行（已存在核销记录），实际新增 %d 条核销", dateStr, len(dailyRecords), repeatCount, totalNewAllocs)
+	l.Logger.Infof("[SettleAllUsers] 日期 %s 核销完成：共 %d 条日消费，其中 %d 条已有核销记录（疑似重复执行，请排查），实际新增 %d 条核销", dateStr, len(dailyRecords), repeatCount, totalNewAllocs)
 	return nil
 }

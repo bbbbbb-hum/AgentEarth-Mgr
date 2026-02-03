@@ -78,6 +78,12 @@ func (l *ExpirationLogic) ProcessExpirationLogic(checkTime time.Time) error {
 
 // processSingleRecord 处理单条过期记录的子逻辑
 func (l *ExpirationLogic) processSingleRecord(record users.AeUserRechargeRecord) (bool, error) {
+	// 解析用户名用于日志展示（查不到则用 user_id 兜底）
+	userDisplayName := record.UserId
+	if u, findErr := l.svcCtx.McpUserModel.FindOneByUserId(l.ctx, record.UserId); findErr == nil && u.Username != "" {
+		userDisplayName = u.Username
+	}
+
 	// 开启独立事务
 	deducted := false
 	err := l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
@@ -147,8 +153,12 @@ func (l *ExpirationLogic) processSingleRecord(record users.AeUserRechargeRecord)
 			return err
 		}
 
+		expireTimeStr := "永久有效"
+		if record.ExpireTime.Valid {
+			expireTimeStr = record.ExpireTime.Time.Format(time.RFC3339)
+		}
 		l.Logger.Infof("[ProcessExpirationLogic] 核销详情: 用户=%s, 过期扣减金额=%s, 充值批次ID=%d, 批次过期时间=%s, 操作时间=%s, 备注=%s",
-			record.UserId, balance.String(), record.Id, record.ExpireTime.Time.Format(time.RFC3339), now.Format(time.RFC3339), remark)
+			userDisplayName, balance.String(), record.Id, expireTimeStr, now.Format(time.RFC3339), remark)
 
 		deducted = true
 		return nil

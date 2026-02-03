@@ -29,11 +29,12 @@ import (
 )
 
 type GetUserListLogic struct {
-	logx.Logger
-	ctx    context.Context
-	svcCtx *svc.ServiceContext
+	logx.Logger                     //嵌入日志能力
+	ctx         context.Context     //上下文，贯穿全链路
+	svcCtx      *svc.ServiceContext //依赖注入容器，里面有数据库连接
 }
 
+// 工厂方法(构造函数)--创建一个Logic实例
 func NewGetUserListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUserListLogic {
 	return &GetUserListLogic{
 		Logger: logx.WithContext(ctx),
@@ -42,8 +43,10 @@ func NewGetUserListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetUs
 	}
 }
 
+// 核心业务方法
 func (l *GetUserListLogic) GetUserList(req *types.UserListReq) (resp *types.UserListResp, err error) {
 	users, total, err := l.svcCtx.McpUserModel.FindList(l.ctx, req.Page, req.PageSize, req.Search, "")
+	//l.ctx表示把上下文传进去，如果请求取消，数据库查询也会立刻终止
 	if err != nil {
 		l.Logger.Errorf("Failed to get user list: %v", err)
 		return nil, err
