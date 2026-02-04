@@ -30,16 +30,16 @@
 package userfund
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
-	"time"
+	"context"      //上下文
+	"database/sql" //sql.NullString、sql.NullTime等可空类型
+	"fmt"          //格式化
+	"time"         //时间
 
-	"AgentEarth-Mgr/admin/internal/svc"
-	"AgentEarth-Mgr/admin/internal/types"
+	"AgentEarth-Mgr/admin/internal/svc"   //服务上下文
+	"AgentEarth-Mgr/admin/internal/types" //请求/响应类型
 
-	"github.com/shopspring/decimal"
-	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/shopspring/decimal"          //高精度金额
+	"github.com/zeromicro/go-zero/core/logx" //日志
 )
 
 type GetFundChangeRecordsLogic struct {
@@ -57,25 +57,58 @@ func NewGetFundChangeRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContex
 }
 
 func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRecordReq) (resp *types.FundChangeRecordResp, err error) {
-	// 构建查询条件 (使用别名 r 指代 ae_user_recharge_record)
-	whereClause := "r.user_id = $1"
-	args := []interface{}{req.UserId}
+	// 分页默认值
+	page := req.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := req.PageSize
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	offset := (page - 1) * pageSize
 
-	// 根据filter过滤
+	// 构建查询条件 (在sql语句中使用别名 r 指代 ae_user_recharge_record)
+	whereClause := "r.user_id = $1"
+	//定义一个切片，类型为interface{}空接口，可以是任何类型,<Object>
+	//{req.UserId}相当于给切片一个初始化赋值
+	args := []interface{}{req.UserId}
+	argIdx := 2 //计数器，$1已经被user_id占用了，如果后面还有查询条件，那么条件的占位符就得叫$2
+
+	// 根据filter过滤，用全部、仅充值、仅扣减筛选时的sql
 	if req.Filter == "recharge" {
 		whereClause += " AND r.xlcredit_amount > 0"
 	} else if req.Filter == "deduction" {
 		whereClause += " AND r.xlcredit_amount < 0"
 	}
-	// filter == "all" 或不传，则不过滤
 
-	// 充值类型筛选
+	// 充值类型筛选：参数化查询
 	if req.ChargeType > 0 {
-		whereClause += fmt.Sprintf(" AND r.charge_type = %d", req.ChargeType)
+		whereClause += fmt.Sprintf(" AND r.charge_type = $%d", argIdx)
+		args = append(args, req.ChargeType)
+		argIdx++
+	}
+
+	// 先查总数
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM ae_user_recharge_record r
+		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
+		WHERE %s
+	`, whereClause)
+	var total int64
+	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &total, countQuery, args...)
+	if err != nil {
+		l.Logger.Errorf("查询充值记录总数失败...: %v", err)
+		return &types.FundChangeRecordResp{List: []types.FundChangeRecordItem{}, Total: 0}, nil
 	}
 
 	// 查询充值记录表（包含充值和扣减），并关联管理员表获取用户名
 	// r.id、r.expire_time 用于充值时展示批次剩余额度和过期状态
+	limitArgs := append(args, pageSize, offset)
 	query := fmt.Sprintf(`
 		SELECT 
 			r.id,
@@ -90,8 +123,8 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
 		WHERE %s
 		ORDER BY r.pay_time DESC
-		LIMIT 100
-	`, whereClause)
+		LIMIT $%d OFFSET $%d
+	`, whereClause, argIdx, argIdx+1)
 
 	type recordRow struct {
 		Id             int64          `db:"id"`
@@ -105,10 +138,10 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 	}
 
 	var rows []recordRow
-	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, args...)
+	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, limitArgs...)
 	if err != nil {
 		l.Logger.Errorf("Failed to query fund change records: %v", err)
-		return &types.FundChangeRecordResp{List: []types.FundChangeRecordItem{}}, nil
+		return &types.FundChangeRecordResp{List: []types.FundChangeRecordItem{}, Total: 0}, nil
 	}
 
 	var records []types.FundChangeRecordItem
@@ -157,9 +190,10 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			chargeTypeDesc = "未知"
 		}
 
+		//设置操作人用户名
 		operatorName := row.Operator.String
 		if operatorName == "" {
-			operatorName = "unknown"
+			operatorName = "未知"
 		}
 
 		item := types.FundChangeRecordItem{
@@ -188,9 +222,10 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				if row.ExpireTime.Time.Before(now) {
 					item.BatchStatus = "已过期"
 					// 已过期时：查询过期扣减的那笔金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」
+					// 一个充值批次最多对应一条过期扣减记录
 					var expiredDeduct float64
 					_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &expiredDeduct,
-						`SELECT COALESCE(SUM(ABS(xlcredit_amount)), 0) FROM ae_user_recharge_record WHERE related_recharge_id = $1 AND xlcredit_amount < 0`, row.Id)
+						`SELECT COALESCE((SELECT ABS(xlcredit_amount) FROM ae_user_recharge_record WHERE related_recharge_id = $1 AND xlcredit_amount < 0 LIMIT 1), 0)`, row.Id)
 					item.RemainingAtExpire = expiredDeduct
 				} else if item.RemainingAmount <= 0 {
 					item.BatchStatus = "已耗尽"
@@ -211,6 +246,7 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 	}
 
 	return &types.FundChangeRecordResp{
-		List: records,
+		List:  records,
+		Total: total,
 	}, nil
 }
