@@ -221,12 +221,18 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				now := time.Now()
 				if row.ExpireTime.Time.Before(now) {
 					item.BatchStatus = "已过期"
-					// 已过期时：查询过期扣减的那笔金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」
+					// 已过期时：优先查询过期扣减的那笔金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」
 					// 一个充值批次最多对应一条过期扣减记录
 					var expiredDeduct float64
 					_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &expiredDeduct,
 						`SELECT COALESCE((SELECT ABS(xlcredit_amount) FROM ae_user_recharge_record WHERE related_recharge_id = $1 AND xlcredit_amount < 0 LIMIT 1), 0)`, row.Id)
-					item.RemainingAtExpire = expiredDeduct
+					if expiredDeduct > 0 {
+						// 已经执行过过期扣减，展示“过期那一刻剩余”
+						item.RemainingAtExpire = expiredDeduct
+					} else {
+						// 还未执行过期扣减：保持状态为已过期，但展示当前实时剩余额度（按照实时余额计算逻辑）
+						item.RemainingAtExpire = item.RemainingAmount
+					}
 				} else if item.RemainingAmount <= 0 {
 					item.BatchStatus = "已耗尽"
 				} else {
