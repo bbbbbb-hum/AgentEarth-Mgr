@@ -27,7 +27,7 @@ type (
 	aeMcpTaskNodeModel interface {
 		Insert(ctx context.Context, data *AeMcpTaskNode) (sql.Result, error)
 		FindOne(ctx context.Context, id int64) (*AeMcpTaskNode, error)
-		FindOneByExternalServiceId(ctx context.Context, externalServiceId string) (*AeMcpTaskNode, error)
+		FindOneByServerId(ctx context.Context, serverId string) (*AeMcpTaskNode, error)
 		Update(ctx context.Context, data *AeMcpTaskNode) error
 		Delete(ctx context.Context, id int64) error
 	}
@@ -38,14 +38,15 @@ type (
 	}
 
 	AeMcpTaskNode struct {
-		Id                int64     `db:"id"`                  // 自增ID
-		NodeName          string    `db:"node_name"`           // 节点名称
-		NodeHandle        string    `db:"node_handle"`         // 节点处理(处理函数名称)
-		Enabled           bool      `db:"enabled"`             // 是否启用
-		CreateTime        time.Time `db:"create_time"`         // 创建时间
-		UpdateTime        time.Time `db:"update_time"`         // 更新时间
-		ExternalServiceId string    `db:"external_service_id"` // 外部服务配置ID
-		Description       string    `db:"description"`         // 节点描述
+		Id          int64     `db:"id"`          // 自增ID
+		NodeName    string    `db:"node_name"`   // 节点名称
+		NodeHandle  string    `db:"node_handle"` // 节点处理(处理函数名称)
+		Enabled     bool      `db:"enabled"`     // 是否启用
+		CreateTime  time.Time `db:"create_time"` // 创建时间
+		UpdateTime  time.Time `db:"update_time"` // 更新时间
+		Description string    `db:"description"` // 节点描述
+		ServerId    string    `db:"server_id"`   // 关联的服务ID
+		NodeConfig  string    `db:"node_config"` // 节点运行配置（json）
 	}
 )
 
@@ -76,10 +77,10 @@ func (m *defaultAeMcpTaskNodeModel) FindOne(ctx context.Context, id int64) (*AeM
 	}
 }
 
-func (m *defaultAeMcpTaskNodeModel) FindOneByExternalServiceId(ctx context.Context, externalServiceId string) (*AeMcpTaskNode, error) {
+func (m *defaultAeMcpTaskNodeModel) FindOneByServerId(ctx context.Context, serverId string) (*AeMcpTaskNode, error) {
 	var resp AeMcpTaskNode
-	query := fmt.Sprintf("select %s from %s where external_service_id = $1 limit 1", aeMcpTaskNodeRows, m.table)
-	err := m.conn.QueryRowCtx(ctx, &resp, query, externalServiceId)
+	query := fmt.Sprintf("select %s from %s where server_id = $1 limit 1", aeMcpTaskNodeRows, m.table)
+	err := m.conn.QueryRowCtx(ctx, &resp, query, serverId)
 	switch err {
 	case nil:
 		return &resp, nil
@@ -91,14 +92,14 @@ func (m *defaultAeMcpTaskNodeModel) FindOneByExternalServiceId(ctx context.Conte
 }
 
 func (m *defaultAeMcpTaskNodeModel) Insert(ctx context.Context, data *AeMcpTaskNode) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5)", m.table, aeMcpTaskNodeRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.NodeName, data.NodeHandle, data.Enabled, data.ExternalServiceId, data.Description)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6)", m.table, aeMcpTaskNodeRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.NodeName, data.NodeHandle, data.Enabled, data.Description, data.ServerId, data.NodeConfig)
 	return ret, err
 }
 
 func (m *defaultAeMcpTaskNodeModel) Update(ctx context.Context, newData *AeMcpTaskNode) error {
 	query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeMcpTaskNodeRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, newData.Id, newData.NodeName, newData.NodeHandle, newData.Enabled, newData.ExternalServiceId, newData.Description)
+	_, err := m.conn.ExecCtx(ctx, query, newData.Id, newData.NodeName, newData.NodeHandle, newData.Enabled, newData.Description, newData.ServerId, newData.NodeConfig)
 	return err
 }
 

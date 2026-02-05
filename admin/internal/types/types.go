@@ -31,7 +31,11 @@ type BatchCloseServicesReq struct {
 }
 
 type CreateChainAndNodeReq struct {
-	Ids []int64 `json:"ids,omitempty"`
+	ServerId   string `json:"server_id"`
+	NodeName   string `json:"node_name,optional"`
+	NodeHandle string `json:"node_handle,optional"`
+	NodeConfig string `json:"node_config,optional"`
+	ChainName  string `json:"chain_name,optional"`
 }
 
 type CreateConfigReq struct {
@@ -43,17 +47,15 @@ type CreateServiceAndConfigReq struct {
 }
 
 type CreateServiceConfigManualReq struct {
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	Description     string `json:"description"`
-	ProjectName     string `json:"project_name"`
-	MaxInstance     int64  `json:"max_instance"`
-	LaunchInfo      string `json:"launch_info"`
-	ConnectInfo     string `json:"connect_info"`
-	InstallInfo     string `json:"install_info"`
-	AccountRequired int64  `json:"account_required"`
-	TestStatus      int64  `json:"test_status"`
-	OnlineStatus    int64  `json:"online_status"`
+	Name            string   `json:"name"`
+	WemcpName       string   `json:"wemcp_name,optional"`
+	Tags            []string `json:"tags,optional"`
+	Description     string   `json:"description"`
+	Comments        string   `json:"comments,optional"`
+	CodeSourceUrl   string   `json:"code_source_url,optional"`
+	AccountRequired int64    `json:"account_required"`
+	TestStatus      int64    `json:"test_status"`
+	OnlineStatus    int64    `json:"online_status"`
 }
 
 type DetailReq struct {
@@ -64,6 +66,7 @@ type GetServiceConfigListReq struct {
 	BaseListReq
 	FilterName            string `form:"filter_name,optional"`
 	FilterType            string `form:"filter_type,optional"`
+	FilterWemcpName       string `form:"filter_wemcp_name,optional"`
 	FilterAccountRequired string `form:"filter_account_required,optional"`
 	FilterTestStatus      string `form:"filter_test_status,optional"`
 	FilterOnlineStatus    string `form:"filter_online_status,optional"`
@@ -152,23 +155,37 @@ type ServiceConfigDeleteReq struct {
 }
 
 type ServiceConfigItem struct {
-	Id                int64  `json:"id"`
-	Name              string `json:"name"`
-	Type              string `json:"type"`
-	Description       string `json:"description"`
-	ProjectName       string `json:"project_name"`
-	MaxInstance       int64  `json:"max_instance"`
-	LaunchInfo        string `json:"launch_info"`
-	ConnectInfo       string `json:"connect_info"`
-	InstallInfo       string `json:"install_info"`
-	AccountRequired   int64  `json:"account_required"`
-	TestStatus        int64  `json:"test_status"`
-	OnlineStatus      int64  `json:"online_status"`
-	ExternalServiceId string `json:"external_service_id"`
-	ServerId          string `json:"server_id"`
-	CreateStatus      bool   `json:"create_status"`
-	CreateTime        string `json:"create_time"`
-	UpdateTime        string `json:"update_time"`
+	Id              int64  `json:"id"`
+	Name            string `json:"name"`
+	Type            string `json:"type"`
+	Description     string `json:"description"`
+	ProjectName     string `json:"project_name"`
+	MaxInstance     int64  `json:"max_instance"`
+	LaunchInfo      string `json:"launch_info"`
+	ConnectInfo     string `json:"connect_info"`
+	InstallInfo     string `json:"install_info"`
+	AccountRequired int64  `json:"account_required"`
+	TestStatus      int64  `json:"test_status"`
+	OnlineStatus    int64  `json:"online_status"`
+	ServerId        string `json:"server_id"`
+	CreateStatus    bool   `json:"create_status"`
+	CreateTime      string `json:"create_time"`
+	UpdateTime      string `json:"update_time"`
+}
+
+type ServiceConfigV2Item struct {
+	Id              int64    `json:"id"`
+	Name            string   `json:"name"`
+	WemcpName       string   `json:"wemcp_name"`
+	Tags            []string `json:"tags"`
+	Description     string   `json:"description"`
+	Comments        string   `json:"comments"`
+	CodeSourceUrl   string   `json:"code_source_url"`
+	AccountRequired int64    `json:"account_required"`
+	TestStatus      int64    `json:"test_status"`
+	OnlineStatus    int64    `json:"online_status"`
+	CreateTime      string   `json:"create_time"`
+	UpdateTime      string   `json:"update_time"`
 }
 
 type ServiceDeleteReq struct {
@@ -219,6 +236,28 @@ type ServiceUpdateIsCreateReq struct {
 	IsCreated bool  `json:"is_created"`
 }
 
+type ServiceUpdateEnabledReq struct {
+	Id      int64 `json:"id"`
+	Enabled bool  `json:"enabled"`
+}
+
+type ServiceCreateReq struct {
+	ServerName      string   `json:"server_name"`
+	Description     string   `json:"description,optional"`
+	ProjectName     string   `json:"project_name,optional"`
+	Enabled         bool     `json:"enabled"`
+	Tags            []string `json:"tags,optional"`
+	Logo            string   `json:"logo,optional"`
+	ProtocolVersion string   `json:"protocol_version,optional"`
+
+	Repository    string `json:"repository,optional"`
+	InstallCmd    string `json:"install_cmd,optional"`
+	PreinstallCmd string `json:"preinstall_cmd,optional"`
+	Port          int64  `json:"port,optional"`
+
+	ConnectInfo string `json:"connect_info,optional"`
+}
+
 type ServiceUpdatePriceReq struct {
 	ServerId string  `json:"server_id"`
 	Price    float64 `json:"price,optional"`
@@ -251,18 +290,16 @@ type SourceUpdateReq struct {
 }
 
 type UpdateServiceConfigReq struct {
-	Id              int64   `json:"id"`
-	Name            string  `json:"name"`
-	Type            string  `json:"type"`
-	Description     string  `json:"description"`
-	ProjectName     string  `json:"project_name"`
-	MaxInstance     int64   `json:"max_instance"`
-	LaunchInfo      *string `json:"launch_info,omitempty"`
-	ConnectInfo     *string `json:"connect_info,omitempty"`
-	InstallInfo     *string `json:"install_info,omitempty"`
-	AccountRequired *int64  `json:"account_required,omitempty"`
-	TestStatus      *int64  `json:"test_status,omitempty"`
-	OnlineStatus    *int64  `json:"online_status,omitempty"`
+	Id              int64     `json:"id"`
+	Name            string    `json:"name"`
+	WemcpName       *string   `json:"wemcp_name,omitempty"`
+	Tags            *[]string `json:"tags,omitempty"`
+	Description     string    `json:"description"`
+	Comments        *string   `json:"comments,omitempty"`
+	CodeSourceUrl   *string   `json:"code_source_url,omitempty"`
+	AccountRequired *int64    `json:"account_required,omitempty"`
+	TestStatus      *int64    `json:"test_status,omitempty"`
+	OnlineStatus    *int64    `json:"online_status,omitempty"`
 }
 
 type UpdateServiceDescReq struct {
@@ -395,4 +432,13 @@ type FundChangeRecordItem struct {
 
 type FundChangeRecordResp struct {
 	List []FundChangeRecordItem `json:"list"`
+}
+
+type GetTaskNodeNodeConfigReq struct {
+	ServerId string `form:"server_id"`
+}
+
+type UpdateTaskNodeNodeConfigReq struct {
+	ServerId   string `json:"server_id"`
+	NodeConfig string `json:"node_config"`
 }

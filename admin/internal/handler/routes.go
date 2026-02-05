@@ -62,28 +62,8 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodPost,
-				Path:    "/create/config",
-				Handler: data.CreateConfigHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/create/service",
-				Handler: data.CreateServiceHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/create/service-and-config",
-				Handler: data.CreateServiceAndConfigHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
 				Path:    "/create/service-config-manual",
 				Handler: data.CreateServiceConfigManualHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/create/services",
-				Handler: data.CreateServicesHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
@@ -101,12 +81,18 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Handler: data.UpdateServiceConfigHandler(serverCtx),
 			},
 			{
+				Method:  http.MethodGet,
+				Path:    "/task-node/node-config",
+				Handler: data.GetTaskNodeNodeConfigHandler(serverCtx),
+			},
+			{
 				Method:  http.MethodPost,
-				Path:    "/update/service/desc",
-				Handler: data.UpdateServiceDescHandler(serverCtx),
+				Path:    "/task-node/node-config",
+				Handler: data.UpdateTaskNodeNodeConfigHandler(serverCtx),
 			},
 		},
 		rest.WithPrefix("/manager/api/admin/data"),
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 	)
 
 	server.AddRoutes(
@@ -183,6 +169,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodPost,
+				Path:    "/service/create",
+				Handler: mcp.ServiceCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
 				Path:    "/service/task/create",
 				Handler: mcp.ServiceTaskCreateHandler(serverCtx),
 			},
@@ -198,8 +189,29 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodPost,
+				Path:    "/service/update/enabled",
+				Handler: mcp.ServiceUpdateEnabledHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
 				Path:    "/service/update/price",
 				Handler: mcp.ServiceUpdatePriceHandler(serverCtx),
+			},
+			// ==================== MCP服务测试接口 ====================
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/test/connect",
+				Handler: mcp.ServiceTestConnectHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/test/call",
+				Handler: mcp.ServiceTestCallHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/test/confirm",
+				Handler: mcp.ServiceTestConfirmHandler(serverCtx),
 			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),

@@ -6,6 +6,7 @@ package data
 import (
 	"AgentEarth-Mgr/models"
 	"context"
+	"strconv"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
@@ -46,36 +47,42 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 		})
 	}
 
-	if len(req.FilterType) > 0 {
+	if len(req.FilterWemcpName) > 0 {
 		conditions = append(conditions, models.Condition{
-			Field:  "type",
-			Symbol: "=",
-			Value:  req.FilterType,
+			Field:  "wemcp_name",
+			Symbol: "ILIKE",
+			Value:  "%" + req.FilterWemcpName + "%",
 		})
 	}
 
 	if len(req.FilterAccountRequired) > 0 {
-		conditions = append(conditions, models.Condition{
-			Field:  "account_required",
-			Symbol: "=",
-			Value:  req.FilterAccountRequired,
-		})
+		if v, parseErr := strconv.ParseInt(req.FilterAccountRequired, 10, 64); parseErr == nil {
+			conditions = append(conditions, models.Condition{
+				Field:  "account_required",
+				Symbol: "=",
+				Value:  v,
+			})
+		}
 	}
 
 	if len(req.FilterTestStatus) > 0 {
-		conditions = append(conditions, models.Condition{
-			Field:  "test_status",
-			Symbol: "=",
-			Value:  req.FilterTestStatus,
-		})
+		if v, parseErr := strconv.ParseInt(req.FilterTestStatus, 10, 64); parseErr == nil {
+			conditions = append(conditions, models.Condition{
+				Field:  "test_status",
+				Symbol: "=",
+				Value:  v,
+			})
+		}
 	}
 
 	if len(req.FilterOnlineStatus) > 0 {
-		conditions = append(conditions, models.Condition{
-			Field:  "online_status",
-			Symbol: "=",
-			Value:  req.FilterOnlineStatus,
-		})
+		if v, parseErr := strconv.ParseInt(req.FilterOnlineStatus, 10, 64); parseErr == nil {
+			conditions = append(conditions, models.Condition{
+				Field:  "online_status",
+				Symbol: "=",
+				Value:  v,
+			})
+		}
 	}
 
 	var orderBy string
@@ -84,11 +91,14 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 		if field == "accountRequired" {
 			field = "account_required"
 		}
+		if field == "wemcpName" {
+			field = "wemcp_name"
+		}
 		if field == "testStatus" {
-			field = "CASE WHEN test_status = 1 THEN '已测试' ELSE '未测试' END"
+			field = "test_status"
 		}
 		if field == "onlineStatus" {
-			field = "CASE WHEN online_status = 1 THEN '已上线' ELSE '已下线' END"
+			field = "online_status"
 		}
 
 		order := "ASC"
@@ -98,7 +108,7 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 		orderBy = field + " " + order
 	}
 
-	list, total, err := l.svcCtx.TaskNodeConfigModel.GetList(l.ctx, models.ListConditions{
+	list, total, err := l.svcCtx.TaskNodeConfigV2Model.GetList(l.ctx, models.ListConditions{
 		Conditions: conditions,
 		Pages: models.Pages{
 			Page: req.Page,
@@ -114,41 +124,21 @@ func (l *GetServiceConfigListLogic) GetServiceConfigList(req *types.GetServiceCo
 		}, nil
 	}
 
-	var items []types.ServiceConfigItem
+	var items []types.ServiceConfigV2Item
 	for _, item := range list {
-		accountRequired := int64(0)
-		if item.AccountRequired.Valid {
-			accountRequired = item.AccountRequired.Int64
-		}
-
-		testStatus := int64(0)
-		if item.TestStatus.Valid {
-			testStatus = item.TestStatus.Int64
-		}
-
-		onlineStatus := int64(0)
-		if item.OnlineStatus.Valid {
-			onlineStatus = item.OnlineStatus.Int64
-		}
-
-		items = append(items, types.ServiceConfigItem{
-			Id:                item.Id,
-			Name:              item.Name,
-			Type:              item.Type,
-			Description:       item.Description,
-			ProjectName:       item.ProjectName,
-			MaxInstance:       item.MaxInstance,
-			LaunchInfo:        item.LaunchInfo,
-			ConnectInfo:       item.ConnectInfo,
-			InstallInfo:       item.InstallInfo.String,
-			AccountRequired:   accountRequired,
-			TestStatus:        testStatus,
-			OnlineStatus:      onlineStatus,
-			ExternalServiceId: item.ExternalServiceId,
-			ServerId:          item.ServerId,
-			CreateStatus:      item.CreateStatus,
-			CreateTime:        item.CreateTime.Format("2006-01-02 15:04:05"),
-			UpdateTime:        item.UpdateTime.Format("2006-01-02 15:04:05"),
+		items = append(items, types.ServiceConfigV2Item{
+			Id:              item.Id,
+			Name:            item.Name,
+			WemcpName:       item.WemcpName,
+			Tags:            []string(item.Tags),
+			Description:     item.Description,
+			Comments:        item.Comments,
+			CodeSourceUrl:   item.CodeSourceUrl,
+			AccountRequired: item.AccountRequired,
+			TestStatus:      item.TestStatus,
+			OnlineStatus:    item.OnlineStatus,
+			CreateTime:      item.CreateTime.Format("2006-01-02 15:04:05"),
+			UpdateTime:      item.UpdateTime.Format("2006-01-02 15:04:05"),
 		})
 	}
 

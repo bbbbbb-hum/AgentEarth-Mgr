@@ -75,12 +75,12 @@ func (m *customAeMcpServicesModel) GetListWithSearch(ctx context.Context, lp mod
 
 		if id, err := strconv.ParseInt(search, 10, 64); err == nil {
 			// Search by ID OR Name
-			whereClause += fmt.Sprintf("%s (id = $%d OR server_name ILIKE $%d)", prefix, argIdx, argIdx+1)
-			args = append(args, id, nameSearch)
+			whereClause += fmt.Sprintf("%s (id = $%d OR server_name ILIKE $%d OR server_id ILIKE $%d)", prefix, argIdx, argIdx+1, argIdx+2)
+			args = append(args, id, nameSearch, nameSearch)
 		} else {
 			// Search by Name only
-			whereClause += fmt.Sprintf("%s (server_name ILIKE $%d)", prefix, argIdx)
-			args = append(args, nameSearch)
+			whereClause += fmt.Sprintf("%s (server_name ILIKE $%d OR server_id ILIKE $%d)", prefix, argIdx, argIdx+1)
+			args = append(args, nameSearch, nameSearch)
 		}
 	}
 

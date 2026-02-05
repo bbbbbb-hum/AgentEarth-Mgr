@@ -68,32 +68,26 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 			sessConn := sqlx.NewSqlConnFromSession(session)
 			nodeModel := configModel.NewAeMcpTaskNodeModel(sessConn)
 			chainModel := configModel.NewAeMcpTaskChainModel(sessConn)
-			serviceConfigModel := configModel.NewAeMcpExternalServicesConfigModel(sessConn)
 			serviceModel := mcp.NewAeMcpServicesModel(sessConn)
 
-			// 查询服务配置
-			config, err := serviceConfigModel.FindOneByCondition(ctx, []models.Condition{
-				{
-					Field: "server_id",
-					Value: service.ServerId,
-				},
-			})
-			if err != nil && !errors.Is(err, sqlx.ErrNotFound) {
-				return err
-			}
-			if config == nil {
-				return errors.New("服务配置不存在")
-			}
+			var config *configModel.AeMcpExternalServicesConfig
 			if service.TaskChainId > 0 {
 				return nil
 			}
 			// 创建节点
+			nodeName := service.ServerName + " Node"
+			nodeDescription := "Proxy " + service.ServerName + " Node"
+			if config != nil {
+				nodeName = config.Name + " Node"
+				nodeDescription = "Proxy " + config.Name + " Node"
+			}
 			var node = configModel.AeMcpTaskNode{
-				NodeName:          config.Name + " Node",
-				NodeHandle:        "proxy_handle",
-				Enabled:           true,
-				ExternalServiceId: config.ExternalServiceId,
-				Description:       "Proxy " + config.Name + " Node",
+				NodeName:    nodeName,
+				NodeHandle:  "proxy_handle",
+				Enabled:     true,
+				Description: nodeDescription,
+				ServerId:    service.ServerId,
+				NodeConfig:  "{}",
 			}
 			nodeId, err1 := nodeModel.InsertReturningId(ctx, &node)
 			if err1 != nil {
@@ -109,8 +103,12 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 				}
 			}
 			// 创建链
+			chainName := service.ServerName + " ProxyChain"
+			if config != nil {
+				chainName = config.Name + " ProxyChain (" + config.Type + ")"
+			}
 			var chain = configModel.AeMcpTaskChain{
-				Name:    config.Name + " ProxyChain (" + config.Type + ")",
+				Name:    chainName,
 				Status:  "used",
 				NodeIds: pq.Int64Array{9, nodeId, 10},
 			}
@@ -129,15 +127,8 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 			}
 			// 更新服务
 			service.TaskChainId = chainId
-			err = serviceModel.Update(ctx, service)
-			if err != nil {
+			if err := serviceModel.Update(ctx, service); err != nil {
 				return err
-			}
-			// 更新服务配置
-			config.CreateStatus = true
-			err1 = serviceConfigModel.Update(ctx, config)
-			if err1 != nil {
-				l.Errorf("更新 config error: %s", err1.Error())
 			}
 			num++
 			return nil

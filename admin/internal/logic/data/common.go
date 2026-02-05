@@ -19,6 +19,18 @@ func FormatServerId(id int64) string {
 	return fmt.Sprintf("server_%07d", id)
 }
 
+func FormatConfigKeyId(id int64) string {
+	return fmt.Sprintf("cfg_%07d", id)
+}
+
+func NextConfigKeyId(ctx context.Context, conn sqlx.SqlConn) (int64, error) {
+	var id int64
+	if err := conn.QueryRowCtx(ctx, &id, `SELECT nextval('"public"."ae_mcp_config_key_seq"')`); err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
 func NextServiceId(ctx context.Context, conn sqlx.SqlConn) (int64, error) {
 	// 核心逻辑：确保生成的 ID 永远大于当前数据库中的最大 ID
 	// 临时方案：不使用 setval (避免 UPDATE 权限要求)，仅通过 nextval 实现
