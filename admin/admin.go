@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"AgentEarth-Mgr/admin/internal/config"
-	"AgentEarth-Mgr/admin/internal/cron"
+	// "AgentEarth-Mgr/admin/internal/cron" // 定时任务已注释，见下方
 	"AgentEarth-Mgr/admin/internal/handler"
 	"AgentEarth-Mgr/admin/internal/middleware"
 	"AgentEarth-Mgr/admin/internal/svc"
@@ -100,10 +100,10 @@ func main() {
 	}
 	handler.RegisterHandlers(server, ctx)
 
-	// Start Cron Job Scheduler
-	scheduler := cron.NewJobScheduler(context.Background(), ctx)
-	scheduler.Start()
-	defer scheduler.Stop()
+	// Start Cron Job Scheduler（已注释：定时任务由 Stat 系统执行，避免 Mgr 与 Stat 重复跑）
+	// scheduler := cron.NewJobScheduler(context.Background(), ctx)
+	// scheduler.Start()
+	// defer scheduler.Stop()
 
 	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
 	server.Start()

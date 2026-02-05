@@ -64,7 +64,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 		}
 	}
 
-	// 开启事务，l.svcCtx.DB.TransactCtx 相当于 @Transactional 注解
+	// 开启事务
 	err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
 		// 0. 异常检测：正常应每天只执行一次，若该日消费已有核销记录却仍进入流程，说明可能重复触发或定时任务异常
 		var existingCount int64
@@ -84,7 +84,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 		// 你的需求: "expire_time ASC" -> 在 Postgres 中 NULL 默认是最大的，所以 NULL 会排在最后，符合"永久有效最后扣"的逻辑。
 
 		query := `
-			SELECT id, user_id, xlcredit_amount, pay_time, create_time, update_time, charge_source, charge_type, remark, operator, expire_time, related_recharge_id
+			SELECT id, user_id, xlcredit_amount, pay_time, create_time, update_time, charge_source, charge_type, remark, operator, expire_time, related_parent_id
 			FROM ae_user_recharge_record
 			WHERE user_id = $1 
 			  AND xlcredit_amount > 0 
@@ -92,8 +92,8 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 			ORDER BY expire_time ASC, pay_time ASC
 		`
 		//查所有的候选充值余额大于0，且未过期，按过期时间排序，先过期先扣
-		var candidates []users.AeUserRechargeRecord                                          //用来接收查询结果
-		err := session.QueryRowsCtx(ctx, &candidates, query, dailyRecord.UserId, time.Now()) //后面两个参数是给sql语句传参
+		var candidates []users.AeUserRechargeRecord
+		err := session.QueryRowsCtx(ctx, &candidates, query, dailyRecord.UserId, time.Now())
 		if err != nil {
 			return err
 		}
@@ -194,6 +194,7 @@ func (l *SettlementLogic) ProcessUserDailyConsumption(dailyRecord *users.AeUserC
 // SettleAllUsersConsumption 处理指定日期所有用户的消费结算 (Cron任务入口)
 func (l *SettlementLogic) SettleAllUsersConsumption(targetDate time.Time) error {
 	// 1. 查询当天所有有消费记录的用户数据
+	// 这里的 ae_user_consumption_record_daily 表结构之前定义过
 	query := `
 		SELECT id, user_id, day, xlcredit_consume, create_time
 		FROM ae_user_consumption_record_daily
@@ -201,6 +202,7 @@ func (l *SettlementLogic) SettleAllUsersConsumption(targetDate time.Time) error 
 	`
 
 	// 注意：targetDate 应该被截断为“天”，确保匹配数据库的 date 类型
+	// 假设数据库存的是 date 类型或者 0点的时间戳
 	dateStr := targetDate.Format("2006-01-02")
 
 	var dailyRecords []users.AeUserConsumptionRecordDaily
