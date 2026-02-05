@@ -119,15 +119,6 @@ type (
         Message string `json:"message"`
         NewBalance float64 `json:"new_balance"`
     }
-
-    TestSettleReq {
-        Date string `json:"date,optional"`
-    }
-
-    TestResp {
-        Success bool `json:"success"`
-        Message string `json:"message"`
-    }
 )
 
 @server(
@@ -158,10 +149,4 @@ service admin-api {
 
     @handler ManualDeduction
     post /user/deduction (ManualDeductionReq) returns (ManualDeductionResp)
-
-    @handler TestSettleDaily
-    post /job/settle (TestSettleReq) returns (TestResp)
-
-    @handler TestExpireCheck
-    post /job/expire returns (TestResp)
 }

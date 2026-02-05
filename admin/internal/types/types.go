@@ -358,15 +358,6 @@ type ManualDeductionResp struct {
 	NewBalance float64 `json:"new_balance"`
 }
 
-type TestSettleReq struct {
-	Date string `json:"date,optional"` // YYYY-MM-DD
-}
-
-type TestResp struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
-
 type BalanceHistoryReq struct {
 	UserId string `path:"user_id"`
 	Days   int    `form:"days,default=7"` // 7 或 30
