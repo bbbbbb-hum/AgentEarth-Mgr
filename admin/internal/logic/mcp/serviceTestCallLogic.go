@@ -64,13 +64,17 @@ func (l *ServiceTestCallLogic) ServiceTestCall(req *types.ServiceTestCallReq) (r
 		timeout = req.Timeout
 	}
 
-	// 5. 创建MCP客户端
-	client := mcpclient.NewClient(serviceURL, time.Duration(timeout)*time.Second)
-
-	// 6. 先初始化连接
-	_, err = client.Initialize(l.ctx)
+	// 5. 使用会话管理器获取或创建客户端连接
+	sessionMgr := mcpclient.GetSessionManager()
+	session, cached, err := sessionMgr.GetOrCreate(
+		l.ctx,
+		req.ConfigId,
+		config.WemcpName,
+		serviceURL,
+		time.Duration(timeout)*time.Second,
+	)
 	if err != nil {
-		l.Logger.Errorf("MCP初始化失败: %v", err)
+		l.Logger.Errorf("MCP连接初始化失败: %v", err)
 		return &types.BaseResp{
 			Code:    1,
 			Message: "连接初始化失败: " + err.Error(),
@@ -78,9 +82,17 @@ func (l *ServiceTestCallLogic) ServiceTestCall(req *types.ServiceTestCallReq) (r
 		}, nil
 	}
 
-	// 7. 调用工具
-	result, err := client.CallTool(l.ctx, req.ToolName, arguments)
+	if cached {
+		l.Logger.Infof("使用缓存的MCP会话: configId=%d", req.ConfigId)
+	} else {
+		l.Logger.Infof("创建新的MCP会话: configId=%d", req.ConfigId)
+	}
+
+	// 6. 调用工具
+	result, err := session.Client.CallTool(l.ctx, req.ToolName, arguments)
 	if err != nil {
+		// 如果调用失败，可能是会话已过期，移除缓存
+		sessionMgr.Remove(req.ConfigId)
 		l.Logger.Errorf("工具调用失败: %v", err)
 		return &types.BaseResp{
 			Code:    1,
@@ -91,15 +103,19 @@ func (l *ServiceTestCallLogic) ServiceTestCall(req *types.ServiceTestCallReq) (r
 		}, nil
 	}
 
-	// 8. 返回结果
+	// 更新最后使用时间
+	sessionMgr.UpdateLastUsed(req.ConfigId)
+
+	// 7. 返回结果
 	if !result.Success {
 		return &types.BaseResp{
 			Code:    1,
 			Message: "工具调用失败",
 			Data: types.D{
-				"success":     false,
-				"error":       result.Error,
-				"duration_ms": result.DurationMs,
+				"success":      false,
+				"error":        result.Error,
+				"duration_ms":  result.DurationMs,
+				"session_hit":  cached,
 			},
 		}, nil
 	}
@@ -116,11 +132,12 @@ func (l *ServiceTestCallLogic) ServiceTestCall(req *types.ServiceTestCallReq) (r
 		Code:    0,
 		Message: "success",
 		Data: types.D{
-			"success":     true,
-			"tool_name":   req.ToolName,
-			"content":     content,
-			"is_error":    result.IsError,
-			"duration_ms": result.DurationMs,
+			"success":      true,
+			"tool_name":    req.ToolName,
+			"content":      content,
+			"is_error":     result.IsError,
+			"duration_ms":  result.DurationMs,
+			"session_hit":  cached,
 		},
 	}, nil
 }
