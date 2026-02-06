@@ -43,6 +43,24 @@ func BuildServiceURL(pattern, wemcpName string) string {
 	return strings.Replace(pattern, "{name}", wemcpName, 1)
 }
 
+// extractJSONFromSSE 从 SSE 格式响应中提取 JSON 数据
+// SSE 格式: "event: message\ndata: {json}\n\n"
+func extractJSONFromSSE(body string) string {
+	lines := strings.Split(body, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "data:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		}
+	}
+	// 如果没有找到 data: 前缀，尝试直接作为 JSON 解析
+	body = strings.TrimSpace(body)
+	if strings.HasPrefix(body, "{") {
+		return body
+	}
+	return ""
+}
+
 // Connect 连接并获取工具列表
 func (c *Client) Connect(ctx context.Context) (*ConnectResult, error) {
 	start := time.Now()
@@ -187,9 +205,15 @@ func (c *Client) sendRequest(ctx context.Context, method string, params interfac
 		return nil, fmt.Errorf("读取响应失败: %v", err)
 	}
 
+	// 解析 SSE 格式响应，提取 data: 行中的 JSON
+	jsonData := extractJSONFromSSE(string(respBody))
+	if jsonData == "" {
+		return nil, fmt.Errorf("无法从SSE响应中提取JSON: %s", string(respBody))
+	}
+
 	var rpcResp JSONRPCResponse
-	if err := json.Unmarshal(respBody, &rpcResp); err != nil {
-		return nil, fmt.Errorf("解析响应失败: %v, body: %s", err, string(respBody))
+	if err := json.Unmarshal([]byte(jsonData), &rpcResp); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %v, body: %s", err, jsonData)
 	}
 
 	if rpcResp.Error != nil {
