@@ -22,6 +22,7 @@ type Client struct {
 	baseURL    string
 	httpClient *http.Client
 	requestID  int
+	sessionID  string
 }
 
 // NewClient 创建新的MCP客户端
@@ -32,6 +33,7 @@ func NewClient(baseURL string, timeout time.Duration) *Client {
 			Timeout: timeout,
 		},
 		requestID: 0,
+		sessionID: "",
 	}
 }
 
@@ -59,6 +61,13 @@ func extractJSONFromSSE(body string) string {
 		return body
 	}
 	return ""
+}
+
+// updateSessionID 从响应头更新会话ID
+func (c *Client) updateSessionID(header http.Header) {
+	if sessionID := header.Get("Mcp-Session-Id"); sessionID != "" {
+		c.sessionID = sessionID
+	}
 }
 
 // Connect 连接并获取工具列表
@@ -188,12 +197,16 @@ func (c *Client) sendRequest(ctx context.Context, method string, params interfac
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
+	if c.sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", c.sessionID)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("发送请求失败: %v", err)
 	}
 	defer resp.Body.Close()
+	c.updateSessionID(resp.Header)
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -242,12 +255,16 @@ func (c *Client) sendNotification(ctx context.Context, method string, params int
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
+	if c.sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", c.sessionID)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+	c.updateSessionID(resp.Header)
 
 	return nil
 }
