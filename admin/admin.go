@@ -22,6 +22,13 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
+	// MCP 工具调用可能耗时较长，确保 HTTP 超时不低于 60s
+	// go-zero 默认 Timeout=3000ms，太短会导致返回纯文本 "Request Timeout"
+	const minHTTPTimeout int64 = 60000
+	if c.Timeout < minHTTPTimeout {
+		c.Timeout = minHTTPTimeout
+	}
+
 	fmt.Printf("DB DataSource: %s\n", c.DB.DataSource)
 	server := rest.MustNewServer(c.RestConf)
 	defer server.Stop()
