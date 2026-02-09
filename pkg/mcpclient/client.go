@@ -147,6 +147,9 @@ func (c *Client) CallTool(ctx context.Context, name string, arguments map[string
 	start := time.Now()
 	result := &CallResult{Success: true}
 
+	if arguments == nil {
+		arguments = make(map[string]interface{})
+	}
 	params := CallToolParams{
 		Name:      name,
 		Arguments: arguments,

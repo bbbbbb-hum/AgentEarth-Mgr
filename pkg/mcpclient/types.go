@@ -66,7 +66,7 @@ type ServerInfo struct {
 // CallToolParams tools/call 请求参数
 type CallToolParams struct {
 	Name      string                 `json:"name"`
-	Arguments map[string]interface{} `json:"arguments,omitempty"`
+	Arguments map[string]interface{} `json:"arguments"`
 }
 
 // CallToolResult tools/call 响应结果
