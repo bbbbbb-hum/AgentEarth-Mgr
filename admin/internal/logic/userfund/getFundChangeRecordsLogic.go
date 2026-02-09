@@ -92,26 +92,38 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		argIdx++
 	}
 
-	// 先查总数
+	// TODO: 需要把多条负值扣减核销记录综合成一条
+	// 先查总数（原始行数）
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM ae_user_recharge_record r
 		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
 		WHERE %s
 	`, whereClause)
-	var total int64
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &total, countQuery, args...)
+	var totalRaw int64
+	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &totalRaw, countQuery, args...)
 	if err != nil {
 		l.Logger.Errorf("查询充值记录总数失败...: %v", err)
 		return &types.FundChangeRecordResp{List: []types.FundChangeRecordItem{}, Total: 0}, nil
 	}
+	// 可合并的扣减（负值且非过期扣减）多行合并为一条展示，总条数按“展示条数”算
+	total := totalRaw
+	if req.Filter != "recharge" {
+		var mergeableRows, mergeableGroups int64
+		_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &mergeableRows,
+			fmt.Sprintf("SELECT COUNT(*) FROM ae_user_recharge_record r WHERE %s AND r.xlcredit_amount < 0 AND r.charge_type != 4", whereClause), args...)
+		_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &mergeableGroups,
+			fmt.Sprintf("SELECT COUNT(*) FROM (SELECT 1 FROM ae_user_recharge_record r WHERE %s AND r.xlcredit_amount < 0 AND r.charge_type != 4 GROUP BY date_trunc('second', r.create_time), r.operator) t", whereClause), args...)
+		total = totalRaw - mergeableRows + mergeableGroups
+	}
 
 	// 查询充值记录表（包含充值和扣减），并关联管理员表获取用户名
-	// r.id、r.expire_time 用于充值时展示批次剩余额度和过期状态
-	limitArgs := append(args, pageSize, offset)
+	// 可合并的扣减（负值且非过期扣减）可能一次操作对应多行，需多取一些行以便合并后仍能填满一页
+	limitArgs := append(args, (offset+pageSize)*3, 0) // 多取一些，合并后再分页
 	query := fmt.Sprintf(`
 		SELECT 
 			r.id,
+			r.create_time,
 			r.pay_time,
 			r.xlcredit_amount,
 			r.charge_source,
@@ -122,12 +134,13 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		FROM ae_user_recharge_record r
 		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
 		WHERE %s
-		ORDER BY r.pay_time DESC
+		ORDER BY r.pay_time DESC, r.id DESC
 		LIMIT $%d OFFSET $%d
 	`, whereClause, argIdx, argIdx+1)
 
 	type recordRow struct {
 		Id             int64          `db:"id"`
+		CreateTime     time.Time      `db:"create_time"`
 		PayTime        time.Time      `db:"pay_time"`
 		XlcreditAmount float64        `db:"xlcredit_amount"`
 		ChargeSource   int64          `db:"charge_source"`
@@ -144,8 +157,69 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		return &types.FundChangeRecordResp{List: []types.FundChangeRecordItem{}, Total: 0}, nil
 	}
 
+	// 将同一次扣减（负值且非过期扣减，charge_type 由管理员指定如 2/3/5 等）的多行合并为一条：按 create_time(秒)+operator 分组
+	type groupKey struct {
+		Sec      int64
+		Operator string
+	}
+
+	//map[groupKey][]recordRow 表示：按 groupKey 分组，每组对应多条 recordRow:该组下所有 [可合并的扣减] 的原始行(切片)
+	mergeableDeductionGroups := make(map[groupKey][]recordRow)
+	for _, row := range rows {
+		if row.XlcreditAmount < 0 && row.ChargeType != 4 {
+			k := groupKey{row.CreateTime.Unix(), row.Operator.String}
+			mergeableDeductionGroups[k] = append(mergeableDeductionGroups[k], row)
+		}
+	}
+
+	// 每个组中“代表行”取 id 最小的一条（同一次扣减多条里选一条代表）
+	groupFirstId := make(map[groupKey]int64) //key是groupKey，value是该组代表行的id(int64)
+	for k, list := range mergeableDeductionGroups {
+		minId := list[0].Id
+		for _, r := range list[1:] { //从第二条开始遍历到最后一行，找到最小的id
+			if r.Id < minId {
+				minId = r.Id
+			}
+		}
+		groupFirstId[k] = minId //把最小的id赋值给groupFirstId[k]
+	}
+
 	var records []types.FundChangeRecordItem
 	for _, row := range rows {
+		// 可合并的扣减（负值且非过期扣减）：只保留每组代表行，展示为一条合并记录；charge_type 用代表行的值（管理员可指定 2/3/5 等）
+		if row.XlcreditAmount < 0 && row.ChargeType != 4 {
+			k := groupKey{row.CreateTime.Unix(), row.Operator.String}
+			if row.Id != groupFirstId[k] {
+				continue
+			}
+			list := mergeableDeductionGroups[k]
+			sumAmount := 0.0
+			for _, r := range list {
+				sumAmount += r.XlcreditAmount
+			}
+			operatorName := row.Operator.String
+			if operatorName == "" {
+				operatorName = "未知"
+			}
+			remark := row.Remark.String
+			if len(list) > 1 {
+				remark = fmt.Sprintf("扣减(从%d个批次扣减)", len(list))
+			} else if remark == "" {
+				remark = chargeTypeDescFromType(row.ChargeType)
+			}
+			records = append(records, types.FundChangeRecordItem{
+				TransactionTime: row.PayTime.Format("2006-01-02 15:04:05"),
+				TypeDescription: typeDescFromChargeSource(row.ChargeSource, true),
+				ChangeAmount:    sumAmount,
+				Status:          "成功",
+				Remarks:         remark,
+				ChargeType:      row.ChargeType,
+				ChargeTypeDesc:  chargeTypeDescFromType(row.ChargeType),
+				Operator:        operatorName,
+			})
+			continue
+		}
+
 		// 根据金额和charge_source判断类型
 		var typeDesc string
 		if row.XlcreditAmount > 0 {
@@ -221,11 +295,11 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				now := time.Now()
 				if row.ExpireTime.Time.Before(now) {
 					item.BatchStatus = "已过期"
-					// 已过期时：优先查询过期扣减的那笔金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」
-					// 一个充值批次最多对应一条过期扣减记录
+					// 已过期时：优先查询过期扣减(charge_type=4)的那笔金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」
+					// 一个充值批次最多一条过期扣减；需限定 charge_type=4 避免误取管理员扣减等负值
 					var expiredDeduct float64
 					_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &expiredDeduct,
-						`SELECT COALESCE((SELECT ABS(xlcredit_amount) FROM ae_user_recharge_record WHERE related_recharge_id = $1 AND xlcredit_amount < 0 LIMIT 1), 0)`, row.Id)
+						`SELECT COALESCE((SELECT ABS(xlcredit_amount) FROM ae_user_recharge_record WHERE related_recharge_id = $1 AND xlcredit_amount < 0 AND charge_type = 4 LIMIT 1), 0)`, row.Id)
 					if expiredDeduct > 0 {
 						// 已经执行过过期扣减，展示“过期那一刻剩余”
 						item.RemainingAtExpire = expiredDeduct
@@ -251,8 +325,62 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		records = append(records, item)
 	}
 
+	// 合并后按展示条数分页
+	start := offset
+	if start > int64(len(records)) {
+		start = int64(len(records))
+	}
+	end := offset + pageSize
+	if end > int64(len(records)) {
+		end = int64(len(records))
+	}
+	list := records[start:end]
+
 	return &types.FundChangeRecordResp{
-		List:  records,
+		List:  list,
 		Total: total,
 	}, nil
+}
+
+// chargeTypeDescFromType 根据 charge_type 返回类型描述（与下方 switch 一致，供合并展示使用）
+func chargeTypeDescFromType(chargeType int64) string {
+	switch chargeType {
+	case 1:
+		return "用户常规充值"
+	case 2:
+		return "系统故障补偿"
+	case 3:
+		return "活动赠送"
+	case 4:
+		return "过期扣减"
+	case 5:
+		return "管理员扣减"
+	default:
+		return "未知"
+	}
+}
+
+// typeDescFromChargeSource 根据 charge_source 返回类型说明；isDeduction 为 true 时按扣减语义（管理员后台扣减/系统扣减）
+func typeDescFromChargeSource(chargeSource int64, isDeduction bool) string {
+	if !isDeduction {
+		switch chargeSource {
+		case 1:
+			return "管理员后台充值"
+		case 2:
+			return "支付宝充值"
+		case 3:
+			return "微信充值"
+		case 4:
+			return "银行卡充值"
+		default:
+			return "系统充值"
+		}
+	}
+	if chargeSource == -1 {
+		return "系统扣减"
+	}
+	if chargeSource == 1 {
+		return "管理员后台扣减"
+	}
+	return "系统扣减"
 }
