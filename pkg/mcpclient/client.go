@@ -168,7 +168,13 @@ func (c *Client) CallTool(ctx context.Context, name string, arguments map[string
 		return result, nil
 	}
 
-	result.Content = resp.Result
+	// 只存 content 数组部分，避免双层嵌套
+	contentBytes, err := json.Marshal(callResult.Content)
+	if err != nil {
+		result.Content = resp.Result // fallback: 存完整结果
+	} else {
+		result.Content = contentBytes
+	}
 	result.IsError = callResult.IsError
 	result.DurationMs = time.Since(start).Milliseconds()
 
