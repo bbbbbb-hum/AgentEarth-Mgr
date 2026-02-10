@@ -218,6 +218,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/service/test/confirm",
 				Handler: mcp.ServiceTestConfirmHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/test/disconnect",
+				Handler: mcp.ServiceTestDisconnectHandler(serverCtx),
+			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/manager/api/admin/mcp"),

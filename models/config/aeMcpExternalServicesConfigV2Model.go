@@ -130,4 +130,3 @@ func (m *customAeMcpExternalServicesConfigV2Model) BatchUpdateOnlineStatus(ctx c
 	_, err := m.conn.ExecCtx(ctx, query2, pq.StringArray(readyWemcpNames))
 	return err
 }
-

@@ -61,4 +61,9 @@ type (
 		ConfigId   int64 `json:"config_id"`   // 服务配置ID
 		TestStatus int   `json:"test_status"` // 测试状态: 1=通过, -1=失败, 0=未测试
 	}
+
+	// ServiceTestDisconnectReq 断开连接请求
+	ServiceTestDisconnectReq struct {
+		ConfigId int64 `json:"config_id"` // 服务配置ID
+	}
 )
