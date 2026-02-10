@@ -81,16 +81,8 @@ func (l *GetUserListLogic) GetUserList(req *types.UserListReq) (resp *types.User
 		// 调试日志：打印邮箱数据
 		l.Logger.Infof("User %s (username: %s) email: [%s]", u.UserId, u.Username, u.Email)
 
-		// 计算日均消费（最近30天）
-		dailyConsumption := 0.0
-		consumptionQuery := `
-			SELECT COALESCE(AVG(xlcredit_consume), 0) as avg_consumption
-			FROM ae_user_consumption_record_daily
-			WHERE user_id = $1
-			AND day >= CURRENT_DATE - INTERVAL '30 days'
-			AND xlcredit_consume > 0
-		`
-		err = l.svcCtx.DB.QueryRowCtx(l.ctx, &dailyConsumption, consumptionQuery, u.UserId)
+		// 计算日均消费（最近30天），SQL 在 model 层
+		dailyConsumption, err := l.svcCtx.UserConsumptionDailyModel.GetAvgDailyConsumptionLast30Days(l.ctx, u.UserId)
 		if err != nil {
 			l.Logger.Errorf("Failed to get daily consumption for user %s: %v", u.UserId, err)
 			dailyConsumption = 0

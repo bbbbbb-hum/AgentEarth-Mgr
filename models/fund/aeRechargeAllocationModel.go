@@ -1,4 +1,4 @@
-package users
+package fund
 
 import "github.com/zeromicro/go-zero/core/stores/sqlx"
 
@@ -22,3 +22,4 @@ func NewAeRechargeAllocationModel(conn sqlx.SqlConn) AeRechargeAllocationModel {
 		defaultAeRechargeAllocationModel: newAeRechargeAllocationModel(conn),
 	}
 }
+

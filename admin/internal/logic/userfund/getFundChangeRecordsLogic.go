@@ -30,16 +30,16 @@
 package userfund
 
 import (
-	"context"      //上下文
-	"database/sql" //sql.NullString、sql.NullTime等可空类型
-	"fmt"          //格式化
-	"time"         //时间
+	"context"
+	"fmt"
+	"time"
 
-	"AgentEarth-Mgr/admin/internal/svc"   //服务上下文
-	"AgentEarth-Mgr/admin/internal/types" //请求/响应类型
+	"AgentEarth-Mgr/admin/internal/svc"
+	"AgentEarth-Mgr/admin/internal/types"
+	fundmodel "AgentEarth-Mgr/models/fund"
 
-	"github.com/shopspring/decimal"          //高精度金额
-	"github.com/zeromicro/go-zero/core/logx" //日志
+	"github.com/shopspring/decimal"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type GetFundChangeRecordsLogic struct {
@@ -92,82 +92,62 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		argIdx++
 	}
 
-	// TODO: 需要把多条负值扣减核销记录综合成一条
-	// 先查总数（原始行数）
-	countQuery := fmt.Sprintf(`
-		SELECT COUNT(*)
-		FROM ae_user_recharge_record r
-		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
-		WHERE %s
-	`, whereClause)
-	var totalRaw int64
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &totalRaw, countQuery, args...)
+	// 先查总数（原始行数），SQL 在 model 层
+	totalRaw, err := l.svcCtx.UserRechargeRecordModel.CountFundChangeRawRows(l.ctx, whereClause, args)
 	if err != nil {
-		l.Logger.Errorf("查询充值记录总数失败...: %v", err)
+		l.Logger.Errorf("查询充值记录总数失败: %v", err)
 		return &types.FundChangeRecordResp{List: []types.FundChangeRecordItem{}, Total: 0}, nil
 	}
 	// 可合并的扣减（负值且非过期扣减）多行合并为一条展示，总条数按“展示条数”算
 	total := totalRaw
 	if req.Filter != "recharge" {
-		var mergeableRows, mergeableGroups int64
-		_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &mergeableRows,
-			fmt.Sprintf("SELECT COUNT(*) FROM ae_user_recharge_record r WHERE %s AND r.xlcredit_amount < 0 AND r.charge_type != 4", whereClause), args...)
-		_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &mergeableGroups,
-			fmt.Sprintf("SELECT COUNT(*) FROM (SELECT 1 FROM ae_user_recharge_record r WHERE %s AND r.xlcredit_amount < 0 AND r.charge_type != 4 GROUP BY date_trunc('second', r.create_time), r.operator) t", whereClause), args...)
+		mergeableRows, _ := l.svcCtx.UserRechargeRecordModel.CountMergeableDeductionRows(l.ctx, whereClause, args)
+		mergeableGroups, _ := l.svcCtx.UserRechargeRecordModel.CountMergeableDeductionGroups(l.ctx, whereClause, args)
 		total = totalRaw - mergeableRows + mergeableGroups
 	}
 
-	// 查询充值记录表（包含充值和扣减），并关联管理员表获取用户名
-	// 可合并的扣减（负值且非过期扣减）可能一次操作对应多行，需多取一些行以便合并后仍能填满一页
-	limitArgs := append(args, (offset+pageSize)*3, 0) // 多取一些，合并后再分页
-	query := fmt.Sprintf(`
-		SELECT 
-			r.id,
-			r.create_time,
-			r.pay_time,
-			r.xlcredit_amount,
-			r.charge_source,
-			r.charge_type,
-			r.remark,
-			r.expire_time,
-			COALESCE(u.username, r.operator) as operator
-		FROM ae_user_recharge_record r
-		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
-		WHERE %s
-		ORDER BY r.pay_time DESC, r.id DESC
-		LIMIT $%d OFFSET $%d
-	`, whereClause, argIdx, argIdx+1)
-
-	type recordRow struct {
-		Id             int64          `db:"id"`
-		CreateTime     time.Time      `db:"create_time"`
-		PayTime        time.Time      `db:"pay_time"`
-		XlcreditAmount float64        `db:"xlcredit_amount"`
-		ChargeSource   int64          `db:"charge_source"`
-		ChargeType     int64          `db:"charge_type"`
-		Remark         sql.NullString `db:"remark"`
-		ExpireTime     sql.NullTime   `db:"expire_time"`
-		Operator       sql.NullString `db:"operator"`
+	// 查询充值/扣减记录并关联管理员名称
+	var limit, queryOffset int64
+	if req.Filter == "recharge" {
+		// 仅充值：无合并逻辑，直接用 DB 分页，避免后面页展示不全
+		limit = pageSize
+		queryOffset = offset
+	} else {
+		// 全部/仅扣减：只有负值且 charge_type!=4 的扣减会在内存中合并，正值（充值）一条就是一条，从不合并。
+		// 为凑够 (offset+pageSize) 条展示记录，需多取原始行（因部分原始行合并后展示条数变少）。
+		const mergeLimitMultiplier = 8
+		const mergeLimitCap = 5000 // 单次最多取 5000 条原始行，否则后面页的充值/扣减会永远取不到
+		limit = (offset + pageSize) * mergeLimitMultiplier
+		if limit > mergeLimitCap {
+			limit = mergeLimitCap
+		}
+		queryOffset = 0
 	}
-
-	var rows []recordRow
-	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, limitArgs...)
+	rows, err := l.svcCtx.UserRechargeRecordModel.QueryFundChangeRows(l.ctx, whereClause, args, limit, queryOffset)
 	if err != nil {
 		l.Logger.Errorf("Failed to query fund change records: %v", err)
 		return &types.FundChangeRecordResp{List: []types.FundChangeRecordItem{}, Total: 0}, nil
 	}
 
-	// 将同一次扣减（负值且非过期扣减，charge_type 由管理员指定如 2/3/5 等）的多行合并为一条：按 create_time(秒)+operator 分组
+	// 仅对「负值且 charge_type!=4」的扣减做合并；正值（充值）记录一条就是一条，从不合并。
+	// 按 pay_time(秒) + operator + charge_type + remark 分组，同一组的扣减多行合成一条展示。
 	type groupKey struct {
-		Sec      int64
-		Operator string
+		Sec        int64
+		Operator   string
+		ChargeType int64
+		Remark     string
 	}
 
-	//map[groupKey][]recordRow 表示：按 groupKey 分组，每组对应多条 recordRow:该组下所有 [可合并的扣减] 的原始行(切片)
-	mergeableDeductionGroups := make(map[groupKey][]recordRow)
+	// 按 groupKey 分组，每组对应多条可合并扣减的原始行
+	mergeableDeductionGroups := make(map[groupKey][]fundmodel.FundChangeRecordRow)
 	for _, row := range rows {
 		if row.XlcreditAmount < 0 && row.ChargeType != 4 {
-			k := groupKey{row.CreateTime.Unix(), row.Operator.String}
+			k := groupKey{
+				Sec:        row.PayTime.Unix(),
+				Operator:   row.Operator.String,
+				ChargeType: row.ChargeType,
+				Remark:     row.Remark.String,
+			}
 			mergeableDeductionGroups[k] = append(mergeableDeductionGroups[k], row)
 		}
 	}
@@ -188,7 +168,12 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 	for _, row := range rows {
 		// 可合并的扣减（负值且非过期扣减）：只保留每组代表行，展示为一条合并记录；charge_type 用代表行的值（管理员可指定 2/3/5 等）
 		if row.XlcreditAmount < 0 && row.ChargeType != 4 {
-			k := groupKey{row.CreateTime.Unix(), row.Operator.String}
+			k := groupKey{
+				Sec:        row.PayTime.Unix(),
+				Operator:   row.Operator.String,
+				ChargeType: row.ChargeType,
+				Remark:     row.Remark.String,
+			}
 			if row.Id != groupFirstId[k] {
 				continue
 			}
@@ -286,7 +271,7 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			item.BatchId = row.Id
 			item.InitialAmount = row.XlcreditAmount
 			initialAmt := decimal.NewFromFloat(row.XlcreditAmount)
-			remaining, errBalance := CalculateRealTimeBalance(l.ctx, l.svcCtx.DB, row.Id, initialAmt)
+			remaining, errBalance := CalculateRealTimeBalance(l.ctx, l.svcCtx.UserRechargeRecordModel, row.Id, initialAmt)
 			if errBalance == nil {
 				item.RemainingAmount, _ = remaining.Float64()
 			}
@@ -295,11 +280,8 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				now := time.Now()
 				if row.ExpireTime.Time.Before(now) {
 					item.BatchStatus = "已过期"
-					// 已过期时：优先查询过期扣减(charge_type=4)的那笔金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」
-					// 一个充值批次最多一条过期扣减；需限定 charge_type=4 避免误取管理员扣减等负值
-					var expiredDeduct float64
-					_ = l.svcCtx.DB.QueryRowCtx(l.ctx, &expiredDeduct,
-						`SELECT COALESCE((SELECT ABS(xlcredit_amount) FROM ae_user_recharge_record WHERE related_recharge_id = $1 AND xlcredit_amount < 0 AND charge_type = 4 LIMIT 1), 0)`, row.Id)
+					// 已过期时：查询过期扣减(charge_type=4)金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」，SQL 在 model 层
+					expiredDeduct, _ := l.svcCtx.UserRechargeRecordModel.GetExpiredDeductionAmount(l.ctx, row.Id)
 					if expiredDeduct > 0 {
 						// 已经执行过过期扣减，展示“过期那一刻剩余”
 						item.RemainingAtExpire = expiredDeduct
@@ -325,16 +307,21 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		records = append(records, item)
 	}
 
-	// 合并后按展示条数分页
-	start := offset
-	if start > int64(len(records)) {
-		start = int64(len(records))
+	// 合并后按展示条数分页（仅充值时已在 DB 分页，records 即当前页）
+	var list []types.FundChangeRecordItem
+	if req.Filter == "recharge" {
+		list = records
+	} else {
+		start := offset
+		if start > int64(len(records)) {
+			start = int64(len(records))
+		}
+		end := offset + pageSize
+		if end > int64(len(records)) {
+			end = int64(len(records))
+		}
+		list = records[start:end]
 	}
-	end := offset + pageSize
-	if end > int64(len(records)) {
-		end = int64(len(records))
-	}
-	list := records[start:end]
 
 	return &types.FundChangeRecordResp{
 		List:  list,

@@ -66,46 +66,14 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 		}
 	}
 
-	// 3. 插入充值记录（含可选 expire_time），不修改日余额统计表，由统计系统统一更新
-	insertQuery := `
-		INSERT INTO public.ae_user_recharge_record (
-			user_id,
-			xlcredit_amount,
-			pay_time,
-			create_time,
-			update_time,
-			charge_source,
-			charge_type,
-			remark,
-			operator,
-			expire_time
-		)
-		VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8, $9)
-		RETURNING id
-	`
-	fallbackInsertQuery := `
-		INSERT INTO public.ae_user_recharge_record (
-			user_id,
-			xlcredit_amount,
-			pay_time,
-			create_time,
-			update_time,
-			charge_source,
-			charge_type,
-			remark,
-			operator
-		)
-		VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8)
-		RETURNING id
-	`
+	// 3. 插入充值记录（含可选 expire_time），不修改日余额统计表，SQL 在 model 层
 	now := time.Now()
-	var insertedId int64
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, insertQuery, req.UserId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName, expireTime)
+	insertedId, err := l.svcCtx.UserRechargeRecordModel.InsertRechargeRecordWithExpire(l.ctx, req.UserId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName, expireTime)
 	if err != nil {
 		l.Logger.Errorf("Failed to insert recharge record (full): %v, trying fallback", err)
-		fallbackErr := l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, fallbackInsertQuery, req.UserId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName)
-		if fallbackErr != nil {
-			l.Logger.Errorf("Failed to insert recharge record (fallback): %v", fallbackErr)
+		insertedId, err = l.svcCtx.UserRechargeRecordModel.InsertRechargeRecordWithoutExpire(l.ctx, req.UserId, req.Amount, now, now, now, chargeType, req.Remarks, operatorName)
+		if err != nil {
+			l.Logger.Errorf("Failed to insert recharge record (fallback): %v", err)
 			return &types.ManualRechargeResp{
 				Success: false,
 				Message: "充值记录插入失败",

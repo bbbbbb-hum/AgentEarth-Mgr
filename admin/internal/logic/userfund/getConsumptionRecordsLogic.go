@@ -49,54 +49,8 @@ func (l *GetConsumptionRecordsLogic) GetConsumptionRecords(req *types.Consumptio
 		days = 7
 	}
 
-	// 查询消费记录（自行消费 + 充值表中的负值扣减）- 包含今天，查询最近N天的数据
-	query := `
-		WITH date_series AS (
-			SELECT generate_series(
-				CURRENT_DATE - INTERVAL '1 day' * ($2 - 1),
-				CURRENT_DATE,
-				INTERVAL '1 day'
-			)::date AS day
-		),
-		consume_daily AS (
-			SELECT 
-				day,
-				COALESCE(SUM(xlcredit_consume), 0) AS self_consume
-			FROM ae_user_consumption_record_daily
-			WHERE user_id = $1
-			AND day >= CURRENT_DATE - INTERVAL '1 day' * ($2 - 1)
-			AND day <= CURRENT_DATE
-			GROUP BY day
-		),
-		recharge_deduction_daily AS (
-			SELECT 
-				pay_time::date AS day,
-				COALESCE(ABS(SUM(xlcredit_amount)), 0) AS system_deduct
-			FROM ae_user_recharge_record
-			WHERE user_id = $1
-			AND xlcredit_amount < 0
-			AND pay_time::date >= CURRENT_DATE - INTERVAL '1 day' * ($2 - 1)
-			AND pay_time::date <= CURRENT_DATE
-			GROUP BY pay_time::date
-		)
-		SELECT 
-			ds.day::text as day,
-			COALESCE(c.self_consume, 0) as self_consume,
-			COALESCE(r.system_deduct, 0) as system_deduct
-		FROM date_series ds
-		LEFT JOIN consume_daily c ON c.day = ds.day
-		LEFT JOIN recharge_deduction_daily r ON r.day = ds.day
-		ORDER BY ds.day ASC
-	`
-
-	type recordRow struct {
-		Day          string  `db:"day"`
-		SelfConsume  float64 `db:"self_consume"`
-		SystemDeduct float64 `db:"system_deduct"`
-	}
-
-	var rows []recordRow
-	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, req.UserId, days)
+	// 查询消费记录（自行消费 + 充值表负值扣减），SQL 在 model 层
+	rows, err := l.svcCtx.UserConsumptionDailyModel.QueryConsumptionRecords(l.ctx, req.UserId, int64(days))
 	if err != nil {
 		l.Logger.Errorf("Failed to query consumption records: %v", err)
 		return &types.ConsumptionRecordResp{List: []types.ConsumptionRecordItem{}}, nil
