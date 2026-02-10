@@ -70,11 +70,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/service-config/list",
 				Handler: data.GetServiceConfigListHandler(serverCtx),
 			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/update-service-online",
-				Handler: data.UpdateServiceOnlineHandler(serverCtx),
-			},
+		{
+			Method:  http.MethodPost,
+			Path:    "/refresh-service-online-status",
+			Handler: data.RefreshServiceOnlineStatusHandler(serverCtx),
+		},
+		{
+			Method:  http.MethodPost,
+			Path:    "/update-service-online",
+			Handler: data.UpdateServiceOnlineHandler(serverCtx),
+		},
 			{
 				Method:  http.MethodPost,
 				Path:    "/update/service-config",

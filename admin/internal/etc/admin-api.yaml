@@ -2,6 +2,11 @@ Name: admin-api
 Host: 0.0.0.0
 Port: 8888
 
+# K8s集群状态同步配置
+K8sSync:
+  Enabled: true
+  Namespace: ""  # 留空则自动从 ServiceAccount 读取
+
 # MCP测试配置
 McpTest:
   # wemcp服务地址模式, {name}会被替换为wemcp_name

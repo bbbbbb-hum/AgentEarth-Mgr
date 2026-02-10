@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
@@ -18,6 +19,7 @@ type (
 		GetList(ctx context.Context, lp models.ListConditions, getList bool) (list []*AeMcpExternalServicesConfigV2, total int64, err error)
 		FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpExternalServicesConfigV2, error)
 		DeleteByConditions(ctx context.Context, conditions []models.Condition) error
+		BatchUpdateOnlineStatus(ctx context.Context, readyWemcpNames []string) error
 	}
 
 	customAeMcpExternalServicesConfigV2Model struct {
@@ -105,5 +107,27 @@ func (m *customAeMcpExternalServicesConfigV2Model) DeleteByConditions(ctx contex
 	query += whereClause
 	_, execErr := m.conn.ExecCtx(ctx, query, args...)
 	return execErr
+}
+
+// BatchUpdateOnlineStatus 批量更新 online_status：
+// readyWemcpNames 中的设为 1，其余设为 0，同时更新 update_time。
+func (m *customAeMcpExternalServicesConfigV2Model) BatchUpdateOnlineStatus(ctx context.Context, readyWemcpNames []string) error {
+	if len(readyWemcpNames) == 0 {
+		// 没有就绪的服务，全部置 0
+		query := fmt.Sprintf("UPDATE %s SET online_status = 0, update_time = NOW() WHERE online_status != 0", m.table)
+		_, err := m.conn.ExecCtx(ctx, query)
+		return err
+	}
+
+	// 将就绪的设为 1（仅当前值不为 1 时更新）
+	query1 := fmt.Sprintf("UPDATE %s SET online_status = 1, update_time = NOW() WHERE wemcp_name = ANY($1) AND online_status != 1", m.table)
+	if _, err := m.conn.ExecCtx(ctx, query1, pq.StringArray(readyWemcpNames)); err != nil {
+		return err
+	}
+
+	// 将不在就绪列表中的设为 0（仅当前值不为 0 时更新）
+	query2 := fmt.Sprintf("UPDATE %s SET online_status = 0, update_time = NOW() WHERE wemcp_name != ALL($1) AND online_status != 0", m.table)
+	_, err := m.conn.ExecCtx(ctx, query2, pq.StringArray(readyWemcpNames))
+	return err
 }
 

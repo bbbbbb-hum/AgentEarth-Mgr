@@ -10,6 +10,15 @@ type Config struct {
 		AccessExpire int64
 	}
 	McpTest McpTestConfig
+	K8sSync K8sSyncConfig
+}
+
+// K8sSyncConfig K8s集群状态同步配置
+type K8sSyncConfig struct {
+	// Enabled 是否启用 K8s 同步（非集群环境设为 false）
+	Enabled bool `json:",default=true"`
+	// Namespace 要检测的命名空间，留空则从 ServiceAccount 自动读取
+	Namespace string `json:",optional"`
 }
 
 type DBConfig struct {
