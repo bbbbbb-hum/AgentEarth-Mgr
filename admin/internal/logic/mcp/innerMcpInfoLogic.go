@@ -62,17 +62,6 @@ func (l *InnerMcpInfoLogic) InnerMcpInfo(wemcpName string) (resp *types.BaseResp
 		}, nil
 	}
 
-	if cfg.TestStatus != 1 || cfg.OnlineStatus != 1 {
-		return &types.BaseResp{
-			Code:    1,
-			Message: "service not ready: test_status and online_status must be 1",
-			Data: types.D{
-				"need_key": true,
-				"envs":     map[string]string{},
-			},
-		}, nil
-	}
-
 	accounts, _, err := l.svcCtx.TaskNodeConfigAccountModel.GetList(l.ctx, models.ListConditions{
 		Conditions: []models.Condition{
 			{
