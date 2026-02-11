@@ -89,6 +89,8 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 		var snapshotBal decimal.Decimal
 		var deltaStartTime time.Time
 
+		// 再次查询用户余额快照，保证事务内严谨性，强制所有查询在同一数据库事务内
+		// 与GetLatestBalance不同的是，会返回快照金额 + 金额日期，sanp这个结构体，方便我们选取截至日期来查增量
 		snap, errSnap := txBalanceModel.QueryLatestBalanceSnapshot(ctx, req.UserId)
 		if errSnap != nil {
 			l.Errorf("[ManualDeduction] 查询快照失败: user_id=%s, err=%v", req.UserId, errSnap)
@@ -98,13 +100,16 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 			if val, parseErr := decimal.NewFromString(snap.Balance); parseErr == nil {
 				snapshotBal = val
 			}
+			// 从快照日的下一天开始计算增量
 			deltaStartTime = snap.Day.AddDate(0, 0, 1)
 		} else {
+			// 无快照，视为 0，从最早时间开始全量计算增量
 			snapshotBal = decimal.Zero
 			deltaStartTime = time.Time{}
 			l.Infof("[ManualDeduction] 用户 %s 无余额快照，使用全量流水计算总余额", req.UserId)
 		}
 
+		//计算快照时间后的增量deltaStr，未核销昨日用户消费前的真实余额 (管理员扣减已实时核销)
 		deltaStr, errDelta := txRechargeModel.QueryBalanceDeltaSince(ctx, req.UserId, deltaStartTime)
 		if errDelta != nil {
 			l.Errorf("[ManualDeduction] 查询增量失败: user_id=%s, err=%v", req.UserId, errDelta)
@@ -151,7 +156,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 		now := time.Now()
 		remarkBase := req.Remarks
 		if remarkBase == "" {
-			remarkBase = "管理员扣减"
+			remarkBase = "管理员扣减" //默认备注，方便区分
 		}
 
 		for _, rec := range candidates {
@@ -160,6 +165,8 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 			}
 
 			initialAmount := decimal.NewFromFloat(rec.XlcreditAmount)
+
+			//计算 物理余额 = 初始金额 - 已经被allocation分配走的金额 - 关联所有到这条充值的负值扣减的绝对值总和
 			balance, errCalc := CalculateRealTimeBalance(ctx, txRechargeModel, rec.Id, initialAmount)
 			if errCalc != nil {
 				l.Errorf("[ManualDeduction] 计算批次余额失败: recharge_id=%d, err=%v", rec.Id, errCalc)
@@ -179,6 +186,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 				actualDeduct = amountToDeduct
 			}
 
+			//得到一个专门用于写入扣减流水的 负值金额，后面会转成 float64 存到 xlcredit_amount 字段里，表示这是一条“扣减记录”
 			negativeAmount := actualDeduct.Neg()
 			// 备注统一用 remarkBase，不写「批次x/y」：实际参与扣减的条数可能远小于候选数，避免误导
 			remark := remarkBase
@@ -200,7 +208,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 				return fmt.Errorf("插入扣减记录失败: %w", errExec)
 			}
 			insertCount++
-			totalDeducted = totalDeducted.Add(actualDeduct)   //累加实际扣减的余额
+			totalDeducted = totalDeducted.Add(actualDeduct)   //累加实际扣减的金额
 			amountToDeduct = amountToDeduct.Sub(actualDeduct) //累减剩余待扣的余额
 
 			expireStr := "永久有效"
@@ -211,13 +219,14 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 				req.UserId, actualDeduct.String(), rec.Id, expireStr, amountToDeduct.String(), remark)
 		}
 
-		//理论上不会发生，只有总可用余额 > 扣减额，才允许继续
+		//理论上不会发生，因为只有总可用余额 > 管理员扣减额，才允许继续
 		if amountToDeduct.GreaterThan(decimal.Zero) {
 			l.Errorf("[ManualDeduction] 异常: 事务内扣减后仍有剩余未扣, user_id=%s, 剩余=%s, 已扣=%s, 插入条数=%d",
 				req.UserId, amountToDeduct.String(), totalDeducted.String(), insertCount)
 			return fmt.Errorf("扣减未完成(剩余%s)，可能并发变更，已回滚", amountToDeduct.String())
 		}
 
+		//表示“整个扣减流程在事务内顺利完成，可以安全提交”，是“成功分支的结束语”
 		return nil
 	})
 
@@ -242,6 +251,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 		}, nil
 	}
 
+	//新展示余额 = 原展示余额 − 本次实际扣减总额
 	newBalanceForDisplay := currentBalance - totalDeducted.InexactFloat64()
 	l.Infof("[ManualDeduction] 扣减成功: user_id=%s, 操作用户=%s, 扣减总额=%s, 插入负值条数=%d, 原展示余额=%.2f, 新展示余额=%.2f (日余额由统计系统更新)",
 		req.UserId, targetUsername, totalDeducted.String(), insertCount, currentBalance, newBalanceForDisplay)
