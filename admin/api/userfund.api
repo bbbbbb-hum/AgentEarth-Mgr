@@ -1,26 +1,10 @@
 /*
- * 文件名称: userfund.api
- * 功能说明: 星量用户资金管理模块 - API 定义文件
- * 创建时间: 2026-01-24
- * 
- * 主要功能:
- * 1. 用户列表查询（含分页、搜索、日均消费计算）
- * 2. 用户详情查询（含资金续航、日均消费）
- * 3. 消费记录查询（支持7天/30天视图）
- * 4. 余额历史查询（用于余额趋势图）
- * 5. 资金变动明细（充值/扣减记录）
- * 6. 人工充值功能
- * 
- * 涉及数据库表:
- * - ae_user: 用户基础信息
- * - ae_user_balance_statistic_daily: 日余额统计表
- * - ae_user_consumption_record_daily: 日消费记录表
- * - ae_user_recharge_record: 充值记录表
- * 
- * API 路由前缀: /manager/api/userfund
+ * File Name: userfund.api
+ * Description: AgentEarth User Fund Management Module - API Definition
+ * Created Date: 2026-01-24
+ *
+ * API Route Prefix: /manager/api/userfund
  */
-
-syntax = "v1"
 
 type (
     UserFundStatsResp {
@@ -115,6 +99,7 @@ type (
         UserId string `json:"user_id"`
         Amount float64 `json:"amount"`
         Remarks string `json:"remarks,optional"`
+        ExpireTime string `json:"expire_time,optional"` // 可选，格式 YYYY-MM-DD，不传或空为永久有效
     }
 
     ManualRechargeResp {

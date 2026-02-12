@@ -49,37 +49,8 @@ func (l *GetBalanceHistoryLogic) GetBalanceHistory(req *types.BalanceHistoryReq)
 		days = 7
 	}
 
-	// 查询余额历史（从余额统计表）- 包含今天，查询最近N天的数据
-	// 对缺失日期用“最新可用余额”进行衔接
-	query := `
-		WITH date_series AS (
-			SELECT generate_series(
-				CURRENT_DATE - INTERVAL '1 day' * ($2 - 1),
-				CURRENT_DATE,
-				INTERVAL '1 day'
-			)::date AS day
-		)
-		SELECT 
-			ds.day::text as day,
-			COALESCE((
-				SELECT s.balance
-				FROM ae_user_balance_statistic_daily s
-				WHERE s.user_id = $1
-				AND s.day <= ds.day
-				ORDER BY s.day DESC
-				LIMIT 1
-			), 0) as balance
-		FROM date_series ds
-		ORDER BY ds.day ASC
-	`
-
-	type balanceRow struct {
-		Day     string  `db:"day"`
-		Balance float64 `db:"balance"`
-	}
-
-	var rows []balanceRow
-	err = l.svcCtx.DB.QueryRowsCtx(l.ctx, &rows, query, req.UserId, days)
+	// 查询余额历史（对缺失日期向前填充），SQL 在 model 层
+	rows, err := l.svcCtx.UserBalanceDailyModel.QueryBalanceHistory(l.ctx, req.UserId, int64(days))
 	if err != nil {
 		l.Logger.Errorf("Failed to query balance history: %v", err)
 		return &types.BalanceHistoryResp{List: []types.BalanceHistoryItem{}}, nil
