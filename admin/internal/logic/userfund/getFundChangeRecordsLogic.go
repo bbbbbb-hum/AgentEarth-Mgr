@@ -338,18 +338,19 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 
 	// 合并后按展示条数分页（仅充值时已在 DB 分页，records 即当前页）
 	var list []types.FundChangeRecordItem
+	//仅充值场景不需要合并，在前面查询时已经用sql做了limit/offset，数据库层面已经按页查好了
 	if req.Filter == "recharge" {
-		list = records
+		list = records //此时records本身就是“当前页”的数据，不需要再在内存里切分页
 	} else {
-		start := offset
-		if start > int64(len(records)) {
+		start := offset //从records的第offset条开始取，因为合并后可能超出要取的条数
+		if start > int64(len(records)) { //越界保护，如果offset超出records的长度，把start强行拉到len(records)的位置
 			start = int64(len(records))
 		}
-		end := offset + pageSize
-		if end > int64(len(records)) {
+		end := offset + pageSize //从offset开始取pageSize条
+		if end > int64(len(records)) { //如果end超出records的长度，就把end收缩到len(records)的位置
 			end = int64(len(records))
 		}
-		list = records[start:end]
+		list = records[start:end] //取records的第start条到第end条
 	}
 
 	return &types.FundChangeRecordResp{
