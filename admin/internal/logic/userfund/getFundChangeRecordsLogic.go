@@ -266,7 +266,7 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			Operator:        operatorName,
 		}
 
-		// 仅充值时计算批次剩余额度、过期时间、状态
+		// 仅充值时计算批次剩余额度、过期时间、状态、透支金额
 		if row.XlcreditAmount > 0 {
 			item.BatchId = row.Id
 			item.InitialAmount = row.XlcreditAmount
@@ -280,14 +280,16 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				now := time.Now()
 				if row.ExpireTime.Time.Before(now) {
 					item.BatchStatus = "已过期"
-					// 已过期时：查询过期扣减(charge_type=4)金额 = 过期那一刻的剩余金额，用于前端展示「过期时还剩多少」，SQL 在 model 层
-					expiredDeduct, _ := l.svcCtx.UserRechargeRecordModel.GetExpiredDeductionAmount(l.ctx, row.Id)
-					if expiredDeduct > 0 {
-						// 已经执行过过期扣减，展示“过期那一刻剩余”
-						item.RemainingAtExpire = expiredDeduct
+					// 已过期时：「过期时剩余」优先按当前物理余额判断；若余额≤0 说明过期前已被透支用尽，一律展示 0
+					if errBalance == nil && remaining.LessThanOrEqual(decimal.Zero) {
+						item.RemainingAtExpire = 0
 					} else {
-						// 还未执行过期扣减：保持状态为已过期，但展示当前实时剩余额度（按照实时余额计算逻辑）
-						item.RemainingAtExpire = item.RemainingAmount
+						expiredDeduct, _ := l.svcCtx.UserRechargeRecordModel.GetExpiredDeductionAmount(l.ctx, row.Id)
+						if expiredDeduct > 0 {
+							item.RemainingAtExpire = expiredDeduct
+						} else {
+							item.RemainingAtExpire = item.RemainingAmount
+						}
 					}
 				} else if item.RemainingAmount <= 0 {
 					item.BatchStatus = "已耗尽"
@@ -301,6 +303,35 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				} else {
 					item.BatchStatus = "使用中"
 				}
+			}
+
+			// 计算累计透支金额（OverdraftAmount），用于前端展示“透支X元”标签。
+			// 核心思路：
+			//   - baseOutflow = initialAmount - 当前物理余额（含 allocation + 直接挂在该批次上的负值扣减）
+			//   - extraChildrenAlloc = 所有“子记录”（related_recharge_id = 本批次，负值记录）上的 allocation 总和
+			//   - totalOutflow = baseOutflow + extraChildrenAlloc
+			//   - overdraft = max(0, totalOutflow - initialAmount)
+			// 这样即便出现“先过期扣减 -50，再在过期扣减记录上挂 100 消费”的极端场景，
+			// 初始 50、当前物理余额 0、子记录 allocation=100 → overdraft = 100，符合业务期望。
+			if errBalance == nil {
+				baseOutflow := initialAmt.Sub(remaining) // initial - currentReal
+
+				// 查询子记录（负值且 related_recharge_id=本批次）上的 allocation 总和
+				childrenAllocStr, errChild := l.svcCtx.RechargeAllocationModel.GetAllocatedSumByRechargeChildren(l.ctx, row.Id)
+				extraChildrenAlloc := decimal.Zero
+				if errChild == nil {
+					if v, parseErr := decimal.NewFromString(childrenAllocStr); parseErr == nil {
+						extraChildrenAlloc = v
+					}
+				}
+
+				totalOutflow := baseOutflow.Add(extraChildrenAlloc)
+				overdraft := totalOutflow.Sub(initialAmt)
+				if overdraft.IsNegative() {
+					overdraft = decimal.Zero
+				}
+				v, _ := overdraft.Float64()
+				item.OverdraftAmount = v
 			}
 		}
 
@@ -328,7 +359,6 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 		Total: total,
 	}, nil
 }
-
 // chargeTypeDescFromType 根据 charge_type 返回类型描述（与下方 switch 一致，供合并展示使用）
 func chargeTypeDescFromType(chargeType int64) string {
 	switch chargeType {

@@ -25,6 +25,7 @@ type ServiceContext struct {
 	UserModel               users.AeMcpExternalServicesUserModel
 	McpUserModel            users.McpUserModel
 	UserRechargeRecordModel fund.AeUserRechargeRecordModel
+	RechargeAllocationModel fund.AeRechargeAllocationModel
 	UserBalanceDailyModel   fund.AeUserBalanceStatisticDailyModel
 	UserConsumptionDailyModel fund.AeUserConsumptionRecordDailyModel
 }
@@ -45,6 +46,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		UserModel:               users.NewAeMcpExternalServicesUserModel(db),
 		McpUserModel:            users.NewMcpUserModel(db),
 		UserRechargeRecordModel: fund.NewAeUserRechargeRecordModel(db),
+		RechargeAllocationModel: fund.NewAeRechargeAllocationModel(db),
 		UserBalanceDailyModel:   fund.NewAeUserBalanceStatisticDailyModel(db),
 		UserConsumptionDailyModel: fund.NewAeUserConsumptionRecordDailyModel(db),
 	}
