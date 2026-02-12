@@ -5,6 +5,7 @@ go 1.22
 require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/lib/pq v1.10.9
+	github.com/shopspring/decimal v1.4.0
 	github.com/zeromicro/go-zero v1.9.3
 	golang.org/x/crypto v0.33.0
 )

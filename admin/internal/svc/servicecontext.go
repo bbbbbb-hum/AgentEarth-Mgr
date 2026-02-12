@@ -4,6 +4,7 @@ import (
 	"AgentEarth-Mgr/admin/internal/config"
 	configModel "AgentEarth-Mgr/models/config"
 	"AgentEarth-Mgr/models/external"
+	"AgentEarth-Mgr/models/fund"
 	"AgentEarth-Mgr/models/mcp"
 	"AgentEarth-Mgr/models/users"
 
@@ -21,10 +22,12 @@ type ServiceContext struct {
 	TaskNodeModel                   configModel.AeMcpTaskNodeModel
 	TaskNodeConfigModel             configModel.AeMcpExternalServicesConfigModel
 	TaskNodeConfigAccountModel      configModel.AeMcpExternalServicesAccountModel
-	UserModel                       users.AeMcpExternalServicesUserModel
-	McpUserModel                    users.McpUserModel
-	UserRechargeRecordModel         users.AeUserRechargeRecordModel
-	UserBalanceDailyModel           users.AeUserBalanceStatisticDailyModel
+	UserModel               users.AeMcpExternalServicesUserModel
+	McpUserModel            users.McpUserModel
+	UserRechargeRecordModel fund.AeUserRechargeRecordModel
+	RechargeAllocationModel fund.AeRechargeAllocationModel
+	UserBalanceDailyModel   fund.AeUserBalanceStatisticDailyModel
+	UserConsumptionDailyModel fund.AeUserConsumptionRecordDailyModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -40,9 +43,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		TaskNodeModel:                   configModel.NewAeMcpTaskNodeModel(db),
 		TaskNodeConfigModel:             configModel.NewAeMcpExternalServicesConfigModel(db),
 		TaskNodeConfigAccountModel:      configModel.NewAeMcpExternalServicesAccountModel(db),
-		UserModel:                       users.NewAeMcpExternalServicesUserModel(db),
-		McpUserModel:                    users.NewMcpUserModel(db),
-		UserRechargeRecordModel:         users.NewAeUserRechargeRecordModel(db),
-		UserBalanceDailyModel:           users.NewAeUserBalanceStatisticDailyModel(db),
+		UserModel:               users.NewAeMcpExternalServicesUserModel(db),
+		McpUserModel:            users.NewMcpUserModel(db),
+		UserRechargeRecordModel: fund.NewAeUserRechargeRecordModel(db),
+		RechargeAllocationModel: fund.NewAeRechargeAllocationModel(db),
+		UserBalanceDailyModel:   fund.NewAeUserBalanceStatisticDailyModel(db),
+		UserConsumptionDailyModel: fund.NewAeUserConsumptionRecordDailyModel(db),
 	}
 }
