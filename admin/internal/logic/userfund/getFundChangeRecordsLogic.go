@@ -275,13 +275,35 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			if errBalance == nil {
 				item.RemainingAmount, _ = remaining.Float64()
 			}
+
+			// 先算透支金额（供下面「过期时剩余」判断用）：先透支后过期 → 过期时剩余必须为 0，不能再用过期扣减记录“加回”
+			// 业务约定：消费记录只挂载在正向充值记录上，不会挂在过期扣减等负值子记录上；baseOutflow 已含本批次全部核销。
+			var overdraftAmt decimal.Decimal
+			if errBalance == nil {
+				baseOutflow := initialAmt.Sub(remaining)
+				childrenAllocStr, errChild := l.svcCtx.RechargeAllocationModel.GetAllocatedSumByRechargeChildren(l.ctx, row.Id)
+				extraChildrenAlloc := decimal.Zero
+				if errChild == nil {
+					if v, parseErr := decimal.NewFromString(childrenAllocStr); parseErr == nil {
+						extraChildrenAlloc = v
+					}
+				}
+				// extraChildrenAlloc 正常为 0（消费不挂子记录），保留用于口径统一与历史数据兼容
+				overdraftAmt = baseOutflow.Add(extraChildrenAlloc).Sub(initialAmt)
+				if overdraftAmt.IsNegative() {
+					overdraftAmt = decimal.Zero
+				}
+				item.OverdraftAmount, _ = overdraftAmt.Float64()
+			}
+
 			if row.ExpireTime.Valid {
 				item.ExpireTime = row.ExpireTime.Time.Format("2006-01-02")
 				now := time.Now()
 				if row.ExpireTime.Time.Before(now) {
 					item.BatchStatus = "已过期"
-					// 已过期时：「过期时剩余」优先按当前物理余额判断；若余额≤0 说明过期前已被透支用尽，一律展示 0
-					if errBalance == nil && remaining.LessThanOrEqual(decimal.Zero) {
+					// 先透支后过期：只要物理余额≤0 或 有透支，到期时视为已用尽，过期时剩余一律 0（不得用过期扣减记录展示成 50）
+					useZeroRemainAtExpire := (errBalance == nil && remaining.LessThanOrEqual(decimal.Zero)) || overdraftAmt.GreaterThan(decimal.Zero)
+					if useZeroRemainAtExpire {
 						item.RemainingAtExpire = 0
 					} else {
 						expiredDeduct, _ := l.svcCtx.UserRechargeRecordModel.GetExpiredDeductionAmount(l.ctx, row.Id)
@@ -303,35 +325,6 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				} else {
 					item.BatchStatus = "使用中"
 				}
-			}
-
-			// 计算累计透支金额（OverdraftAmount），用于前端展示“透支X元”标签。
-			// 核心思路：
-			//   - baseOutflow = initialAmount - 当前物理余额（含 allocation + 直接挂在该批次上的负值扣减）
-			//   - extraChildrenAlloc = 所有“子记录”（related_recharge_id = 本批次，负值记录）上的 allocation 总和
-			//   - totalOutflow = baseOutflow + extraChildrenAlloc
-			//   - overdraft = max(0, totalOutflow - initialAmount)
-			// 这样即便出现“先过期扣减 -50，再在过期扣减记录上挂 100 消费”的极端场景，
-			// 初始 50、当前物理余额 0、子记录 allocation=100 → overdraft = 100，符合业务期望。
-			if errBalance == nil {
-				baseOutflow := initialAmt.Sub(remaining) // initial - currentReal
-
-				// 查询子记录（负值且 related_recharge_id=本批次）上的 allocation 总和
-				childrenAllocStr, errChild := l.svcCtx.RechargeAllocationModel.GetAllocatedSumByRechargeChildren(l.ctx, row.Id)
-				extraChildrenAlloc := decimal.Zero
-				if errChild == nil {
-					if v, parseErr := decimal.NewFromString(childrenAllocStr); parseErr == nil {
-						extraChildrenAlloc = v
-					}
-				}
-
-				totalOutflow := baseOutflow.Add(extraChildrenAlloc)
-				overdraft := totalOutflow.Sub(initialAmt)
-				if overdraft.IsNegative() {
-					overdraft = decimal.Zero
-				}
-				v, _ := overdraft.Float64()
-				item.OverdraftAmount = v
 			}
 		}
 

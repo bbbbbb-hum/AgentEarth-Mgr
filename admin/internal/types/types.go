@@ -393,7 +393,7 @@ type FundChangeRecordItem struct {
 	BatchId           int64   `json:"batch_id,omitempty"`            // 批次ID（充值记录id）
 	InitialAmount     float64 `json:"initial_amount,omitempty"`      // 初始金额
 	RemainingAmount   float64 `json:"remaining_amount,omitempty"`    // 剩余额度（实时）
-	RemainingAtExpire float64 `json:"remaining_at_expire,omitempty"` // 已过期时：过期那一刻的剩余金额（被过期扣减的那笔）
+	RemainingAtExpire float64 `json:"remaining_at_expire"` // 已过期时：过期那一刻的剩余金额；先填补后过期时为 0，需显式返回避免前端误用默认值
 	ExpireTime        string  `json:"expire_time,omitempty"`         // 过期时间 YYYY-MM-DD 或 永久有效
 	BatchStatus       string  `json:"batch_status,omitempty"`        // 批次状态：使用中/已耗尽/已过期
 	OverdraftAmount   float64 `json:"overdraft_amount,omitempty"`    // 截至当前，该批次累计透支金额（>=0，用于前端展示“透支X”标签）
