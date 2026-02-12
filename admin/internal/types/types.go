@@ -376,8 +376,9 @@ type ConsumptionRecordResp struct {
 type ManualRechargeReq struct {
 	UserId     string  `json:"user_id"`
 	Amount     float64 `json:"amount"`
-	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
+	ChargeType int64   `json:"charge_type"`   // 充值类型：1常规 2系统故障补偿 3活动赠送
 	Remarks    string  `json:"remarks,optional"`
+	ExpireTime string  `json:"expire_time,optional"` // 可选，格式 YYYY-MM-DD，不传或空为永久有效
 }
 
 type ManualRechargeResp struct {
@@ -415,23 +416,33 @@ type BalanceHistoryResp struct {
 
 type FundChangeRecordReq struct {
 	UserId     string `path:"user_id"`
-	Filter     string `form:"filter,optional"`      // all, recharge, deduction
-	ChargeType int64  `form:"charge_type,optional"` // 1常规 2系统故障补偿 3活动赠送
+	Filter     string `form:"filter,optional"`        // all, recharge, deduction
+	ChargeType int64  `form:"charge_type,optional"`  // 1常规 2系统故障补偿 3活动赠送 4过期扣减 5管理员扣减
+	Page       int64  `form:"page,optional"`         // 页码，从 1 开始
+	PageSize   int64  `form:"page_size,optional"`    // 每页条数
 }
 
 type FundChangeRecordItem struct {
-	TransactionTime string  `json:"transaction_time"` // 交易时间
-	TypeDescription string  `json:"type_description"` // 类型说明
-	ChangeAmount    float64 `json:"change_amount"`    // 变动金额（正数为充值，负数为扣减）
-	Status          string  `json:"status"`           // 状态
-	Remarks         string  `json:"remarks"`          // 备注/原因
-	ChargeType      int64   `json:"charge_type"`      // 充值类型
-	ChargeTypeDesc  string  `json:"charge_type_desc"` // 充值类型说明
-	Operator        string  `json:"operator"`         // 操作人
+	TransactionTime   string  `json:"transaction_time"`   // 交易时间
+	TypeDescription   string  `json:"type_description"`   // 类型说明
+	ChangeAmount      float64 `json:"change_amount"`     // 变动金额（正数为充值，负数为扣减）
+	Status            string  `json:"status"`             // 状态
+	Remarks           string  `json:"remarks"`             // 备注/原因
+	ChargeType        int64   `json:"charge_type"`        // 充值类型
+	ChargeTypeDesc    string  `json:"charge_type_desc"`   // 充值类型说明
+	Operator          string  `json:"operator"`           // 操作人
+	BatchId           int64   `json:"batch_id,omitempty"`          // 批次ID
+	InitialAmount     float64 `json:"initial_amount,omitempty"`     // 初始金额
+	RemainingAmount   float64 `json:"remaining_amount,omitempty"`   // 剩余额度
+	RemainingAtExpire float64 `json:"remaining_at_expire"`          // 过期时剩余
+	ExpireTime        string  `json:"expire_time,omitempty"`        // 过期时间
+	BatchStatus       string  `json:"batch_status,omitempty"`       // 批次状态
+	OverdraftAmount   float64 `json:"overdraft_amount,omitempty"`   // 累计透支金额
 }
 
 type FundChangeRecordResp struct {
-	List []FundChangeRecordItem `json:"list"`
+	List  []FundChangeRecordItem `json:"list"`
+	Total int64                  `json:"total"` // 符合筛选条件的总条数
 }
 
 type GetTaskNodeNodeConfigReq struct {

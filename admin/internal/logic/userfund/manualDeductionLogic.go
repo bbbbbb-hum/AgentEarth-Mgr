@@ -3,10 +3,13 @@
  * 功能说明: 人工扣减功能（管理员后台扣减）
  *
  * 主要功能:
- * - 记录扣减记录到 ae_user_recharge_record 表（金额为负数）
- * - 更新用户日余额统计表 ae_user_balance_statistic_daily
- * - 使用 ON CONFLICT DO UPDATE 确保同一天的余额记录唯一性
- * - 返回扣减后的新余额
+ * - 按 FEFO 顺序从用户充值批次依次扣减，每条负值记录关联 related_recharge_id，不允许透支
+ * - 仅在 ae_user_recharge_record 表插入扣减记录（金额为负数），不修改用户日余额统计表
+ * - 日余额由统计系统统一更新
+ *
+ * 逻辑要点:
+ * - 无可用充值批次或总余额不足时直接拒绝，不做透支挂账
+ * - 全流程在同一事务内完成，保证原子性；日志详细便于排查幂等与重复执行
  *
  * API路由: POST /manager/api/userfund/user/deduction
  * 请求体: {"user_id": "xxx", "amount": 100.00, "remarks": "违规扣减"}
@@ -15,12 +18,17 @@ package userfund
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
+	fundmodel "AgentEarth-Mgr/models/fund"
 
+	"github.com/shopspring/decimal"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
 type ManualDeductionLogic struct {
@@ -38,92 +46,248 @@ func NewManualDeductionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *M
 }
 
 func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (resp *types.ManualDeductionResp, err error) {
-	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, -1)
+	operatorName := "System_Auto"
 	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserId)
-	chargeType := req.ChargeType
-	if chargeType <= 0 {
-		chargeType = 1
-	}
 
-	// 1. 获取用户当前最新余额（可能是今天或之前的记录）
-	currentBalance, err := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, req.UserId)
-	if err != nil {
-		l.Logger.Errorf("Failed to get current balance: %v", err)
-		currentBalance = 0
+	// 管理员扣减使用请求中的 charge_type（如 2/3/5 等），4 为过期扣减专用不可用，无效或未传时默认 5
+	chargeTypeAdminDeduction := req.ChargeType
+	if chargeTypeAdminDeduction <= 0 || chargeTypeAdminDeduction == 4 {
+		chargeTypeAdminDeduction = 5
 	}
+	chargeSource := int64(-1) // 系统扣减
 
-	// 2. 插入扣减记录（金额为负数）
-	insertQuery := `
-		INSERT INTO public.ae_user_recharge_record (
-			user_id,
-			xlcredit_amount,
-			pay_time,
-			create_time,
-			update_time,
-			charge_source,
-			charge_type,
-			remark,
-			operator
-		)
-		VALUES ($1, $2, $3, $4, $5, -1, $6, $7, $8)
-		RETURNING id
-	`
-	fallbackInsertQuery := `
-		INSERT INTO public.ae_user_recharge_record (
-			user_id,
-			xlcredit_amount,
-			pay_time,
-			create_time,
-			update_time,
-			charge_source
-		)
-		VALUES ($1, $2, $3, $4, $5, -1)
-		RETURNING id
-	`
-	now := time.Now()
-	negativeAmount := -req.Amount
-	var insertedId int64
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, insertQuery, req.UserId, negativeAmount, now, now, now, chargeType, req.Remarks, operatorName)
-	if err != nil {
-		l.Logger.Errorf("Failed to insert deduction record (full): %v, trying fallback", err)
-		fallbackErr := l.svcCtx.DB.QueryRowCtx(l.ctx, &insertedId, fallbackInsertQuery, req.UserId, negativeAmount, now, now, now)
-		if fallbackErr != nil {
-			l.Logger.Errorf("Failed to insert deduction record (fallback): %v", fallbackErr)
-			return &types.ManualDeductionResp{
-				Success: false,
-				Message: "扣减记录插入失败",
-			}, nil
-		}
-	}
-	l.Logger.Infof("扣减记录插入成功: record_id=%d user_id=%s amount=%.2f", insertedId, req.UserId, negativeAmount)
-
-	// 3. 更新日余额统计（使用 ON CONFLICT DO UPDATE）
-	updateQuery := `
-		INSERT INTO ae_user_balance_statistic_daily (user_id, day, balance, create_time, update_time)
-		VALUES ($1, CURRENT_DATE, $2, $3, $4)
-		ON CONFLICT (user_id, day)
-		DO UPDATE SET
-			balance = ae_user_balance_statistic_daily.balance - $5,
-			update_time = $4
-		RETURNING balance
-	`
-	newBalanceForInsert := currentBalance - req.Amount
-	var newBalance float64
-	err = l.svcCtx.DB.QueryRowCtx(l.ctx, &newBalance, updateQuery, req.UserId, newBalanceForInsert, now, now, req.Amount)
-	if err != nil {
-		l.Logger.Errorf("Failed to update balance: %v", err)
+	// 1. 参数校验：扣减额必须为正数
+	if req.Amount <= 0 {
+		l.Errorf("[ManualDeduction] 拒绝扣减: user_id=%s, amount=%.2f, 原因=扣减金额必须大于0", req.UserId, req.Amount)
 		return &types.ManualDeductionResp{
 			Success: false,
-			Message: "余额更新失败",
+			Message: "扣减金额必须大于0",
 		}, nil
 	}
 
-	l.Logger.Infof("管理员资金操作: 操作管理员=%s, 操作用户=%s, user_id=%s, 类型=扣减, 时间=%s, 原金额=%.2f, 变动金额=%.2f, 操作后金额=%.2f",
-		operatorName, targetUsername, req.UserId, now.Format(time.RFC3339), currentBalance, req.Amount, newBalance)
+	//amountToDeduct表示管理员要扣减的余额
+	amountToDeduct := decimal.NewFromFloat(req.Amount)
+	l.Infof("[ManualDeduction] 开始处理: user_id=%s, 操作用户=%s, 扣减金额=%s, 备注=%s, operator=%s",
+		req.UserId, targetUsername, amountToDeduct.String(), req.Remarks, operatorName)
+
+	// 2. 获取当前展示用的余额（仅日志与返回，不参与事务内决策）
+	currentBalance, errBalance := l.svcCtx.UserBalanceDailyModel.GetLatestBalance(l.ctx, req.UserId)
+	if errBalance != nil {
+		l.Logger.Errorf("[ManualDeduction] 查询用户日余额失败(仅展示用): user_id=%s, err=%v", req.UserId, errBalance)
+		currentBalance = 0
+	}
+
+	//totalDeducted表示管理员实际扣减的余额
+	var totalDeducted decimal.Decimal
+	//insertCount表示管理员实际插入的扣减记录数
+	var insertCount int
+	err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
+		// 事务内统一使用 WithSession 后的 model
+		txRechargeModel := l.svcCtx.UserRechargeRecordModel.WithSession(session)
+		txBalanceModel := l.svcCtx.UserBalanceDailyModel.WithSession(session)
+		// 3. 预校验：快照+增量得到用户总余额，SQL 在 model 层
+		var snapshotBal decimal.Decimal
+		var deltaStartTime time.Time
+
+		// 再次查询用户余额快照，保证事务内严谨性，强制所有查询在同一数据库事务内
+		// 与GetLatestBalance不同的是，会返回快照金额 + 金额日期，sanp这个结构体，方便我们选取截至日期来查增量
+		snap, errSnap := txBalanceModel.QueryLatestBalanceSnapshot(ctx, req.UserId)
+		if errSnap != nil {
+			l.Errorf("[ManualDeduction] 查询快照失败: user_id=%s, err=%v", req.UserId, errSnap)
+			return fmt.Errorf("查询用户余额快照失败: %w", errSnap)
+		}
+		if snap != nil {
+			if val, parseErr := decimal.NewFromString(snap.Balance); parseErr == nil {
+				snapshotBal = val
+			}
+			// 从快照日的下一天开始计算增量
+			deltaStartTime = snap.Day.AddDate(0, 0, 1)
+		} else {
+			// 无快照，视为 0，从最早时间开始全量计算增量
+			snapshotBal = decimal.Zero
+			deltaStartTime = time.Time{}
+			l.Infof("[ManualDeduction] 用户 %s 无余额快照，使用全量流水计算总余额", req.UserId)
+		}
+
+		//计算快照时间后的增量deltaStr，未核销昨日用户消费前的真实余额 (管理员扣减已实时核销)
+		deltaStr, errDelta := txRechargeModel.QueryBalanceDeltaSince(ctx, req.UserId, deltaStartTime)
+		if errDelta != nil {
+			l.Errorf("[ManualDeduction] 查询增量失败: user_id=%s, err=%v", req.UserId, errDelta)
+			return fmt.Errorf("查询用户余额增量失败: %w", errDelta)
+		}
+		deltaBal := decimal.Zero
+		if val, parseErr := decimal.NewFromString(deltaStr); parseErr == nil {
+			deltaBal = val
+		}
+		globalBalance := snapshotBal.Add(deltaBal)
+		l.Infof("[ManualDeduction] 余额预校验明细: user_id=%s, snapshot=%s, delta=%s, global=%s",
+			req.UserId, snapshotBal.String(), deltaBal.String(), globalBalance.String())
+
+		//余额小于等于0拒绝扣减
+		if globalBalance.LessThanOrEqual(decimal.Zero) {
+			l.Infof("[ManualDeduction] 拒绝扣减: user_id=%s, 用户总余额=%s, 原因=余额为0或为负不允许扣减", req.UserId, globalBalance.String())
+			return errInsufficientBalance{Required: amountToDeduct, Available: globalBalance}
+		}
+
+		//余额小于管理员输入参数，拒绝扣减
+		if globalBalance.LessThan(amountToDeduct) {
+			l.Infof("[ManualDeduction] 拒绝扣减: user_id=%s, 待扣=%s, 用户总余额=%s, 原因=余额不足不允许透支",
+				req.UserId, amountToDeduct.String(), globalBalance.String())
+			return errInsufficientBalance{Required: amountToDeduct, Available: globalBalance}
+		}
+		l.Infof("[ManualDeduction] 预校验通过(快照+增量): user_id=%s, 用户总余额=%s, 待扣=%s", req.UserId, globalBalance.String(), amountToDeduct.String())
+
+		// 4. FEFO 查询：未过期正向充值记录，SQL 在 model 层
+		candidates, err := txRechargeModel.QueryRechargeCandidatesForDeduction(ctx, req.UserId)
+		if err != nil {
+			l.Errorf("[ManualDeduction] 查询充值批次失败: user_id=%s, err=%v", req.UserId, err)
+			return fmt.Errorf("查询充值批次失败: %w", err)
+		}
+
+		if len(candidates) == 0 {
+			l.Infof("[ManualDeduction] 拒绝扣减: user_id=%s, 原因=该用户无任何未过期充值批次", req.UserId)
+			return errNoRechargeBatch
+		}
+		l.Infof("[ManualDeduction] 用户 %s 共 %d 条未过期充值批次(FEFO), 待扣减=%s", req.UserId, len(candidates), amountToDeduct.String())
+
+		// 5. 按 FEFO 依次扣减：每条记录只扣其当前余额内部分，余额为 0 则跳过
+		totalDeducted = decimal.Zero
+		insertCount = 0
+		now := time.Now()
+		remarkBase := req.Remarks
+		if remarkBase == "" {
+			remarkBase = "管理员扣减" //默认备注，方便区分
+		}
+
+		for _, rec := range candidates {
+			if amountToDeduct.LessThanOrEqual(decimal.Zero) {
+				break
+			}
+
+			initialAmount := decimal.NewFromFloat(rec.XlcreditAmount)
+
+			//计算 物理余额 = 初始金额 - 已经被allocation分配走的金额 - 关联所有到这条充值的负值扣减的绝对值总和
+			balance, errCalc := CalculateRealTimeBalance(ctx, txRechargeModel, rec.Id, initialAmount)
+			if errCalc != nil {
+				l.Errorf("[ManualDeduction] 计算批次余额失败: recharge_id=%d, err=%v", rec.Id, errCalc)
+				return fmt.Errorf("计算批次 %d 余额失败: %w", rec.Id, errCalc)
+			}
+
+			if balance.LessThanOrEqual(decimal.Zero) {
+				l.Infof("[ManualDeduction] 跳过批次(余额<=0): recharge_id=%d, 余额=%s, 剩余待扣=%s", rec.Id, balance.String(), amountToDeduct.String())
+				continue
+			}
+
+			// 本批次实际扣减 = min(本批次余额, 剩余待扣)
+			//小于等于就走 实际扣减 = 余额 的逻辑
+			actualDeduct := balance
+			//大于走 实际扣减 = 剩余待扣 的逻辑 (因为balance足够扣减)
+			if balance.GreaterThan(amountToDeduct) {
+				actualDeduct = amountToDeduct
+			}
+
+			//得到一个专门用于写入扣减流水的 负值金额，后面会转成 float64 存到 xlcredit_amount 字段里，表示这是一条“扣减记录”
+			negativeAmount := actualDeduct.Neg()
+			// 备注统一用 remarkBase，不写「批次x/y」：实际参与扣减的条数可能远小于候选数，避免误导
+			remark := remarkBase
+
+			negFloat, _ := negativeAmount.Float64()
+			errExec := txRechargeModel.InsertAdminDeductionRecord(ctx, fundmodel.AdminDeductionInsertParams{
+				UserId:            req.UserId,
+				NegativeAmount:    negFloat,
+				Now:               now,
+				ChargeSource:      chargeSource,
+				ChargeType:        chargeTypeAdminDeduction,
+				Remark:            remark,
+				RelatedRechargeID: rec.Id,
+				Operator:          operatorName,
+			})
+			if errExec != nil {
+				l.Errorf("[ManualDeduction] 插入扣减记录失败: user_id=%s, recharge_id=%d, amount=%s, err=%v",
+					req.UserId, rec.Id, actualDeduct.String(), errExec)
+				return fmt.Errorf("插入扣减记录失败: %w", errExec)
+			}
+			insertCount++
+			totalDeducted = totalDeducted.Add(actualDeduct)   //累加实际扣减的金额
+			amountToDeduct = amountToDeduct.Sub(actualDeduct) //累减剩余待扣的余额
+
+			expireStr := "永久有效"
+			if rec.ExpireTime.Valid {
+				expireStr = rec.ExpireTime.Time.Format(time.RFC3339)
+			}
+			l.Infof("[ManualDeduction] 核销详情: user_id=%s, 扣减金额=%s, 充值批次ID=%d, 批次过期时间=%s, 剩余待扣=%s, 备注=%s",
+				req.UserId, actualDeduct.String(), rec.Id, expireStr, amountToDeduct.String(), remark)
+		}
+
+		//理论上不会发生，因为只有总可用余额 > 管理员扣减额，才允许继续
+		if amountToDeduct.GreaterThan(decimal.Zero) {
+			l.Errorf("[ManualDeduction] 异常: 事务内扣减后仍有剩余未扣, user_id=%s, 剩余=%s, 已扣=%s, 插入条数=%d",
+				req.UserId, amountToDeduct.String(), totalDeducted.String(), insertCount)
+			return fmt.Errorf("扣减未完成(剩余%s)，可能并发变更，已回滚", amountToDeduct.String())
+		}
+
+		//表示“整个扣减流程在事务内顺利完成，可以安全提交”，是“成功分支的结束语”
+		return nil
+	})
+
+	if err != nil {
+		if errorsAsErrNoRechargeBatch(err) {
+			return &types.ManualDeductionResp{
+				Success: false,
+				Message: "该用户无可用充值批次，无法扣减",
+			}, nil
+		}
+		var e errInsufficientBalance
+		if errorsAsErrInsufficientBalance(err, &e) {
+			return &types.ManualDeductionResp{
+				Success: false,
+				Message: fmt.Sprintf("余额不足，当前可用余额 %s，需扣减 %s，不允许透支", e.Available.String(), e.Required.String()),
+			}, nil
+		}
+		l.Errorf("[ManualDeduction] 事务失败: user_id=%s, err=%v", req.UserId, err)
+		return &types.ManualDeductionResp{
+			Success: false,
+			Message: "扣减执行失败: " + err.Error(),
+		}, nil
+	}
+
+	//新展示余额 = 原展示余额 − 本次实际扣减总额
+	newBalanceForDisplay := currentBalance - totalDeducted.InexactFloat64()
+	l.Infof("[ManualDeduction] 扣减成功: user_id=%s, 操作用户=%s, 扣减总额=%s, 插入负值条数=%d, 原展示余额=%.2f, 新展示余额=%.2f (日余额由统计系统更新)",
+		req.UserId, targetUsername, totalDeducted.String(), insertCount, currentBalance, newBalanceForDisplay)
 
 	return &types.ManualDeductionResp{
 		Success:    true,
-		Message:    "扣减成功",
-		NewBalance: newBalance,
+		Message:    "扣减成功，余额由统计系统更新",
+		NewBalance: newBalanceForDisplay,
 	}, nil
+}
+
+// 业务错误类型：无充值批次
+var errNoRechargeBatch = fmt.Errorf("该用户无可用充值批次")
+
+// errInsufficientBalance 余额不足（不允许透支）
+type errInsufficientBalance struct {
+	Required  decimal.Decimal
+	Available decimal.Decimal
+}
+
+func (e errInsufficientBalance) Error() string {
+	return fmt.Sprintf("余额不足: 需扣减 %s, 可用 %s", e.Required.String(), e.Available.String())
+}
+
+func errorsAsErrNoRechargeBatch(err error) bool {
+	return errors.Is(err, errNoRechargeBatch)
+}
+
+func errorsAsErrInsufficientBalance(err error, target *errInsufficientBalance) bool {
+	if err == nil || target == nil {
+		return false
+	}
+	var e errInsufficientBalance
+	if errors.As(err, &e) {
+		*target = e
+		return true
+	}
+	return false
 }
