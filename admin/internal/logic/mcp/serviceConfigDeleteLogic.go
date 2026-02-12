@@ -25,7 +25,7 @@ func NewServiceConfigDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext
 }
 
 func (l *ServiceConfigDeleteLogic) ServiceConfigDelete(req *types.ServiceConfigDeleteReq) (resp *types.BaseResp, err error) {
-	err = l.svcCtx.TaskNodeConfigModel.DeleteByConditions(l.ctx, []models.Condition{
+	err = l.svcCtx.TaskNodeConfigV2Model.DeleteByConditions(l.ctx, []models.Condition{
 		{
 			Field:  "id",
 			Symbol: "IN",

@@ -44,7 +44,6 @@ type (
 		CreateTime        time.Time      `db:"create_time"`         // 创建时间
 		UpdateTime        time.Time      `db:"update_time"`         // 更新时间
 		ConnectInfo       string         `db:"connect_info"`        // 连接信息，如：{  "url": "http://api.remote.com/mcp/sse",  "headers": {"Authorization": "Bearer xxx"},  "connect_timeout": 3000,//连接超时时间（毫秒）  "max_connect":10,//实例最大连接数  "max_retry":3,//最大重试次数  "interval":1000,//重试间隔}
-		ExternalServiceId string         `db:"external_service_id"` // 外部服务唯一标识
 		MaxInstance       int64          `db:"max_instance"`        // 最大实例(启动几个服务实例)
 		CreateStatus      bool           `db:"create_status"`       // true 已创建 false 未创建
 		Description       string         `db:"description"`         // 服务描述
@@ -85,14 +84,14 @@ func (m *defaultAeMcpExternalServicesConfigModel) FindOne(ctx context.Context, i
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) Insert(ctx context.Context, data *AeMcpExternalServicesConfig) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId, data.InstallInfo, data.AccountRequired, data.TestStatus, data.OnlineStatus)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)", m.table, aeMcpExternalServicesConfigRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId, data.InstallInfo, data.AccountRequired, data.TestStatus, data.OnlineStatus)
 	return ret, err
 }
 
 func (m *defaultAeMcpExternalServicesConfigModel) Update(ctx context.Context, data *AeMcpExternalServicesConfig) error {
 	query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeMcpExternalServicesConfigRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.ExternalServiceId, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId, data.InstallInfo, data.AccountRequired, data.TestStatus, data.OnlineStatus)
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.Name, data.Type, data.LaunchInfo, data.ConnectInfo, data.MaxInstance, data.CreateStatus, data.Description, data.ProjectName, data.ServerId, data.InstallInfo, data.AccountRequired, data.TestStatus, data.OnlineStatus)
 	return err
 }
 

@@ -84,6 +84,15 @@ FOR EACH ROW
 EXECUTE FUNCTION update_time_trigger();
 
 -- ============================================
+-- ae_mcp_external_services_config_v2 表
+-- ============================================
+DROP TRIGGER IF EXISTS update_ae_mcp_external_services_config_v2_time ON "public"."ae_mcp_external_services_config_v2";
+CREATE TRIGGER update_ae_mcp_external_services_config_v2_time
+BEFORE UPDATE ON "public"."ae_mcp_external_services_config_v2"
+FOR EACH ROW
+EXECUTE FUNCTION update_time_trigger();
+
+-- ============================================
 -- ae_mcp_task_chain 表
 -- ============================================
 DROP TRIGGER IF EXISTS update_ae_mcp_task_chain_time ON "public"."ae_mcp_task_chain";

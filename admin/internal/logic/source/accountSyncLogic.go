@@ -50,7 +50,7 @@ func (l *AccountSyncLogic) AccountSync(req *types.AccountSyncReq) (resp *types.B
 		for _, account := range list {
 			err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
 				sessConn := sqlx.NewSqlConnFromSession(session)
-				serviceConfigModel := configModel.NewAeMcpExternalServicesConfigModel(sessConn)
+				serviceConfigModel := configModel.NewAeMcpExternalServicesConfigV2Model(sessConn)
 				serviceConfigAccountModel := configModel.NewAeMcpExternalServicesAccountModel(sessConn)
 				serviceConfig, err1 := serviceConfigModel.FindOneByCondition(ctx, []models.Condition{
 					{

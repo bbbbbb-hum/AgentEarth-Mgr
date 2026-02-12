@@ -5,12 +5,15 @@ package data
 
 import (
 	"context"
-	"database/sql"
+	"errors"
+	"regexp"
+	"strings"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
 	configModel "AgentEarth-Mgr/models/config"
 
+	"github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -29,21 +32,38 @@ func NewCreateServiceConfigManualLogic(ctx context.Context, svcCtx *svc.ServiceC
 }
 
 func (l *CreateServiceConfigManualLogic) CreateServiceConfigManual(req *types.CreateServiceConfigManualReq) (resp *types.BaseResp, err error) {
-	serviceConfig := &configModel.AeMcpExternalServicesConfig{
-		Name:            req.Name,
-		Type:            req.Type,
-		Description:     req.Description,
-		ProjectName:     req.ProjectName,
-		MaxInstance:     req.MaxInstance,
-		LaunchInfo:      req.LaunchInfo,
-		ConnectInfo:     req.ConnectInfo,
-		InstallInfo:     sql.NullString{String: req.InstallInfo, Valid: req.InstallInfo != ""},
-		AccountRequired: sql.NullInt64{Int64: req.AccountRequired, Valid: true},
-		TestStatus:      sql.NullInt64{Int64: req.TestStatus, Valid: true},
-		OnlineStatus:    sql.NullInt64{Int64: req.OnlineStatus, Valid: true},
+	wemcpName := strings.TrimSpace(req.WemcpName)
+	if wemcpName == "" {
+		return &types.BaseResp{
+			Code:    -1,
+			Message: "wemcp_name不能为空",
+		}, nil
+	}
+	if !isValidWemcpName(wemcpName) {
+		return &types.BaseResp{
+			Code:    -1,
+			Message: "wemcp_name格式不正确，应类似 wemcp2-qweather（小写字母/数字/连字符）",
+		}, nil
 	}
 
-	result, err := l.svcCtx.TaskNodeConfigModel.Insert(l.ctx, serviceConfig)
+	serviceConfig := &configModel.AeMcpExternalServicesConfigV2{
+		Name:            req.Name,
+		Description:     req.Description,
+		Comments:        req.Comments,
+		CodeSourceUrl:   req.CodeSourceUrl,
+		Tags:            pq.StringArray(req.Tags),
+		AccountRequired: req.AccountRequired,
+		TestStatus:      req.TestStatus,
+		OnlineStatus:    req.OnlineStatus,
+		WemcpName:       wemcpName,
+	}
+
+	result, err := l.svcCtx.TaskNodeConfigV2Model.Insert(l.ctx, serviceConfig)
+	if err != nil && isExternalServiceConfigV2PkConflict(err) {
+		if resetErr := l.resetExternalServiceConfigSeq(); resetErr == nil {
+			result, err = l.svcCtx.TaskNodeConfigV2Model.Insert(l.ctx, serviceConfig)
+		}
+	}
 	if err != nil {
 		return &types.BaseResp{
 			Code:    -1,
@@ -60,4 +80,23 @@ func (l *CreateServiceConfigManualLogic) CreateServiceConfigManual(req *types.Cr
 			"service_id": serviceId,
 		},
 	}, nil
+}
+
+func isExternalServiceConfigV2PkConflict(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		return pqErr.Code == "23505" && pqErr.Constraint == "ae_mcp_external_services_config_v2_pkey"
+	}
+	return false
+}
+
+func isValidWemcpName(name string) bool {
+	re := regexp.MustCompile(`^wemcp2-[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	return re.MatchString(name)
+}
+
+func (l *CreateServiceConfigManualLogic) resetExternalServiceConfigSeq() error {
+	query := `select setval('"public"."ae_mcp_external_services_config_v2_id_seq"', (select coalesce(max(id), 0) + 1 from "public"."ae_mcp_external_services_config_v2"), false)`
+	_, err := l.svcCtx.DB.ExecCtx(l.ctx, query)
+	return err
 }

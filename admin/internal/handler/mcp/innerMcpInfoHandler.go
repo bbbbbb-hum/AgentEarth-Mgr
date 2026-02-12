@@ -10,9 +10,9 @@ import (
 
 func InnerMcpInfoHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		serverId := r.URL.Query().Get("server_id")
+		wemcpName := r.URL.Query().Get("wemcp_name")
 		l := mcp.NewInnerMcpInfoLogic(r.Context(), svcCtx)
-		resp, err := l.InnerMcpInfo(serverId)
+		resp, err := l.InnerMcpInfo(wemcpName)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 		} else {

@@ -23,6 +23,7 @@ type (
 		GetAllTags(ctx context.Context) []string
 		// InsertWithoutId inserts a service row without setting the auto-increment id column
 		InsertWithoutId(ctx context.Context, data *AeMcpServices) (sql.Result, error)
+		InsertWithId(ctx context.Context, data *AeMcpServices) (sql.Result, error)
 		FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpServices, error)
 		// UpdateCreatedGroup 批量更新服务的启动分组
 		UpdateCreatedGroup(ctx context.Context, ids []int64, createdGroup int64) error
@@ -74,12 +75,12 @@ func (m *customAeMcpServicesModel) GetListWithSearch(ctx context.Context, lp mod
 
 		if id, err := strconv.ParseInt(search, 10, 64); err == nil {
 			// Search by ID OR Name
-			whereClause += fmt.Sprintf("%s (id = $%d OR server_name ILIKE $%d)", prefix, argIdx, argIdx+1)
-			args = append(args, id, nameSearch)
+			whereClause += fmt.Sprintf("%s (id = $%d OR server_name ILIKE $%d OR server_id ILIKE $%d)", prefix, argIdx, argIdx+1, argIdx+2)
+			args = append(args, id, nameSearch, nameSearch)
 		} else {
 			// Search by Name only
-			whereClause += fmt.Sprintf("%s (server_name ILIKE $%d)", prefix, argIdx)
-			args = append(args, nameSearch)
+			whereClause += fmt.Sprintf("%s (server_name ILIKE $%d OR server_id ILIKE $%d)", prefix, argIdx, argIdx+1)
+			args = append(args, nameSearch, nameSearch)
 		}
 	}
 
@@ -180,6 +181,12 @@ func (m *customAeMcpServicesModel) InsertWithoutId(ctx context.Context, data *Ae
 	columns := "server_id, server_name, logo, protocol_version, enabled, tags, description, task_chain_id, x_net_service_id, call_num,project_name,is_install,xlcredit_price"
 	query := fmt.Sprintf("insert into %s (%s) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)", m.table, columns)
 	return m.conn.ExecCtx(ctx, query, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.ProjectName, data.IsInstall, data.XlcreditPrice)
+}
+
+func (m *customAeMcpServicesModel) InsertWithId(ctx context.Context, data *AeMcpServices) (sql.Result, error) {
+	columns := "id, server_id, server_name, logo, protocol_version, enabled, tags, description, task_chain_id, x_net_service_id, call_num,project_name,is_install,xlcredit_price"
+	query := fmt.Sprintf("insert into %s (%s) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)", m.table, columns)
+	return m.conn.ExecCtx(ctx, query, data.Id, data.ServerId, data.ServerName, data.Logo, data.ProtocolVersion, data.Enabled, data.Tags, data.Description, data.TaskChainId, data.XNetServiceId, data.CallNum, data.ProjectName, data.IsInstall, data.XlcreditPrice)
 }
 
 func (m *customAeMcpServicesModel) FindOneByCondition(ctx context.Context, conditions []models.Condition) (*AeMcpServices, error) {

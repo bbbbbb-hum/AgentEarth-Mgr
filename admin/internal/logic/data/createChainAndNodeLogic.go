@@ -1,12 +1,13 @@
 package data
 
 import (
-	"AgentEarth-Mgr/models"
 	configModel "AgentEarth-Mgr/models/config"
 	"AgentEarth-Mgr/models/mcp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
@@ -31,28 +32,18 @@ func NewCreateChainAndNodeLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 }
 
 func (l *CreateChainAndNodeLogic) CreateChainAndNode(req *types.CreateChainAndNodeReq) (resp *types.BaseResp, err error) {
-	// todo: add your logic here and delete this line
-	var conditions []models.Condition
-	if len(req.Ids) > 0 {
-		conditions = append(conditions, models.Condition{
-			Field:  "id",
-			Symbol: "in",
-			Value:  req.Ids,
-		})
-	} else {
-		conditions = append(conditions, models.Condition{
-			Field: "create_status",
-			Value: false,
-		})
+	if req == nil || req.ServerId == "" {
+		return &types.BaseResp{
+			Code:    -1,
+			Message: "server_id不能为空",
+		}, nil
 	}
-	configs, total, err := l.svcCtx.TaskNodeConfigModel.GetList(l.ctx, models.ListConditions{
-		Conditions: conditions,
-	}, true)
-	if err != nil {
-		return
-	}
-	if total > 0 {
-		go l.deal(configs)
+
+	if err := l.deal(req); err != nil {
+		return &types.BaseResp{
+			Code:    -1,
+			Message: err.Error(),
+		}, nil
 	}
 	resp = &types.BaseResp{
 		Code:    0,
@@ -62,72 +53,69 @@ func (l *CreateChainAndNodeLogic) CreateChainAndNode(req *types.CreateChainAndNo
 	return
 }
 
-func (l *CreateChainAndNodeLogic) deal(configList []*configModel.AeMcpExternalServicesConfig) {
+func (l *CreateChainAndNodeLogic) deal(req *types.CreateChainAndNodeReq) error {
 	var ctx = context.Background()
-	var num int64
-	for _, config := range configList {
-		// one transaction per config
-		err := l.svcCtx.DB.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
-			// session-scoped models via constructors bound to the session
-			sessConn := sqlx.NewSqlConnFromSession(session)
-			nodeModel := configModel.NewAeMcpTaskNodeModel(sessConn)
-			chainModel := configModel.NewAeMcpTaskChainModel(sessConn)
-			serviceConfigModel := configModel.NewAeMcpExternalServicesConfigModel(sessConn)
-			serviceModel := mcp.NewAeMcpServicesModel(sessConn)
+	return l.svcCtx.DB.TransactCtx(ctx, func(ctx context.Context, session sqlx.Session) error {
+		sessConn := sqlx.NewSqlConnFromSession(session)
+		nodeModel := configModel.NewAeMcpTaskNodeModel(sessConn)
+		chainModel := configModel.NewAeMcpTaskChainModel(sessConn)
+		serviceModel := mcp.NewAeMcpServicesModel(sessConn)
 
-			// 创建节点
-			var node = configModel.AeMcpTaskNode{
-				NodeName:          config.Name + " Node",
-				NodeHandle:        "proxy_handle",
-				Enabled:           true,
-				ExternalServiceId: config.ExternalServiceId,
-				Description:       "Proxy " + config.Name + " Node",
-			}
-			nodeId, err1 := nodeModel.InsertReturningId(ctx, &node)
-			if err1 != nil {
-				return err1
-			}
-			// 创建链
-			var chain = configModel.AeMcpTaskChain{
-				Name:    config.Name + " ProxyChain (" + config.Type + ")",
-				Status:  "used",
-				NodeIds: pq.Int64Array{9, nodeId, 10},
-			}
-			chainId, err2 := chainModel.InsertReturningId(ctx, &chain)
-			if err2 != nil {
-				return err2
-			}
-			// 更新服务
-			mcpService, err2 := serviceModel.FindOneByCondition(ctx, []models.Condition{
-				{
-					Field: "server_name",
-					Value: config.Name,
-				},
-			})
-			if err2 != nil && !errors.Is(err2, sqlx.ErrNotFound) {
-				return err2
-			}
-			if mcpService == nil {
-				return fmt.Errorf("服务不存在,%v", config.Name)
-			}
-			mcpService.TaskChainId = chainId
-			err := serviceModel.Update(ctx, mcpService)
-			if err != nil {
-				return err
-			}
-			// 更新服务配置
-			config.CreateStatus = true
-			err1 = serviceConfigModel.Update(ctx, config)
-			if err1 != nil {
-				l.Errorf("更新 config error: %s", err1.Error())
-			}
-			num++
-			return nil
-		})
+		mcpService, err := serviceModel.FindOne(ctx, req.ServerId)
 		if err != nil {
-			l.Errorf("创建 services failed, err: %s,configName:%s", err, config.Name)
+			if errors.Is(err, sqlx.ErrNotFound) {
+				return fmt.Errorf("服务不存在: %s", req.ServerId)
+			}
+			return err
 		}
-	}
-	l.Infof("处理完成...")
-	l.Infof("数量：%d", num)
+
+		nodeName := req.NodeName
+		if nodeName == "" {
+			nodeName = mcpService.ServerName + " Node"
+		}
+		nodeHandle := req.NodeHandle
+		if nodeHandle == "" {
+			nodeHandle = "proxy_handle"
+		}
+
+		nodeConfig := strings.TrimSpace(req.NodeConfig)
+		if nodeConfig == "" {
+			nodeConfig = "{}"
+		} else {
+			var tmp interface{}
+			if err := json.Unmarshal([]byte(nodeConfig), &tmp); err != nil {
+				return fmt.Errorf("node_config不是合法JSON: %s", err.Error())
+			}
+		}
+
+		node := configModel.AeMcpTaskNode{
+			NodeName:    nodeName,
+			NodeHandle:  nodeHandle,
+			Enabled:     true,
+			Description: mcpService.ServerName + " Node",
+			ServerId:    mcpService.ServerId,
+			NodeConfig:  nodeConfig,
+		}
+		nodeId, err := nodeModel.InsertReturningId(ctx, &node)
+		if err != nil {
+			return err
+		}
+
+		chainName := req.ChainName
+		if chainName == "" {
+			chainName = mcpService.ServerName + " Chain"
+		}
+		chain := configModel.AeMcpTaskChain{
+			Name:    chainName,
+			Status:  "used",
+			NodeIds: pq.Int64Array{9, nodeId, 10},
+		}
+		chainId, err := chainModel.InsertReturningId(ctx, &chain)
+		if err != nil {
+			return err
+		}
+
+		mcpService.TaskChainId = chainId
+		return serviceModel.Update(ctx, mcpService)
+	})
 }

@@ -17,10 +17,6 @@
 # Build output
 dist/
 
-# Go 构建缓存（项目内 .gotmp / .gocache）
-admin/.gotmp
-admin/.gocache
-
 # 配置文件
 admin/etc/admin_*-api.yaml
 .env
