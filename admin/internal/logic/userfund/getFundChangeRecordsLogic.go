@@ -32,6 +32,7 @@ package userfund
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"AgentEarth-Mgr/admin/internal/svc"
@@ -301,18 +302,38 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				now := time.Now()
 				if row.ExpireTime.Time.Before(now) {
 					item.BatchStatus = "已过期"
-					// 先透支后过期：只要物理余额≤0 或 有透支，到期时视为已用尽，过期时剩余一律 0（不得用过期扣减记录展示成 50）
-					useZeroRemainAtExpire := (errBalance == nil && remaining.LessThanOrEqual(decimal.Zero)) || overdraftAmt.GreaterThan(decimal.Zero)
-					if useZeroRemainAtExpire {
-						item.RemainingAtExpire = 0
-					} else {
-						expiredDeduct, _ := l.svcCtx.UserRechargeRecordModel.GetExpiredDeductionAmount(l.ctx, row.Id)
-						if expiredDeduct > 0 {
-							item.RemainingAtExpire = expiredDeduct
-						} else {
-							item.RemainingAtExpire = item.RemainingAmount
+
+					// ==================== 过期时剩余：优先用本批结果里「关联本条充值 id 的负值过期扣减」金额 ====================
+					l.Infof("[过期时剩余] 已过期批次 充值批次id=%d 初始金额=%.2f 当前剩余=%.2f 透支金额=%.2f 开始计算过期时剩余",
+						row.Id, row.XlcreditAmount, item.RemainingAmount, item.OverdraftAmount)
+					var expiredAmount float64
+					for _, r := range rows {
+						if r.RelatedRechargeId.Valid && r.RelatedRechargeId.Int64 == row.Id && r.ChargeType == 4 && r.XlcreditAmount < 0 {
+							expiredAmount = math.Abs(r.XlcreditAmount)
+							l.Infof("[过期时剩余] 从本批结果中找到关联的过期扣减记录 扣减记录id=%d 关联充值id=%d 扣减金额=%.2f => 过期时剩余=%.2f",
+								r.Id, r.RelatedRechargeId.Int64, r.XlcreditAmount, expiredAmount)
+							break
 						}
 					}
+					if expiredAmount == 0 {
+						fromDB, errDB := l.svcCtx.UserRechargeRecordModel.GetExpiredDeductionAmount(l.ctx, row.Id)
+						l.Infof("[过期时剩余] 本批未找到扣减行，查库 充值批次id=%d => 查询结果金额=%.2f 错误=%v", row.Id, fromDB, errDB)
+						expiredAmount = fromDB
+					}
+					if expiredAmount > 0 {
+						item.RemainingAtExpire = expiredAmount
+						l.Infof("[过期时剩余] 最终赋值 过期时剩余=%.2f（来自过期扣减金额）", expiredAmount)
+					} else {
+						if item.RemainingAmount > 0 {
+							item.RemainingAtExpire = item.RemainingAmount
+							l.Infof("[过期时剩余] 最终赋值 过期时剩余=%.2f（定时任务未跑，用当前剩余）", item.RemainingAmount)
+						} else {
+							item.RemainingAtExpire = 0
+							l.Infof("[过期时剩余] 最终赋值 过期时剩余=0（无过期扣减记录且当前剩余<=0）")
+						}
+					}
+					// ==================== 修正结束 ====================
+
 				} else if item.RemainingAmount <= 0 {
 					item.BatchStatus = "已耗尽"
 				} else {
@@ -326,6 +347,12 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 					item.BatchStatus = "使用中"
 				}
 			}
+		}
+
+		// 过期扣减行（负值且 charge_type=4）：该条记录的金额绝对值即为「过期时剩余」。
+		if row.XlcreditAmount < 0 && row.ChargeType == 4 {
+			item.RemainingAtExpire = math.Abs(row.XlcreditAmount)
+			l.Infof("[过期时剩余] 过期扣减行 记录id=%d 扣减金额=%.2f => 过期时剩余=%.2f", row.Id, row.XlcreditAmount, item.RemainingAtExpire)
 		}
 
 		records = append(records, item)

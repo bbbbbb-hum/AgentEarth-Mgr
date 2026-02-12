@@ -1,6 +1,5 @@
 package fund
 
-
 import (
 	"context"
 	"database/sql"
@@ -8,6 +7,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
 
@@ -84,16 +84,18 @@ func (m *customAeUserRechargeRecordModel) GetBalance(ctx context.Context, userId
 // FundChangeRecordRow 对应 ae_user_recharge_record 表（含操作人名称），
 // 用于“资金变动明细”列表的数据载体。
 // 仅做数据映射，不包含任何业务字段衍生逻辑。
+// RelatedRechargeId 用于负值扣减记录关联的正向充值 id，过期扣减(charge_type=4) 时必填，便于展示「过期时剩余」。
 type FundChangeRecordRow struct {
-	Id             int64          `db:"id"`
-	CreateTime     time.Time      `db:"create_time"`
-	PayTime        time.Time      `db:"pay_time"`
-	XlcreditAmount float64        `db:"xlcredit_amount"`
-	ChargeSource   int64          `db:"charge_source"`
-	ChargeType     int64          `db:"charge_type"`
-	Remark         sql.NullString `db:"remark"`
-	ExpireTime     sql.NullTime   `db:"expire_time"`
-	Operator       sql.NullString `db:"operator"`
+	Id                int64          `db:"id"`
+	CreateTime        time.Time      `db:"create_time"`
+	PayTime           time.Time      `db:"pay_time"`
+	XlcreditAmount    float64        `db:"xlcredit_amount"`
+	ChargeSource      int64          `db:"charge_source"`
+	ChargeType        int64          `db:"charge_type"`
+	Remark            sql.NullString `db:"remark"`
+	ExpireTime        sql.NullTime   `db:"expire_time"`
+	Operator          sql.NullString `db:"operator"`
+	RelatedRechargeId sql.NullInt64   `db:"related_recharge_id"`
 }
 
 // CountFundChangeRawRows 统计满足 where 条件的原始充值/扣减记录总数。
@@ -161,7 +163,8 @@ func (m *customAeUserRechargeRecordModel) QueryFundChangeRows(ctx context.Contex
 	query := fmt.Sprintf(`
 		SELECT 
 			r.id, r.create_time, r.pay_time, r.xlcredit_amount, r.charge_source, r.charge_type,
-			r.remark, r.expire_time, COALESCE(u.username, r.operator) as operator
+			r.remark, r.expire_time, COALESCE(u.username, r.operator) as operator,
+			r.related_recharge_id
 		FROM ae_user_recharge_record r
 		LEFT JOIN ae_mgrsystem_user u ON u.user_id::text = r.operator
 		WHERE %s
@@ -183,12 +186,13 @@ func (m *customAeUserRechargeRecordModel) QueryFundChangeRows(ctx context.Contex
 // - 一条充值记录在过期时，会插入一条负值记录，related_recharge_id 指向原充值记录，charge_type=4。
 // - 该负值记录的绝对值代表“过期那一刻的剩余额度”，可用于前端展示「过期时还剩多少」。
 // - 如果不存在对应记录，则返回 0。
+// 注意：表名带 schema 与 default 模型一致，确保与插入过期扣减的库为同一张表。
 func (m *customAeUserRechargeRecordModel) GetExpiredDeductionAmount(ctx context.Context, rechargeID int64) (float64, error) {
 	const query = `
 		SELECT COALESCE((
-			SELECT ABS(xlcredit_amount)
-			FROM ae_user_recharge_record
-			WHERE related_recharge_id = $1 AND xlcredit_amount < 0 AND charge_type = 4
+			SELECT ABS(r.xlcredit_amount)
+			FROM "public"."ae_user_recharge_record" r
+			WHERE r.related_recharge_id = $1 AND r.xlcredit_amount < 0 AND r.charge_type = 4
 			LIMIT 1
 		), 0)
 	`
@@ -196,6 +200,8 @@ func (m *customAeUserRechargeRecordModel) GetExpiredDeductionAmount(ctx context.
 	if err := m.conn.QueryRowCtx(ctx, &amount, query, rechargeID); err != nil {
 		return 0, err
 	}
+	// 调试日志：确认查库结果（上线后可改为 Debug 或删除）
+	logx.Infof("[过期扣减查库] 充值批次id=%d => 查询到的过期扣减金额=%.2f", rechargeID, amount)
 	return amount, nil
 }
 
@@ -255,9 +261,11 @@ func (m *customAeUserRechargeRecordModel) InsertRechargeRecordWithoutExpire(
 
 // QueryBalanceDeltaSince 计算从指定起始时间（含）开始，到当前为止用户资金的“净增量”。
 // 公式：
-//   增量 = 正向充值总额
-//         - allocation 表上已经分配走的金额
-//         - 负值充值记录（系统/管理员扣减）的绝对值总和
+//
+//	增量 = 正向充值总额
+//	      - allocation 表上已经分配走的金额
+//	      - 负值充值记录（系统/管理员扣减）的绝对值总和
+//
 // 说明：
 // - 返回值使用 string 承接 numeric，方便上层采用 decimal 高精度运算。
 func (m *customAeUserRechargeRecordModel) QueryBalanceDeltaSince(ctx context.Context, userId string, from time.Time) (string, error) {
@@ -334,9 +342,11 @@ func (m *customAeUserRechargeRecordModel) InsertAdminDeductionRecord(ctx context
 
 // CalculateRealTimeBalance 计算指定充值记录的实时余额。
 // 公式：
-//   当前余额 = initialAmount
-//           - allocation 表上已使用金额
-//           - 负值充值记录（related_recharge_id 关联到该批次）的绝对值总和。
+//
+//	当前余额 = initialAmount
+//	        - allocation 表上已使用金额
+//	        - 负值充值记录（related_recharge_id 关联到该批次）的绝对值总和。
+//
 // 供 logic 层 balance_helper 统一调用，SQL 仅保留在 model 层。
 func (m *customAeUserRechargeRecordModel) CalculateRealTimeBalance(ctx context.Context, recordID int64, initialAmount decimal.Decimal) (decimal.Decimal, error) {
 	const query = `
@@ -355,4 +365,3 @@ func (m *customAeUserRechargeRecordModel) CalculateRealTimeBalance(ctx context.C
 	}
 	return currentBalance, nil
 }
-
