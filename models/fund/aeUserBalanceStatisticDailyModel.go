@@ -108,6 +108,9 @@ type BalanceHistoryRow struct {
 //   - 对于某天没有统计记录的情况，从 ae_user_balance_statistic_daily 中取
 //     “该用户 <= 当天 的最近一条余额”，实现向前填充。
 func (m *customAeUserBalanceStatisticDailyModel) QueryBalanceHistory(ctx context.Context, userId string, days int64) ([]BalanceHistoryRow, error) {
+	//generate_series(...)是pgsql的一个内置函数，可以生成一个序列(数字/时间/日期序列),generate_series(起始值，结束值，步长)
+	//用一个公用表表达式(CTE),可以理解为是一个临时虚拟表
+	//用generate_series保证日期不中断，用order by...limit 1的子查询来实现“如果没有今天的记录，就沿用最近一次的余额”
 	const query = `
 		WITH date_series AS (
 			SELECT generate_series(
@@ -131,4 +134,3 @@ func (m *customAeUserBalanceStatisticDailyModel) QueryBalanceHistory(ctx context
 	}
 	return rows, nil
 }
-
