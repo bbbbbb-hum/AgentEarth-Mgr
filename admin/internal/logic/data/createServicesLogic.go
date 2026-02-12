@@ -71,11 +71,11 @@ func (l *CreateServicesLogic) dealServices(configList []*configModel.AeMcpExtern
 
 			// 创建节点
 			var node = configModel.AeMcpTaskNode{
-				NodeName:          config.Name + " Node",
-				NodeHandle:        "proxy_handle",
-				Enabled:           true,
-				ExternalServiceId: config.ExternalServiceId,
-				Description:       "Proxy " + config.Name + " Node",
+				NodeName:    config.Name + " Node",
+				NodeHandle:  "proxy_handle",
+				Enabled:     true,
+				ServerId:    config.ServerId,
+				Description: "Proxy " + config.Name + " Node",
 			}
 			nodeId, err1 := nodeModel.InsertReturningId(ctx, &node)
 			if err1 != nil {

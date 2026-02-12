@@ -68,7 +68,7 @@ func (l *CreateServiceLogic) dealService(configList []*configModel.AeMcpExternal
 			serviceModel := mcp.NewAeMcpServicesModel(sessConn)
 
 			//获取节点
-			node, err := nodeModel.FindOneByExternalServiceId(ctx, config.ExternalServiceId)
+			node, err := nodeModel.FindOneByServerId(ctx, config.ServerId)
 			if err != nil && !errors.Is(err, sqlx.ErrNotFound) {
 				return err
 			}
@@ -78,11 +78,11 @@ func (l *CreateServiceLogic) dealService(configList []*configModel.AeMcpExternal
 			} else {
 				// 创建节点
 				node = &configModel.AeMcpTaskNode{
-					NodeName:          config.Name + " Node",
-					NodeHandle:        "proxy_handle",
-					Enabled:           true,
-					ExternalServiceId: config.ExternalServiceId,
-					Description:       config.Description,
+					NodeName:    config.Name + " Node",
+					NodeHandle:  "proxy_handle",
+					Enabled:     true,
+					ServerId:    config.ServerId,
+					Description: config.Description,
 				}
 				nodeId, err = nodeModel.InsertReturningId(ctx, node)
 				if err != nil {
