@@ -15,9 +15,9 @@ func resolveOperatorName(ctx context.Context, svcCtx *svc.ServiceContext, userId
 		operatorId := ctx.Value("userId")
 		if operatorId != nil {
 			operatorIdStr := fmt.Sprintf("%v", operatorId)
-			if operatorIdStr != "" {
+			if len(operatorIdStr) > 0 {
 				if user, err := svcCtx.UserModel.FindOneByUserId(ctx, operatorIdStr); err == nil && user != nil {
-					if user.Username != "" {
+					if len(user.Username) > 0 {
 						return user.Username
 					}
 				}
@@ -27,9 +27,9 @@ func resolveOperatorName(ctx context.Context, svcCtx *svc.ServiceContext, userId
 		return "unknown"
 	}
 
-	if userId != "" {
+	if len(userId) > 0 {
 		if user, err := svcCtx.McpUserModel.FindOneByUserId(ctx, userId); err == nil && user != nil {
-			if user.Username != "" {
+			if len(user.Username) > 0 {
 				return user.Username
 			}
 		}
@@ -41,9 +41,9 @@ func resolveOperatorName(ctx context.Context, svcCtx *svc.ServiceContext, userId
 
 // resolveTargetUsername resolves username for the target user.
 func resolveTargetUsername(ctx context.Context, svcCtx *svc.ServiceContext, userId string) string {
-	if userId != "" {
+	if len(userId) > 0 {
 		if user, err := svcCtx.McpUserModel.FindOneByUserId(ctx, userId); err == nil && user != nil {
-			if user.Username != "" {
+			if len(user.Username) > 0 {
 				return user.Username
 			}
 		}

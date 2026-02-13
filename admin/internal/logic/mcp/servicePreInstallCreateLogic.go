@@ -80,7 +80,7 @@ func (l *ServicePreInstallCreateLogic) ServicePreInstallCreate(req *types.Servic
 	commandIndex := 1
 	for i, item := range list {
 		preinstallCmd := strings.TrimSpace(item.PreinstallCmd)
-		if preinstallCmd == "" {
+		if len(preinstallCmd) == 0 {
 			continue
 		}
 

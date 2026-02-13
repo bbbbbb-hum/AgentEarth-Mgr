@@ -33,7 +33,7 @@ func NewCreateServiceConfigManualLogic(ctx context.Context, svcCtx *svc.ServiceC
 
 func (l *CreateServiceConfigManualLogic) CreateServiceConfigManual(req *types.CreateServiceConfigManualReq) (resp *types.BaseResp, err error) {
 	wemcpName := strings.TrimSpace(req.WemcpName)
-	if wemcpName == "" {
+	if len(wemcpName) == 0 {
 		return &types.BaseResp{
 			Code:    -1,
 			Message: "wemcp_name不能为空",

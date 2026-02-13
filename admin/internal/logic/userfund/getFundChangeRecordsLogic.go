@@ -185,13 +185,13 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 				sumAmount += r.XlcreditAmount
 			}
 			operatorName := row.Operator.String
-			if operatorName == "" {
+			if len(operatorName) == 0 {
 				operatorName = "未知"
 			}
 			remark := row.Remark.String
 			if len(list) > 1 {
 				remark = fmt.Sprintf("扣减(从%d个批次扣减)", len(list))
-			} else if remark == "" {
+			} else if len(remark) == 0 {
 				remark = chargeTypeDescFromType(row.ChargeType)
 			}
 			records = append(records, types.FundChangeRecordItem{
@@ -213,7 +213,7 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 
 		//设置操作人用户名
 		operatorName := row.Operator.String
-		if operatorName == "" {
+		if len(operatorName) == 0 {
 			operatorName = "未知"
 		}
 

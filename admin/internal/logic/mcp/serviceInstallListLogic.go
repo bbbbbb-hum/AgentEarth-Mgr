@@ -66,7 +66,7 @@ func (l *ServiceInstallListLogic) ServiceInstallList(req *types.ServiceInstallLi
 // CamelToSnake 将驼峰命名转换为蛇形命名
 // 特别处理常见的缩写词，如 ID 转换为 id
 func CamelToSnake(camel string) string {
-	if camel == "" {
+	if len(camel) == 0 {
 		return ""
 	}
 

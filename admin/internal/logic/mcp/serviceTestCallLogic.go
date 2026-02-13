@@ -46,7 +46,7 @@ func (l *ServiceTestCallLogic) ServiceTestCall(req *types.ServiceTestCallReq) (r
 
 	// 3. 解析参数
 	var arguments map[string]interface{}
-	if req.Arguments != "" {
+	if len(req.Arguments) > 0 {
 		if err := json.Unmarshal([]byte(req.Arguments), &arguments); err != nil {
 			return &types.BaseResp{
 				Code:    1,

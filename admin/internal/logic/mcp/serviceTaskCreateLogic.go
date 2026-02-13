@@ -150,7 +150,7 @@ func (l *ServiceTaskCreateLogic) resetSeq(table string, column string) error {
 	if err != nil {
 		return err
 	}
-	if seq == "" {
+	if len(seq) == 0 {
 		return errors.New("序列不存在")
 	}
 	setvalQuery := fmt.Sprintf(`select setval($1, (select coalesce(max(%s), 0) + 1 from %s), false)`, column, table)

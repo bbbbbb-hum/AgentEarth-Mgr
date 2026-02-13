@@ -36,15 +36,15 @@ func (l *UpdateServiceConfigLogic) UpdateServiceConfig(req *types.UpdateServiceC
 		}, nil
 	}
 
-	if req.Name != "" {
+	if len(req.Name) > 0 {
 		existingConfig.Name = req.Name
 	}
 
-	if req.Description != "" {
+	if len(req.Description) > 0 {
 		existingConfig.Description = req.Description
 	}
 
-	if req.WemcpName != nil && *req.WemcpName != "" {
+	if req.WemcpName != nil && len(*req.WemcpName) > 0 {
 		existingConfig.WemcpName = *req.WemcpName
 	}
 

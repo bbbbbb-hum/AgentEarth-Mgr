@@ -155,7 +155,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 		insertCount = 0
 		now := time.Now()
 		remarkBase := req.Remarks
-		if remarkBase == "" {
+		if len(remarkBase) == 0 {
 			remarkBase = "管理员扣减" //默认备注，方便区分
 		}
 

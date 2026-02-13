@@ -1,11 +1,10 @@
 Name: agent-earth-mgr-backend             # 服务名称，用于服务发现和日志标识
 Host: 0.0.0.0                             # 服务监听地址，0.0.0.0 表示监听所有网卡（支持局域网访问）
 Port: 9005                                # 服务监听端口
-Timeout: 60000                            # HTTP请求超时(毫秒)，需大于MCP工具调用超时(默认30s)
 
 DB:                                       # 数据库配置
   #DataSource: "postgres://wcs:123@8.146.236.193:9002/agent_earth?sslmode=disable"
-  DataSource: "postgres://postgres:zhang@localhost:5432/test1?sslmode=disable"
+  DataSource: "postgres://postgres:123456@localhost:5432/postgres?sslmode=disable"
 
 
 Auth:                                     # JWT 鉴权配置

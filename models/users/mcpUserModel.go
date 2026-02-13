@@ -51,7 +51,7 @@ func (m *customMcpUserModel) FindList(ctx context.Context, page, pageSize int, s
 	// - 同时在 user_id / phone / username / email 字段上模糊匹配
 	// - 忽略大小写（使用 ILIKE）
 	// - 排序按匹配位置优先：前缀匹配（position = 1）最前，其次位置越靠前越优先
-	if search != "" {
+	if len(search) > 0 {
 		// 使用 ILIKE 做不区分大小写的模糊匹配
 		pattern := "%" + search + "%"
 		keywordLower := strings.ToLower(search)
@@ -95,7 +95,7 @@ func (m *customMcpUserModel) FindList(ctx context.Context, page, pageSize int, s
 	offset := (page - 1) * pageSize
 	var query string
 
-	if search != "" {
+	if len(search) > 0 {
 		// 带搜索时：先按匹配位置排序，再按最近登录时间
 		// position() 在 PostgreSQL 中是从 1 开始；我们用 LEAST + NULLIF(…,0) 取四个字段中最靠前的位置
 		query = fmt.Sprintf(`

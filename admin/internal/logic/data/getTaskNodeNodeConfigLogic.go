@@ -27,7 +27,7 @@ func NewGetTaskNodeNodeConfigLogic(ctx context.Context, svcCtx *svc.ServiceConte
 }
 
 func (l *GetTaskNodeNodeConfigLogic) GetTaskNodeNodeConfig(req *types.GetTaskNodeNodeConfigReq) (resp *types.BaseResp, err error) {
-	if req == nil || strings.TrimSpace(req.ServerId) == "" {
+	if req == nil || len(strings.TrimSpace(req.ServerId)) == 0 {
 		return &types.BaseResp{
 			Code:    -1,
 			Message: "server_id不能为空",
@@ -47,7 +47,7 @@ func (l *GetTaskNodeNodeConfigLogic) GetTaskNodeNodeConfig(req *types.GetTaskNod
 	}
 
 	nodeConfig := strings.TrimSpace(node.NodeConfig)
-	if nodeConfig == "" {
+	if len(nodeConfig) == 0 {
 		nodeConfig = "{}"
 	}
 

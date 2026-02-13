@@ -29,26 +29,26 @@ func NewServiceCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ser
 }
 
 func (l *ServiceCreateLogic) ServiceCreate(req *types.ServiceCreateReq) (resp *types.BaseResp, err error) {
-	if req == nil || strings.TrimSpace(req.ServerName) == "" {
+	if req == nil || len(strings.TrimSpace(req.ServerName)) == 0 {
 		return &types.BaseResp{Code: -1, Message: "服务名称不能为空"}, nil
 	}
 
 	projectName := strings.TrimSpace(req.ProjectName)
-	if projectName == "" {
+	if len(projectName) == 0 {
 		projectName = dataLogic.CreateProjectName(req.ServerName)
 	}
 	logo := strings.TrimSpace(req.Logo)
-	if logo == "" {
+	if len(logo) == 0 {
 		logo = "/assets/logo.png"
 	}
 	protocolVersion := strings.TrimSpace(req.ProtocolVersion)
-	if protocolVersion == "" {
+	if len(protocolVersion) == 0 {
 		protocolVersion = "2024-11-05"
 	}
 
 	var tags []string
 	for _, t := range req.Tags {
-		if tt := strings.TrimSpace(t); tt != "" {
+		if tt := strings.TrimSpace(t); len(tt) > 0 {
 			tags = append(tags, tt)
 		}
 	}

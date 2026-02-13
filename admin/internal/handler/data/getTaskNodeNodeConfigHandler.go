@@ -18,7 +18,7 @@ func GetTaskNodeNodeConfigHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
-		if strings.TrimSpace(req.ServerId) == "" {
+		if len(strings.TrimSpace(req.ServerId)) == 0 {
 			httpx.ErrorCtx(r.Context(), w, errors.New("field \"server_id\" is not set"))
 			return
 		}

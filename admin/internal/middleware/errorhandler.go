@@ -48,7 +48,7 @@ func ErrorHandlerMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 			// 设置错误响应格式
 			baseResp.Code = 1000
-			if baseResp.Message == "" {
+			if len(baseResp.Message) == 0 {
 				baseResp.Message = http.StatusText(writer.statusCode)
 			}
 			baseResp.Data = nil

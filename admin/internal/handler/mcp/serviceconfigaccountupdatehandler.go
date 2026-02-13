@@ -25,11 +25,11 @@ func ServiceConfigAccountUpdateHandler(svcCtx *svc.ServiceContext) http.HandlerF
 			httpx.ErrorCtx(r.Context(), w, errors.New("field \"id\" is not set"))
 			return
 		}
-		if req.Name == "" {
+		if len(req.Name) == 0 {
 			httpx.ErrorCtx(r.Context(), w, errors.New("field \"name\" is not set"))
 			return
 		}
-		if req.Status == "" {
+		if len(req.Status) == 0 {
 			httpx.ErrorCtx(r.Context(), w, errors.New("field \"status\" is not set"))
 			return
 		}

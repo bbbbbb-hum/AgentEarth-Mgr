@@ -71,13 +71,13 @@ func (m *customAeMcpExternalServicesConfigModel) BatchInsert(ctx context.Context
 		}
 		sb.WriteString(")")
 		var launchArg interface{}
-		if v.LaunchInfo == "" {
+		if len(v.LaunchInfo) == 0 {
 			launchArg = nil
 		} else {
 			launchArg = v.LaunchInfo
 		}
 		var connectArg interface{}
-		if v.ConnectInfo == "" {
+		if len(v.ConnectInfo) == 0 {
 			connectArg = nil
 		} else {
 			connectArg = v.ConnectInfo
