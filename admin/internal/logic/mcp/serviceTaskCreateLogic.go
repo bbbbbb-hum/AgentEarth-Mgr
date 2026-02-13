@@ -70,17 +70,12 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 			chainModel := configModel.NewAeMcpTaskChainModel(sessConn)
 			serviceModel := mcp.NewAeMcpServicesModel(sessConn)
 
-			var config *configModel.AeMcpExternalServicesConfig
 			if service.TaskChainId > 0 {
 				return nil
 			}
-			// 创建节点
+			// 创建节点（不再依赖 ae_mcp_external_services_config）
 			nodeName := service.ServerName + " Node"
 			nodeDescription := "Proxy " + service.ServerName + " Node"
-			if config != nil {
-				nodeName = config.Name + " Node"
-				nodeDescription = "Proxy " + config.Name + " Node"
-			}
 			var node = configModel.AeMcpTaskNode{
 				NodeName:    nodeName,
 				NodeHandle:  "proxy_handle",
@@ -102,11 +97,8 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 					return err1
 				}
 			}
-			// 创建链
+			// 创建链（不再依赖 ae_mcp_external_services_config）
 			chainName := service.ServerName + " ProxyChain"
-			if config != nil {
-				chainName = config.Name + " ProxyChain (" + config.Type + ")"
-			}
 			var chain = configModel.AeMcpTaskChain{
 				Name:    chainName,
 				Status:  "used",

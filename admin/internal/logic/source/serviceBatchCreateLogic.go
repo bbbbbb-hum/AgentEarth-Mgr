@@ -2,7 +2,6 @@ package source
 
 import (
 	"AgentEarth-Mgr/models"
-	configModel "AgentEarth-Mgr/models/config"
 	"AgentEarth-Mgr/models/external"
 	"AgentEarth-Mgr/models/mcp"
 	"context"
@@ -350,104 +349,4 @@ func pickFlatConnect(connectInfo, serverName string, logger logx.Logger) (types.
 	}
 }
 
-func applyConnectInfoWithLocalhost(
-	ctx context.Context,
-	serviceInstallModel mcp.AeMcpServicesInstallModel,
-	serviceInstall *mcp.AeMcpServicesInstall,
-	serviceConfig *configModel.AeMcpExternalServicesConfig,
-	installCmd, repositoryName, serverName, serverId, connectInfo string,
-	logger logx.Logger,
-) error {
-	chosenConn, err := pickFlatConnect(connectInfo, serverName, logger)
-	if err != nil {
-		// 解析失败时保留原行为：记录日志后尽量继续。但这里会影响后续 URL/Headers，直接退出更安全。
-		return nil
-	}
-	if len(chosenConn.URL) == 0 {
-		return nil
-	}
-
-	// 替换 URL 中的 localhost 端口为 serverPort
-	url := chosenConn.URL
-	// 检查是否包含 localhost，如果包含则需要分配端口
-	if strings.Contains(url, "localhost") {
-		// 如果端口还未分配，则分配新端口
-		if serviceInstall.Port == 0 {
-			// 查询当前最大端口
-			port, err4 := serviceInstallModel.GetMaxPort(ctx)
-			if err4 != nil {
-				return err4
-			}
-			if port > 0 {
-				serviceInstall.Port = port + 1
-			} else {
-				serviceInstall.Port = 10000
-			}
-			logger.Infof("Found localhost URL in service %s (ServerId: %s): %s, allocated new port %d", serverName, serverId, url, serviceInstall.Port)
-		} else {
-			logger.Infof("Found localhost URL in service %s (ServerId: %s): %s, using existing port %d", serverName, serverId, url, serviceInstall.Port)
-		}
-
-		url = replaceLocalhostPort(url, serviceInstall.Port)
-
-		// 有 localhost 则将启动命令写入启动信息
-		rawParts := strings.Split(installCmd, ",")
-		installCmds := make([]string, 0, len(rawParts))
-		for _, p := range rawParts {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				installCmds = append(installCmds, p)
-			}
-		}
-		if len(installCmds) == 0 {
-			return nil
-		}
-
-		// 去掉最后一个元素：最后一个作为启动命令，其余重新组装为安装命令
-		launchCmd := installCmds[len(installCmds)-1]
-		installOnly := installCmds[:len(installCmds)-1]
-		if len(installOnly) > 0 {
-			serviceInstall.InstallCmd = strings.Join(installOnly, ",")
-		} else {
-			serviceInstall.InstallCmd = ""
-		}
-		// 清空预安装命令
-		serviceInstall.PreinstallCmd = ""
-		tl := types.TargetLaunch{
-			Command:         launchCmd,
-			Args:            nil,
-			Workdir:         "/opt/xldata/McpInstall/" + repositoryName,
-			Env:             map[string]string{"PORT": fmt.Sprintf("%d", serviceInstall.Port)},
-			MaxInstance:     1,
-			MaxRestarts:     3,
-			LaunchTimeout:   100000,
-			ShutdownTimeout: 100000,
-			IdleTtl:         100000000,
-		}
-		if b, err4 := json.Marshal(tl); err4 == nil {
-			serviceConfig.LaunchInfo = string(b)
-		} else {
-			logger.Errorf("failed to marshal target launch_info for %s: %v", serverName, err4)
-			return err4
-		}
-	} else {
-		// 没有 localhost 则原来的端口回收
-		serviceInstall.Port = 0
-	}
-
-	tc := types.TargetConnect{
-		URL:            url,
-		Headers:        chosenConn.Headers,
-		ConnectTimeout: 3000,
-		MaxConnect:     10,
-		MaxRetry:       3,
-		Interval:       1000,
-	}
-	if b, err5 := json.Marshal(tc); err5 == nil {
-		serviceConfig.ConnectInfo = string(b)
-	} else {
-		logger.Errorf("failed to marshal target connect_info for %s: %v", serverName, err5)
-	}
-
-	return nil
-}
+// applyConnectInfoWithLocalhost 已移除：依赖 ae_mcp_external_services_config（旧表），且从未被调用

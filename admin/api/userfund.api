@@ -1,3 +1,5 @@
+syntax = "v1"
+
 /*
  * File Name: userfund.api
  * Description: AgentEarth User Fund Management Module - API Definition
@@ -57,7 +59,8 @@ type (
 
     ConsumptionRecordItem {
         Day string `json:"day"` // 日期 YYYY-MM-DD
-        XlcreditConsume float64 `json:"xlcredit_consume"` // 消费金额
+        SelfConsume float64 `json:"self_consume"` // 自行消费金额
+        SystemDeduct float64 `json:"system_deduct"` // 系统扣减金额（来自充值表负值）
     }
 
     ConsumptionRecordResp {
@@ -81,23 +84,38 @@ type (
     FundChangeRecordReq {
         UserId string `path:"user_id"`
         Filter string `form:"filter,optional"` // all, recharge, deduction
+        ChargeType int64 `form:"charge_type,optional"` // 1 用户常规充值；2 系统故障补偿；3 活动赠送；4 过期扣减；5 管理员扣减
+        Page int64 `form:"page,optional"`
+        PageSize int64 `form:"page_size,optional"`
     }
 
     FundChangeRecordItem {
-        TransactionTime string `json:"transaction_time"` // 交易时间
-        TypeDescription string `json:"type_description"` // 类型说明
-        ChangeAmount float64 `json:"change_amount"` // 变动金额（正数为充值，负数为扣减）
-        Status string `json:"status"` // 状态
-        Remarks string `json:"remarks"` // 备注/原因
+        TransactionTime string `json:"transaction_time"`
+        TypeDescription string `json:"type_description"`
+        ChangeAmount float64 `json:"change_amount"`
+        Status string `json:"status"`
+        Remarks string `json:"remarks"`
+        ChargeType int64 `json:"charge_type"`
+        ChargeTypeDesc string `json:"charge_type_desc"`
+        Operator string `json:"operator"`
+        BatchId int64 `json:"batch_id,omitempty"`
+        InitialAmount float64 `json:"initial_amount,omitempty"`
+        RemainingAmount float64 `json:"remaining_amount,omitempty"`
+        RemainingAtExpire float64 `json:"remaining_at_expire"`
+        ExpireTime string `json:"expire_time,omitempty"`
+        BatchStatus string `json:"batch_status,omitempty"`
+        OverdraftAmount float64 `json:"overdraft_amount,omitempty"`
     }
 
     FundChangeRecordResp {
         List []FundChangeRecordItem `json:"list"`
+        Total int64 `json:"total"`
     }
 
     ManualRechargeReq {
         UserId string `json:"user_id"`
         Amount float64 `json:"amount"`
+        ChargeType int64 `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
         Remarks string `json:"remarks,optional"`
         ExpireTime string `json:"expire_time,optional"` // 可选，格式 YYYY-MM-DD，不传或空为永久有效
     }
@@ -111,6 +129,7 @@ type (
     ManualDeductionReq {
         UserId string `json:"user_id"`
         Amount float64 `json:"amount"`
+        ChargeType int64 `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
         Remarks string `json:"remarks,optional"`
     }
 
