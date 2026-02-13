@@ -327,12 +327,6 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 			}
 		}
 
-		// 过期扣减行（负值且 charge_type=4）：该条记录的金额绝对值即为「过期时剩余」。
-		if row.XlcreditAmount < 0 && row.ChargeType == 4 {
-			item.RemainingAtExpire = math.Abs(row.XlcreditAmount)
-			l.Infof("[过期时剩余] 过期扣减行 记录id=%d 扣减金额=%.2f => 过期时剩余=%.2f", row.Id, row.XlcreditAmount, item.RemainingAtExpire)
-		}
-
 		records = append(records, item)
 	}
 
