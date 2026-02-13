@@ -34,7 +34,7 @@ func main() {
 	}
 
 	dsn := strings.TrimSpace(cfg.DB.DataSource)
-	if dsn == "" {
+	if len(dsn) == 0 {
 		exitErr(fmt.Errorf("DB.DataSource is empty in %s", configPath))
 	}
 
@@ -235,11 +235,11 @@ func migrateNativeEndpointToConfig(tx *sql.Tx) error {
 			return fmt.Errorf("scan native endpoint_json failed: %w", err)
 		}
 		serverId := strings.TrimSpace(r.ServerId)
-		if serverId == "" {
+		if len(serverId) == 0 {
 			continue
 		}
 		endpointJson := strings.TrimSpace(r.EndpointJson)
-		if endpointJson == "" {
+		if len(endpointJson) == 0 {
 			continue
 		}
 		endpointType := inferEndpointType(endpointJson)

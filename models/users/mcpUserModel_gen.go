@@ -115,7 +115,7 @@ func (m *defaultMcpUserModel) FindList(ctx context.Context, page, pageSize int, 
 	var args []interface{}
 
 	where := "1=1"
-	if search != "" {
+	if len(search) > 0 {
 		where += " AND (username ILIKE $1 OR phone ILIKE $1 OR email ILIKE $1 OR user_id ILIKE $1)"
 		args = append(args, "%"+search+"%")
 	}

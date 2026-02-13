@@ -14,7 +14,7 @@ import (
 func withOperatorUsernameCtx(r *http.Request, svcCtx *svc.ServiceContext) context.Context {
 	ctx := r.Context()
 	auth := r.Header.Get("Authorization")
-	if auth == "" {
+	if len(auth) == 0 {
 		return ctx
 	}
 
@@ -24,7 +24,7 @@ func withOperatorUsernameCtx(r *http.Request, svcCtx *svc.ServiceContext) contex
 	}
 
 	tokenStr := strings.TrimSpace(parts[1])
-	if tokenStr == "" {
+	if len(tokenStr) == 0 {
 		return ctx
 	}
 
@@ -50,33 +50,33 @@ func withOperatorUsernameCtx(r *http.Request, svcCtx *svc.ServiceContext) contex
 		username = fmt.Sprintf("%v", usernameVal)
 	}
 
-	if username == "" && hasUserId {
+	if len(username) == 0 && hasUserId {
 		userId := fmt.Sprintf("%v", userIdVal)
-		if userId != "" {
+		if len(userId) > 0 {
 			var result struct {
 				Username string `db:"username"`
 			}
 			query := fmt.Sprintf(`select username from %s where user_id = $1 limit 1`, svcCtx.UserModel.TableName())
 			if err := svcCtx.DB.QueryRowCtx(ctx, &result, query, userId); err == nil {
-				if result.Username != "" {
+				if len(result.Username) > 0 {
 					username = result.Username
 				}
 			}
 		}
 	}
 
-	if username == "" && !hasUserId {
+	if len(username) == 0 && !hasUserId {
 		return ctx
 	}
 
 	newCtx := ctx
 	if hasUserId {
 		userId := fmt.Sprintf("%v", userIdVal)
-		if userId != "" {
+		if len(userId) > 0 {
 			newCtx = context.WithValue(newCtx, "userId", userId)
 		}
 	}
-	if username != "" {
+	if len(username) > 0 {
 		newCtx = context.WithValue(newCtx, "username", username)
 	}
 

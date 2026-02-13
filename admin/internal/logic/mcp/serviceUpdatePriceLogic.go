@@ -60,7 +60,7 @@ func (l *ServiceUpdatePriceLogic) ServiceUpdatePrice(req *types.ServiceUpdatePri
 	var operatorName string
 	operatorIdStr := fmt.Sprintf("%v", operatorId)
 
-	if operatorIdStr != "" {
+	if len(operatorIdStr) > 0 {
 		user, err := l.svcCtx.UserModel.FindOneByUserId(l.ctx, operatorIdStr)
 		if err == nil {
 			operatorName = user.Username

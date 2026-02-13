@@ -41,7 +41,7 @@ func main() {
 	flag.Var(&queries, "q", "SQL query to execute (repeatable)")
 	flag.Parse()
 
-	if strings.TrimSpace(dsn) == "" {
+	if len(strings.TrimSpace(dsn)) == 0 {
 		exitErr(fmt.Errorf("missing -dsn"))
 	}
 	if len(files) == 0 && len(queries) == 0 {
@@ -80,7 +80,7 @@ func main() {
 
 	for _, q := range queries {
 		q = strings.TrimSpace(q)
-		if q == "" {
+		if len(q) == 0 {
 			continue
 		}
 		if _, err := db.Exec(q); err != nil {
@@ -129,7 +129,7 @@ func verify(db *sql.DB) {
 		if err := db.QueryRow(c.query).Scan(&got); err != nil {
 			exitErr(fmt.Errorf("verify %s failed: %w", c.label, err))
 		}
-		if got == "" || !strings.Contains(got, c.want) {
+		if len(got) == 0 || !strings.Contains(got, c.want) {
 			exitErr(fmt.Errorf("verify %s failed: expected %s, got %s", c.label, c.want, got))
 		}
 		fmt.Printf("OK: %s exists (%s)\n", c.label, got)

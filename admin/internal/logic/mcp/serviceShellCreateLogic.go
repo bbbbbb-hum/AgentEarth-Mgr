@@ -68,7 +68,7 @@ func (l *ServiceShellCreateLogic) ServiceShellCreate(req *types.ServiceShellCrea
 		repository := strings.TrimSpace(item.Repository)
 		installCmd := strings.TrimSpace(item.InstallCmd)
 
-		if repository == "" || installCmd == "" {
+		if len(repository) == 0 || len(installCmd) == 0 {
 			continue
 		}
 
@@ -80,7 +80,7 @@ func (l *ServiceShellCreateLogic) ServiceShellCreate(req *types.ServiceShellCrea
 
 		// 第一步：git clone Repository（如果目录不存在）
 		sb.WriteString(fmt.Sprintf("# [%d] Clone repository\n", commandIndex))
-		if projectDirName != "" {
+		if len(projectDirName) > 0 {
 			sb.WriteString(fmt.Sprintf("if [ ! -d \"%s\" ]; then\n", projectDirName))
 			sb.WriteString(fmt.Sprintf("    echo \"[%d] Running: git clone %s\"\n", commandIndex, bashEscapeForDoubleQuotes(repository)))
 			sb.WriteString(fmt.Sprintf("    git clone %s\n", repository))
@@ -100,7 +100,7 @@ func (l *ServiceShellCreateLogic) ServiceShellCreate(req *types.ServiceShellCrea
 		// 处理所有命令
 		for j := 0; j < len(commands); j++ {
 			cmd := strings.TrimSpace(commands[j])
-			if cmd == "" {
+			if len(cmd) == 0 {
 				continue
 			}
 
@@ -118,7 +118,7 @@ func (l *ServiceShellCreateLogic) ServiceShellCreate(req *types.ServiceShellCrea
 			finalCmd = cmd
 
 			sb.WriteString(fmt.Sprintf("# [%d] %s\n", commandIndex, stepDesc))
-			if projectDirName != "" {
+			if len(projectDirName) > 0 {
 				// 使用子 shell 执行命令，避免影响后续命令的工作目录
 				sb.WriteString(fmt.Sprintf("(cd %s && echo \"[%d] Running: %s\" && %s)", projectDirName, commandIndex, bashEscapeForDoubleQuotes(finalCmd), finalCmd))
 			} else {
@@ -137,7 +137,7 @@ func (l *ServiceShellCreateLogic) ServiceShellCreate(req *types.ServiceShellCrea
 
 // extractProjectDirName 从 Repository URL 中提取项目目录名称
 func extractProjectDirName(repository string) string {
-	if repository == "" {
+	if len(repository) == 0 {
 		return ""
 	}
 

@@ -96,7 +96,7 @@ func (l *InnerMcpInfoLogic) InnerMcpInfo(wemcpName string) (resp *types.BaseResp
 	acc := accounts[0]
 
 	authInfoRaw := strings.TrimSpace(acc.AuthInfo)
-	if authInfoRaw == "" {
+	if len(authInfoRaw) == 0 {
 		return &types.BaseResp{
 			Code:    1,
 			Message: "auth_info is empty",
@@ -121,7 +121,7 @@ func (l *InnerMcpInfoLogic) InnerMcpInfo(wemcpName string) (resp *types.BaseResp
 
 	envs := map[string]string{}
 	for k, v := range authInfo {
-		if strings.TrimSpace(k) == "" {
+		if len(strings.TrimSpace(k)) == 0 {
 			continue
 		}
 		switch vv := v.(type) {

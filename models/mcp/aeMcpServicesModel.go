@@ -64,9 +64,9 @@ func (m *customAeMcpServicesModel) GetListWithSearch(ctx context.Context, lp mod
 	}
 
 	// Handle search (ID or Name)
-	if search != "" {
+	if len(search) > 0 {
 		prefix := " WHERE"
-		if whereClause != "" {
+		if len(whereClause) > 0 {
 			prefix = " AND"
 		}
 
@@ -100,7 +100,7 @@ func (m *customAeMcpServicesModel) GetListWithSearch(ctx context.Context, lp mod
 		//排序
 		if len(lp.Sorts) > 0 && len(lp.Sorts[0].Filed) > 0 && len(lp.Sorts[0].Order) > 0 {
 			// 如果是搜索且没有手动排序，则 STRPOS 优先
-			if search != "" && len(lp.Sorts) >= 2 && lp.Sorts[0].Filed == "enabled" {
+			if len(search) > 0 && len(lp.Sorts) >= 2 && lp.Sorts[0].Filed == "enabled" {
 				argIdx := len(args) + 1
 				// 直接构建排序，不调用 GetOrderBy，避免 double order by 或 split 失败
 				query += fmt.Sprintf(" ORDER BY STRPOS(LOWER(server_name), LOWER($%d)) ASC, enabled DESC, id DESC", argIdx)
@@ -109,7 +109,7 @@ func (m *customAeMcpServicesModel) GetListWithSearch(ctx context.Context, lp mod
 				query = models.GetOrderBy(lp.Sorts, query)
 			}
 		} else {
-			if search != "" {
+			if len(search) > 0 {
 				argIdx := len(args) + 1
 				query += fmt.Sprintf(" ORDER BY STRPOS(LOWER(server_name), LOWER($%d)) ASC, enabled DESC, id DESC", argIdx)
 				args = append(args, search)
@@ -275,9 +275,9 @@ func (m *customAeMcpServicesModel) BatchUpdatePriceByCondition(ctx context.Conte
 	}
 
 	// Handle search (ID or Name)
-	if search != "" {
+	if len(search) > 0 {
 		prefix := " WHERE"
-		if whereClause != "" {
+		if len(whereClause) > 0 {
 			prefix = " AND"
 		}
 

@@ -17,6 +17,11 @@
 # Build output
 dist/
 
+# Go 编译临时目录与缓存（go run / go build 生成）
+.gotmp/
+.gocache/
+**/go-build*/
+
 # 配置文件
 admin/etc/admin_*-api.yaml
 .env

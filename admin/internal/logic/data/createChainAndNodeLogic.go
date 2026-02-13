@@ -32,7 +32,7 @@ func NewCreateChainAndNodeLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 }
 
 func (l *CreateChainAndNodeLogic) CreateChainAndNode(req *types.CreateChainAndNodeReq) (resp *types.BaseResp, err error) {
-	if req == nil || req.ServerId == "" {
+	if req == nil || len(req.ServerId) == 0 {
 		return &types.BaseResp{
 			Code:    -1,
 			Message: "server_id不能为空",
@@ -70,16 +70,16 @@ func (l *CreateChainAndNodeLogic) deal(req *types.CreateChainAndNodeReq) error {
 		}
 
 		nodeName := req.NodeName
-		if nodeName == "" {
+		if len(nodeName) == 0 {
 			nodeName = mcpService.ServerName + " Node"
 		}
 		nodeHandle := req.NodeHandle
-		if nodeHandle == "" {
+		if len(nodeHandle) == 0 {
 			nodeHandle = "proxy_handle"
 		}
 
 		nodeConfig := strings.TrimSpace(req.NodeConfig)
-		if nodeConfig == "" {
+		if len(nodeConfig) == 0 {
 			nodeConfig = "{}"
 		} else {
 			var tmp interface{}
@@ -102,7 +102,7 @@ func (l *CreateChainAndNodeLogic) deal(req *types.CreateChainAndNodeReq) error {
 		}
 
 		chainName := req.ChainName
-		if chainName == "" {
+		if len(chainName) == 0 {
 			chainName = mcpService.ServerName + " Chain"
 		}
 		chain := configModel.AeMcpTaskChain{

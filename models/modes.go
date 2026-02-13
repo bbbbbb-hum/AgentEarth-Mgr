@@ -47,7 +47,7 @@ func DealWithWhereSafe(params ...Condition) (string, []interface{}, error) {
 		}
 
 		symbol := strings.ToUpper(strings.TrimSpace(param.Symbol))
-		if symbol == "" {
+		if len(symbol) == 0 {
 			symbol = "="
 		}
 		escapedCol := escapeColumn(param.Field)
@@ -187,7 +187,7 @@ func RawFieldNames(in any, postgreSql ...bool) []string {
 		if strings.Contains(tagv, ",") {
 			tagv = strings.TrimSpace(strings.Split(tagv, ",")[0])
 		}
-		if tagv == "" {
+		if len(tagv) == 0 {
 			tagv = fi.Name
 		}
 		if tagv == "-" {

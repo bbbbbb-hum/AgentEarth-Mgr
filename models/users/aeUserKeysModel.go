@@ -57,7 +57,7 @@ func (m *customAeUserKeysModel) FindByUserId(ctx context.Context, userId string,
 	argIndex := 2
 
 	// 添加搜索条件
-	if search != "" {
+	if len(search) > 0 {
 		whereClause += fmt.Sprintf(" AND (key_name ILIKE $%d OR key_value ILIKE $%d)", argIndex, argIndex)
 		searchPattern := "%" + strings.ToLower(search) + "%"
 		args = append(args, searchPattern)
@@ -117,7 +117,7 @@ func (m *customAeUserKeysModel) FindByUserIdWithSearch(ctx context.Context, user
 	whereClause := "user_id = $1"
 	args := []interface{}{userId}
 
-	if search != "" {
+	if len(search) > 0 {
 		whereClause += " AND (key_name ILIKE $2 OR key_value ILIKE $2)"
 		searchPattern := "%" + strings.ToLower(search) + "%"
 		args = append(args, searchPattern)

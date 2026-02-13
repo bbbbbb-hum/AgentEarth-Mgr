@@ -121,21 +121,21 @@ func (l *ServiceBatchCreateLogic) deal(externalMcpServices []*external.ExternalM
 			validTags = append(validTags, "All")
 			for _, tag := range tags {
 				tag = strings.TrimSpace(tag)
-				if tag != "" {
+				if len(tag) > 0 {
 					validTags = append(validTags, tag)
 				}
 			}
 
 			mcpService.Tags = pq.StringArray(validTags)
 			// 判断是否需要提前安装
-			if ems.Install.Valid && ems.Install.String != "" {
+			if ems.Install.Valid && len(ems.Install.String) > 0 {
 				mcpService.IsInstall = true
 				//获取第一层安装命令
 				installCmd = ems.Install.String
 				// 从 git clone 命令中提取项目目录名称
 			}
 			//判断是否需要下载源码
-			if ems.CloneRepository.Valid && ems.CloneRepository.String != "" {
+			if ems.CloneRepository.Valid && len(ems.CloneRepository.String) > 0 {
 				repositoryUrl = ems.CloneRepository.String
 			}
 			//判断更新还是插入
@@ -249,7 +249,7 @@ func extractProjectDirName(installCmd string) string {
 		}
 	}
 
-	if repoURL == "" {
+	if len(repoURL) == 0 {
 		return ""
 	}
 
@@ -287,7 +287,7 @@ func replaceLocalhostPort(url string, port int64) string {
 
 // buildShellCommand 将 Command、Args 和 Env 组装成可执行的 shell 命令
 func buildShellCommand(command string, args []string, env map[string]string) string {
-	if command == "" {
+	if len(command) == 0 {
 		return ""
 	}
 

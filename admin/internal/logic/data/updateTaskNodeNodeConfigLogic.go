@@ -28,7 +28,7 @@ func NewUpdateTaskNodeNodeConfigLogic(ctx context.Context, svcCtx *svc.ServiceCo
 }
 
 func (l *UpdateTaskNodeNodeConfigLogic) UpdateTaskNodeNodeConfig(req *types.UpdateTaskNodeNodeConfigReq) (resp *types.BaseResp, err error) {
-	if req == nil || strings.TrimSpace(req.ServerId) == "" {
+	if req == nil || len(strings.TrimSpace(req.ServerId)) == 0 {
 		return &types.BaseResp{
 			Code:    -1,
 			Message: "server_id不能为空",
@@ -70,7 +70,7 @@ func (l *UpdateTaskNodeNodeConfigLogic) UpdateTaskNodeNodeConfig(req *types.Upda
 
 func normalizeJsonString(input string) (string, error) {
 	trimmed := strings.TrimSpace(input)
-	if trimmed == "" {
+	if len(trimmed) == 0 {
 		return "{}", nil
 	}
 	var v interface{}

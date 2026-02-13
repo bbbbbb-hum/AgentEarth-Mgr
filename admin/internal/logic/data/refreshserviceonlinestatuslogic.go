@@ -76,7 +76,7 @@ func (l *RefreshServiceOnlineStatusLogic) syncFromK8s() ([]string, error) {
 	}
 
 	namespace := l.svcCtx.Config.K8sSync.Namespace
-	if namespace == "" {
+	if len(namespace) == 0 {
 		nsBytes, readErr := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if readErr != nil {
 			return nil, readErr
@@ -114,10 +114,10 @@ func (l *RefreshServiceOnlineStatusLogic) syncFromK8s() ([]string, error) {
 
 		// 从 label "app" 提取实例名（如 ae-wemcp2-qweather）
 		appLabel := pod.Labels["app"]
-		if appLabel == "" {
+		if len(appLabel) == 0 {
 			appLabel = pod.Labels["app.kubernetes.io/instance"]
 		}
-		if appLabel == "" {
+		if len(appLabel) == 0 {
 			continue
 		}
 
