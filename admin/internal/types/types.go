@@ -38,14 +38,6 @@ type CreateChainAndNodeReq struct {
 	ChainName  string `json:"chain_name,optional"`
 }
 
-type CreateConfigReq struct {
-	TestStatus int64 `json:"test_status"`
-}
-
-type CreateServiceAndConfigReq struct {
-	TestStatus int64 `json:"test_status"`
-}
-
 type CreateServiceConfigManualReq struct {
 	Name            string   `json:"name"`
 	WemcpName       string   `json:"wemcp_name,optional"`
@@ -302,18 +294,9 @@ type UpdateServiceConfigReq struct {
 	OnlineStatus    *int64    `json:"online_status,omitempty"`
 }
 
-type UpdateServiceDescReq struct {
-	ServiceID string `json:"service_id,omitempty"`
-}
-
 type UpdateServiceOnlineReq struct {
 	Id           int64 `json:"id"`
 	OnlineStatus int64 `json:"online_status"`
-}
-
-type CreateServiceReq struct {
-	Ids     []int64 `json:"ids"`
-	Enabled *bool   `json:"enabled,omitempty"`
 }
 
 type UserFundStatsResp struct {
