@@ -46,7 +46,7 @@ func NewManualDeductionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *M
 }
 
 func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (resp *types.ManualDeductionResp, err error) {
-	operatorName := "System_Auto"
+	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, -1) // chargeSource=-1 表示管理员扣减，取当前管理员用户名
 	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserId)
 
 	// 管理员扣减使用请求中的 charge_type（如 2/3/5 等），4 为过期扣减专用不可用，无效或未传时默认 5

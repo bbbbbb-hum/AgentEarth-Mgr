@@ -58,7 +58,7 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 
 	// 2. 解析可选过期时间（格式 YYYY-MM-DD，不传或空为永久有效）
 	var expireTime sql.NullTime
-	if len(strings.TrimSpace(req.ExpireTime)) > 0 {
+	if len(strings.TrimSpace(req.ExpireTime)) > 0 { //字符串去掉首位空格，判断是否为非空
 		if t, parseErr := time.ParseInLocation("2006-01-02", strings.TrimSpace(req.ExpireTime), time.Local); parseErr == nil {
 			// 设为该日 23:59:59，表示该日结束前有效
 			endOfDay := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 0, time.Local)
