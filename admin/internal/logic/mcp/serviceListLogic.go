@@ -4,6 +4,7 @@ import (
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
 	"AgentEarth-Mgr/models"
+	"AgentEarth-Mgr/models/mcp"
 	"context"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -100,6 +101,10 @@ func (l *ServiceListLogic) ServiceList(req *types.ServiceListReq) (resp *types.B
 	if err != nil {
 		l.Logger.Errorf("GetListWithSearch error: %v", err)
 		return
+	}
+	// 如果列表为空，返回空数组而不是 nil
+	if list == nil {
+		list = []*mcp.AeMcpServices{}
 	}
 	resp = &types.BaseResp{
 		Code: 0,

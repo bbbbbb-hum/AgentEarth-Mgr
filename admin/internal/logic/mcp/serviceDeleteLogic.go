@@ -5,10 +5,12 @@ import (
 	configModel "AgentEarth-Mgr/models/config"
 	"AgentEarth-Mgr/models/mcp"
 	"context"
+	"errors"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
 
+	"github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 )
@@ -47,7 +49,6 @@ func (l *ServiceDeleteLogic) ServiceDelete(req *types.ServiceDeleteReq) (resp *t
 			err = l.svcCtx.DB.TransactCtx(l.ctx, func(ctx context.Context, session sqlx.Session) error {
 				sessConn := sqlx.NewSqlConnFromSession(session)
 				serviceModel := mcp.NewAeMcpServicesModel(sessConn)
-				serviceConfigModel := configModel.NewAeMcpExternalServicesConfigModel(sessConn)
 				taskChainModel := configModel.NewAeMcpTaskChainModel(sessConn)
 				taskNodeModel := configModel.NewAeMcpTaskNodeModel(sessConn)
 
@@ -70,16 +71,6 @@ func (l *ServiceDeleteLogic) ServiceDelete(req *types.ServiceDeleteReq) (resp *t
 						return err2
 					}
 				}
-				// 删除服务配置
-				err1 = serviceConfigModel.DeleteByConditions(ctx, []models.Condition{
-					{
-						Field: "server_id",
-						Value: service.ServerId,
-					},
-				})
-				if err1 != nil {
-					return err1
-				}
 				// 删除安装命令
 				err1 = l.svcCtx.McpServicesInstallModel.DeleteByConditions(ctx, []models.Condition{
 					{
@@ -87,6 +78,12 @@ func (l *ServiceDeleteLogic) ServiceDelete(req *types.ServiceDeleteReq) (resp *t
 						Value: service.ServerId,
 					},
 				})
+				if err1 != nil {
+					var pqErr *pq.Error
+					if errors.As(err1, &pqErr) && pqErr.Code == "42P01" {
+						err1 = nil
+					}
+				}
 				if err1 != nil {
 					return err1
 				}

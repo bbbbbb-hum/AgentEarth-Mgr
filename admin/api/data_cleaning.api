@@ -15,26 +15,6 @@ import "./base.api"
 	prefix: /manager/api/admin/data
 )
 service admin-api {
-	// 生成外部服务配置
-	@handler CreateConfig
-	post /create/config (CreateConfigReq) returns (BaseResp)
-
-	// 生成服务以及关联链，节点
-	@handler CreateServices
-	post /create/services returns (BaseResp)
-
-	// 单独生成服务
-	@handler CreateService
-	post /create/service returns (BaseResp)
-
-	// 更新服务的描述字段
-	@handler UpdateServiceDesc
-	post /update/service/desc (UpdateServiceDescReq) returns (BaseResp)
-
-	// 生成(更新)服务与配置
-	@handler CreateServiceAndConfig
-	post /create/service-and-config (CreateServiceAndConfigReq) returns (BaseResp)
-
 	// 生成链与节点
 	@handler CreateChainAndNode
 	post /create/chain-and-node (CreateChainAndNodeReq) returns (BaseResp)
@@ -61,15 +41,6 @@ service admin-api {
 }
 
 type (
-	CreateConfigReq {
-		TestStatus int64 `json:"test_status"`
-	}
-	UpdateServiceDescReq {
-		ServiceID string `json:"service_id,omitempty"`
-	}
-	CreateServiceAndConfigReq {
-		TestStatus int64 `json:"test_status"`
-	}
 	CreateChainAndNodeReq {
 		Ids []int64 `json:"ids,omitempty"`
 	}
@@ -130,7 +101,6 @@ type (
 		AccountRequired   int64  `json:"account_required"`
 		TestStatus        int64  `json:"test_status"`
 		OnlineStatus      int64  `json:"online_status"`
-		ExternalServiceId string `json:"external_service_id"`
 		ServerId          string `json:"server_id"`
 		CreateStatus      bool   `json:"create_status"`
 		CreateTime        string `json:"create_time"`

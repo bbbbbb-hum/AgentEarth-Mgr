@@ -22,13 +22,20 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
+	// MCP 工具调用可能耗时较长，确保 HTTP 超时不低于 60s
+	// go-zero 默认 Timeout=3000ms，太短会导致返回纯文本 "Request Timeout"
+	const minHTTPTimeout int64 = 60000
+	if c.Timeout < minHTTPTimeout {
+		c.Timeout = minHTTPTimeout
+	}
+
 	fmt.Printf("DB DataSource: %s\n", c.DB.DataSource)
-	server := rest.MustNewServer(c.RestConf) //创建一个http服务实例
-	defer server.Stop()                      //延迟执行，类似于finally，保证函数退出时关闭服务
+	server := rest.MustNewServer(c.RestConf)
+	defer server.Stop()
 
-	server.Use(middleware.ErrorHandlerMiddleware) //注册中间件
+	server.Use(middleware.ErrorHandlerMiddleware)
 
-	ctx := svc.NewServiceContext(c) //初始化资源上下文
+	ctx := svc.NewServiceContext(c)
 	{
 		var dbInfo struct {
 			Database string `db:"db"`
@@ -56,7 +63,6 @@ func main() {
 			fmt.Printf("DB Version: %s\n", dbInfo.Version)
 		}
 	}
-	//表结构存在性校验
 	{
 		var tableCheck struct {
 			Regclass *string `db:"regclass"`

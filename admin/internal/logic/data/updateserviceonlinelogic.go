@@ -27,7 +27,7 @@ func NewUpdateServiceOnlineLogic(ctx context.Context, svcCtx *svc.ServiceContext
 }
 
 func (l *UpdateServiceOnlineLogic) UpdateServiceOnline(req *types.UpdateServiceOnlineReq) (resp *types.BaseResp, err error) {
-	service, err := l.svcCtx.TaskNodeConfigModel.FindOne(l.ctx, req.Id)
+	service, err := l.svcCtx.TaskNodeConfigV2Model.FindOne(l.ctx, req.Id)
 	if err != nil {
 		logx.Errorf("Failed to find service config: %v", err)
 		return &types.BaseResp{
@@ -36,10 +36,9 @@ func (l *UpdateServiceOnlineLogic) UpdateServiceOnline(req *types.UpdateServiceO
 		}, nil
 	}
 
-	service.OnlineStatus.Valid = true
-	service.OnlineStatus.Int64 = req.OnlineStatus
+	service.OnlineStatus = req.OnlineStatus
 
-	err = l.svcCtx.TaskNodeConfigModel.Update(l.ctx, service)
+	err = l.svcCtx.TaskNodeConfigV2Model.Update(l.ctx, service)
 	if err != nil {
 		logx.Errorf("Failed to update service online status: %v", err)
 		return &types.BaseResp{

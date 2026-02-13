@@ -5,11 +5,11 @@ package data
 
 import (
 	"context"
-	"database/sql"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
 
+	"github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -28,7 +28,7 @@ func NewUpdateServiceConfigLogic(ctx context.Context, svcCtx *svc.ServiceContext
 }
 
 func (l *UpdateServiceConfigLogic) UpdateServiceConfig(req *types.UpdateServiceConfigReq) (resp *types.BaseResp, err error) {
-	existingConfig, err := l.svcCtx.TaskNodeConfigModel.FindOne(l.ctx, req.Id)
+	existingConfig, err := l.svcCtx.TaskNodeConfigV2Model.FindOne(l.ctx, req.Id)
 	if err != nil {
 		return &types.BaseResp{
 			Code:    -1,
@@ -40,47 +40,39 @@ func (l *UpdateServiceConfigLogic) UpdateServiceConfig(req *types.UpdateServiceC
 		existingConfig.Name = req.Name
 	}
 
-	if req.Type != "" {
-		existingConfig.Type = req.Type
-	}
-
 	if req.Description != "" {
 		existingConfig.Description = req.Description
 	}
 
-	if req.ProjectName != "" {
-		existingConfig.ProjectName = req.ProjectName
+	if req.WemcpName != nil && *req.WemcpName != "" {
+		existingConfig.WemcpName = *req.WemcpName
 	}
 
-	if req.MaxInstance != 0 {
-		existingConfig.MaxInstance = req.MaxInstance
+	if req.Tags != nil {
+		existingConfig.Tags = pq.StringArray(*req.Tags)
 	}
 
-	if req.LaunchInfo != nil {
-		existingConfig.LaunchInfo = *req.LaunchInfo
+	if req.Comments != nil {
+		existingConfig.Comments = *req.Comments
 	}
 
-	if req.ConnectInfo != nil {
-		existingConfig.ConnectInfo = *req.ConnectInfo
-	}
-
-	if req.InstallInfo != nil {
-		existingConfig.InstallInfo = sql.NullString{String: *req.InstallInfo, Valid: true}
+	if req.CodeSourceUrl != nil {
+		existingConfig.CodeSourceUrl = *req.CodeSourceUrl
 	}
 
 	if req.AccountRequired != nil {
-		existingConfig.AccountRequired = sql.NullInt64{Int64: *req.AccountRequired, Valid: true}
+		existingConfig.AccountRequired = *req.AccountRequired
 	}
 
 	if req.TestStatus != nil {
-		existingConfig.TestStatus = sql.NullInt64{Int64: *req.TestStatus, Valid: true}
+		existingConfig.TestStatus = *req.TestStatus
 	}
 
 	if req.OnlineStatus != nil {
-		existingConfig.OnlineStatus = sql.NullInt64{Int64: *req.OnlineStatus, Valid: true}
+		existingConfig.OnlineStatus = *req.OnlineStatus
 	}
 
-	err = l.svcCtx.TaskNodeConfigModel.Update(l.ctx, existingConfig)
+	err = l.svcCtx.TaskNodeConfigV2Model.Update(l.ctx, existingConfig)
 	if err != nil {
 		return &types.BaseResp{
 			Code:    -1,

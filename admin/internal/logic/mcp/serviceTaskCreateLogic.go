@@ -8,6 +8,7 @@ import (
 	"AgentEarth-Mgr/models/mcp"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/lib/pq"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -43,7 +44,9 @@ func (l *ServiceTaskCreateLogic) ServiceTaskCreate(req *types.ServiceTaskCreateR
 		return
 	}
 	if total > 0 {
-		go l.deal(serviceList)
+		if err := l.deal(serviceList); err != nil {
+			return nil, err
+		}
 	}
 	resp = &types.BaseResp{
 		Code:    0,
@@ -55,7 +58,7 @@ func (l *ServiceTaskCreateLogic) ServiceTaskCreate(req *types.ServiceTaskCreateR
 	return
 }
 
-func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) {
+func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) error {
 	var ctx = context.Background()
 	var num int64
 	for _, service := range services {
@@ -65,63 +68,92 @@ func (l *ServiceTaskCreateLogic) deal(services []*mcp.AeMcpServices) {
 			sessConn := sqlx.NewSqlConnFromSession(session)
 			nodeModel := configModel.NewAeMcpTaskNodeModel(sessConn)
 			chainModel := configModel.NewAeMcpTaskChainModel(sessConn)
-			serviceConfigModel := configModel.NewAeMcpExternalServicesConfigModel(sessConn)
 			serviceModel := mcp.NewAeMcpServicesModel(sessConn)
 
-			// 查询服务配置
-			config, err := serviceConfigModel.FindOneByCondition(ctx, []models.Condition{
-				{
-					Field: "server_id",
-					Value: service.ServerId,
-				},
-			})
-			if err != nil && !errors.Is(err, sqlx.ErrNotFound) {
-				return err
-			}
 			if service.TaskChainId > 0 {
 				return nil
 			}
-			// 创建节点
+			// 创建节点（不再依赖 ae_mcp_external_services_config）
+			nodeName := service.ServerName + " Node"
+			nodeDescription := "Proxy " + service.ServerName + " Node"
 			var node = configModel.AeMcpTaskNode{
-				NodeName:          config.Name + " Node",
-				NodeHandle:        "proxy_handle",
-				Enabled:           true,
-				ExternalServiceId: config.ExternalServiceId,
-				Description:       "Proxy " + config.Name + " Node",
+				NodeName:    nodeName,
+				NodeHandle:  "proxy_handle",
+				Enabled:     true,
+				Description: nodeDescription,
+				ServerId:    service.ServerId,
+				NodeConfig:  "{}",
 			}
 			nodeId, err1 := nodeModel.InsertReturningId(ctx, &node)
 			if err1 != nil {
-				return err1
+				var pqErr *pq.Error
+				if errors.As(err1, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "mcp_task_node_pkey" {
+					if resetErr := l.resetTaskNodeSeq(); resetErr != nil {
+						return resetErr
+					}
+					nodeId, err1 = nodeModel.InsertReturningId(ctx, &node)
+				}
+				if err1 != nil {
+					return err1
+				}
 			}
-			// 创建链
+			// 创建链（不再依赖 ae_mcp_external_services_config）
+			chainName := service.ServerName + " ProxyChain"
 			var chain = configModel.AeMcpTaskChain{
-				Name:    config.Name + " ProxyChain (" + config.Type + ")",
+				Name:    chainName,
 				Status:  "used",
 				NodeIds: pq.Int64Array{9, nodeId, 10},
 			}
 			chainId, err2 := chainModel.InsertReturningId(ctx, &chain)
 			if err2 != nil {
-				return err2
+				var pqErr *pq.Error
+				if errors.As(err2, &pqErr) && pqErr.Code == "23505" && pqErr.Constraint == "mcp_task_chain_pkey" {
+					if resetErr := l.resetTaskChainSeq(); resetErr != nil {
+						return resetErr
+					}
+					chainId, err2 = chainModel.InsertReturningId(ctx, &chain)
+				}
+				if err2 != nil {
+					return err2
+				}
 			}
 			// 更新服务
 			service.TaskChainId = chainId
-			err = serviceModel.Update(ctx, service)
-			if err != nil {
+			if err := serviceModel.Update(ctx, service); err != nil {
 				return err
-			}
-			// 更新服务配置
-			config.CreateStatus = true
-			err1 = serviceConfigModel.Update(ctx, config)
-			if err1 != nil {
-				l.Errorf("更新 config error: %s", err1.Error())
 			}
 			num++
 			return nil
 		})
 		if err != nil {
 			l.Errorf("创建 services failed, err: %s,ServerId:%s", err, service.ServerId)
+			return err
 		}
 	}
 	l.Infof("处理完成...")
 	l.Infof("数量：%d", num)
+	return nil
+}
+
+func (l *ServiceTaskCreateLogic) resetTaskNodeSeq() error {
+	return l.resetSeq("public.ae_mcp_task_node", "id")
+}
+
+func (l *ServiceTaskCreateLogic) resetTaskChainSeq() error {
+	return l.resetSeq("public.ae_mcp_task_chain", "id")
+}
+
+func (l *ServiceTaskCreateLogic) resetSeq(table string, column string) error {
+	var seq string
+	seqQuery := `select pg_get_serial_sequence($1, $2)`
+	err := l.svcCtx.DB.QueryRowCtx(l.ctx, &seq, seqQuery, table, column)
+	if err != nil {
+		return err
+	}
+	if seq == "" {
+		return errors.New("序列不存在")
+	}
+	setvalQuery := fmt.Sprintf(`select setval($1, (select coalesce(max(%s), 0) + 1 from %s), false)`, column, table)
+	_, err = l.svcCtx.DB.ExecCtx(l.ctx, setvalQuery, seq)
+	return err
 }

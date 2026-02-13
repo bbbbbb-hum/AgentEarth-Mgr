@@ -31,29 +31,23 @@ type BatchCloseServicesReq struct {
 }
 
 type CreateChainAndNodeReq struct {
-	Ids []int64 `json:"ids,omitempty"`
-}
-
-type CreateConfigReq struct {
-	TestStatus int64 `json:"test_status"`
-}
-
-type CreateServiceAndConfigReq struct {
-	TestStatus int64 `json:"test_status"`
+	ServerId   string `json:"server_id"`
+	NodeName   string `json:"node_name,optional"`
+	NodeHandle string `json:"node_handle,optional"`
+	NodeConfig string `json:"node_config,optional"`
+	ChainName  string `json:"chain_name,optional"`
 }
 
 type CreateServiceConfigManualReq struct {
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	Description     string `json:"description"`
-	ProjectName     string `json:"project_name"`
-	MaxInstance     int64  `json:"max_instance"`
-	LaunchInfo      string `json:"launch_info"`
-	ConnectInfo     string `json:"connect_info"`
-	InstallInfo     string `json:"install_info"`
-	AccountRequired int64  `json:"account_required"`
-	TestStatus      int64  `json:"test_status"`
-	OnlineStatus    int64  `json:"online_status"`
+	Name            string   `json:"name"`
+	WemcpName       string   `json:"wemcp_name,optional"`
+	Tags            []string `json:"tags,optional"`
+	Description     string   `json:"description"`
+	Comments        string   `json:"comments,optional"`
+	CodeSourceUrl   string   `json:"code_source_url,optional"`
+	AccountRequired int64    `json:"account_required"`
+	TestStatus      int64    `json:"test_status"`
+	OnlineStatus    int64    `json:"online_status"`
 }
 
 type DetailReq struct {
@@ -64,6 +58,7 @@ type GetServiceConfigListReq struct {
 	BaseListReq
 	FilterName            string `form:"filter_name,optional"`
 	FilterType            string `form:"filter_type,optional"`
+	FilterWemcpName       string `form:"filter_wemcp_name,optional"`
 	FilterAccountRequired string `form:"filter_account_required,optional"`
 	FilterTestStatus      string `form:"filter_test_status,optional"`
 	FilterOnlineStatus    string `form:"filter_online_status,optional"`
@@ -152,23 +147,37 @@ type ServiceConfigDeleteReq struct {
 }
 
 type ServiceConfigItem struct {
-	Id                int64  `json:"id"`
-	Name              string `json:"name"`
-	Type              string `json:"type"`
-	Description       string `json:"description"`
-	ProjectName       string `json:"project_name"`
-	MaxInstance       int64  `json:"max_instance"`
-	LaunchInfo        string `json:"launch_info"`
-	ConnectInfo       string `json:"connect_info"`
-	InstallInfo       string `json:"install_info"`
-	AccountRequired   int64  `json:"account_required"`
-	TestStatus        int64  `json:"test_status"`
-	OnlineStatus      int64  `json:"online_status"`
-	ExternalServiceId string `json:"external_service_id"`
-	ServerId          string `json:"server_id"`
-	CreateStatus      bool   `json:"create_status"`
-	CreateTime        string `json:"create_time"`
-	UpdateTime        string `json:"update_time"`
+	Id              int64  `json:"id"`
+	Name            string `json:"name"`
+	Type            string `json:"type"`
+	Description     string `json:"description"`
+	ProjectName     string `json:"project_name"`
+	MaxInstance     int64  `json:"max_instance"`
+	LaunchInfo      string `json:"launch_info"`
+	ConnectInfo     string `json:"connect_info"`
+	InstallInfo     string `json:"install_info"`
+	AccountRequired int64  `json:"account_required"`
+	TestStatus      int64  `json:"test_status"`
+	OnlineStatus    int64  `json:"online_status"`
+	ServerId        string `json:"server_id"`
+	CreateStatus    bool   `json:"create_status"`
+	CreateTime      string `json:"create_time"`
+	UpdateTime      string `json:"update_time"`
+}
+
+type ServiceConfigV2Item struct {
+	Id              int64    `json:"id"`
+	Name            string   `json:"name"`
+	WemcpName       string   `json:"wemcp_name"`
+	Tags            []string `json:"tags"`
+	Description     string   `json:"description"`
+	Comments        string   `json:"comments"`
+	CodeSourceUrl   string   `json:"code_source_url"`
+	AccountRequired int64    `json:"account_required"`
+	TestStatus      int64    `json:"test_status"`
+	OnlineStatus    int64    `json:"online_status"`
+	CreateTime      string   `json:"create_time"`
+	UpdateTime      string   `json:"update_time"`
 }
 
 type ServiceDeleteReq struct {
@@ -219,6 +228,28 @@ type ServiceUpdateIsCreateReq struct {
 	IsCreated bool  `json:"is_created"`
 }
 
+type ServiceUpdateEnabledReq struct {
+	Id      int64 `json:"id"`
+	Enabled bool  `json:"enabled"`
+}
+
+type ServiceCreateReq struct {
+	ServerName      string   `json:"server_name"`
+	Description     string   `json:"description,optional"`
+	ProjectName     string   `json:"project_name,optional"`
+	Enabled         bool     `json:"enabled"`
+	Tags            []string `json:"tags,optional"`
+	Logo            string   `json:"logo,optional"`
+	ProtocolVersion string   `json:"protocol_version,optional"`
+
+	Repository    string `json:"repository,optional"`
+	InstallCmd    string `json:"install_cmd,optional"`
+	PreinstallCmd string `json:"preinstall_cmd,optional"`
+	Port          int64  `json:"port,optional"`
+
+	ConnectInfo string `json:"connect_info,optional"`
+}
+
 type ServiceUpdatePriceReq struct {
 	ServerId string  `json:"server_id"`
 	Price    float64 `json:"price,optional"`
@@ -251,22 +282,16 @@ type SourceUpdateReq struct {
 }
 
 type UpdateServiceConfigReq struct {
-	Id              int64   `json:"id"`
-	Name            string  `json:"name"`
-	Type            string  `json:"type"`
-	Description     string  `json:"description"`
-	ProjectName     string  `json:"project_name"`
-	MaxInstance     int64   `json:"max_instance"`
-	LaunchInfo      *string `json:"launch_info,omitempty"`
-	ConnectInfo     *string `json:"connect_info,omitempty"`
-	InstallInfo     *string `json:"install_info,omitempty"`
-	AccountRequired *int64  `json:"account_required,omitempty"`
-	TestStatus      *int64  `json:"test_status,omitempty"`
-	OnlineStatus    *int64  `json:"online_status,omitempty"`
-}
-
-type UpdateServiceDescReq struct {
-	ServiceID string `json:"service_id,omitempty"`
+	Id              int64     `json:"id"`
+	Name            string    `json:"name"`
+	WemcpName       *string   `json:"wemcp_name,omitempty"`
+	Tags            *[]string `json:"tags,omitempty"`
+	Description     string    `json:"description"`
+	Comments        *string   `json:"comments,omitempty"`
+	CodeSourceUrl   *string   `json:"code_source_url,omitempty"`
+	AccountRequired *int64    `json:"account_required,omitempty"`
+	TestStatus      *int64    `json:"test_status,omitempty"`
+	OnlineStatus    *int64    `json:"online_status,omitempty"`
 }
 
 type UpdateServiceOnlineReq struct {
@@ -334,7 +359,7 @@ type ConsumptionRecordResp struct {
 type ManualRechargeReq struct {
 	UserId     string  `json:"user_id"`
 	Amount     float64 `json:"amount"`
-	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
+	ChargeType int64   `json:"charge_type"`   // 充值类型：1常规 2系统故障补偿 3活动赠送
 	Remarks    string  `json:"remarks,optional"`
 	ExpireTime string  `json:"expire_time,optional"` // 可选，格式 YYYY-MM-DD，不传或空为永久有效
 }
@@ -374,32 +399,40 @@ type BalanceHistoryResp struct {
 
 type FundChangeRecordReq struct {
 	UserId     string `path:"user_id"`
-	Filter     string `form:"filter,optional"`      // all, recharge, deduction
-	ChargeType int64  `form:"charge_type,optional"` // 1 用户常规充值；2 系统故障补偿；3 活动赠送；4 过期扣减；5 管理员扣减
-	Page       int64  `form:"page,optional"`        // 页码，从 1 开始，默认 1
-	PageSize   int64  `form:"page_size,optional"`   // 每页条数，默认 10
+	Filter     string `form:"filter,optional"`        // all, recharge, deduction
+	ChargeType int64  `form:"charge_type,optional"`  // 1 用户常规充值；2 系统故障补偿；3 活动赠送；4 过期扣减；5 管理员扣减
+	Page       int64  `form:"page,optional"`         // 页码，从 1 开始
+	PageSize   int64  `form:"page_size,optional"`    // 每页条数
 }
 
 type FundChangeRecordItem struct {
-	TransactionTime string  `json:"transaction_time"` // 交易时间
-	TypeDescription string  `json:"type_description"` // 类型说明
-	ChangeAmount    float64 `json:"change_amount"`    // 变动金额（正数为充值，负数为扣减）
-	Status          string  `json:"status"`           // 状态
-	Remarks         string  `json:"remarks"`          // 备注/原因
-	ChargeType      int64   `json:"charge_type"`      // 充值类型
-	ChargeTypeDesc  string  `json:"charge_type_desc"` // 充值类型说明
-	Operator        string  `json:"operator"`         // 操作人
-	// 仅充值时有效：批次信息（剩余额度、过期时间、状态）
-	BatchId           int64   `json:"batch_id,omitempty"`            // 批次ID（充值记录id）
+	TransactionTime   string  `json:"transaction_time"`   // 交易时间
+	TypeDescription   string  `json:"type_description"`  // 类型说明
+	ChangeAmount      float64 `json:"change_amount"`       // 变动金额（正数为充值，负数为扣减）
+	Status            string  `json:"status"`             // 状态
+	Remarks           string  `json:"remarks"`            // 备注/原因
+	ChargeType        int64   `json:"charge_type"`        // 充值类型
+	ChargeTypeDesc    string  `json:"charge_type_desc"`    // 充值类型说明
+	Operator          string  `json:"operator"`           // 操作人
+	BatchId           int64   `json:"batch_id,omitempty"`  // 批次ID（充值记录id）
 	InitialAmount     float64 `json:"initial_amount,omitempty"`      // 初始金额
 	RemainingAmount   float64 `json:"remaining_amount,omitempty"`    // 剩余额度（实时）
-	RemainingAtExpire float64 `json:"remaining_at_expire"` // 已过期时：过期那一刻的剩余金额；先填补后过期时为 0，需显式返回避免前端误用默认值
+	RemainingAtExpire float64 `json:"remaining_at_expire"`           // 已过期时：过期那一刻的剩余金额
 	ExpireTime        string  `json:"expire_time,omitempty"`         // 过期时间 YYYY-MM-DD 或 永久有效
 	BatchStatus       string  `json:"batch_status,omitempty"`        // 批次状态：使用中/已耗尽/已过期
-	OverdraftAmount   float64 `json:"overdraft_amount,omitempty"`    // 截至当前，该批次累计透支金额（>=0，用于前端展示“透支X”标签）
+	OverdraftAmount   float64 `json:"overdraft_amount,omitempty"`    // 截至当前，该批次累计透支金额
 }
 
 type FundChangeRecordResp struct {
 	List  []FundChangeRecordItem `json:"list"`
 	Total int64                  `json:"total"` // 符合筛选条件的总条数
+}
+
+type GetTaskNodeNodeConfigReq struct {
+	ServerId string `form:"server_id"`
+}
+
+type UpdateTaskNodeNodeConfigReq struct {
+	ServerId   string `json:"server_id"`
+	NodeConfig string `json:"node_config"`
 }

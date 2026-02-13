@@ -1,3 +1,17 @@
 Name: admin-api
 Host: 0.0.0.0
 Port: 8888
+
+# K8s集群状态同步配置
+K8sSync:
+  Enabled: true
+  Namespace: ""  # 留空则自动从 ServiceAccount 读取
+
+# MCP测试配置
+McpTest:
+  # wemcp服务地址模式, {name}会被替换为wemcp_name
+  # 本地开发/测试环境: https://{namespace}.agentearth.ai/wemcp/{name}
+  # 生产环境(集群内部): http://ae-{name}-service:8081
+  ServiceUrlPattern: "https://dev07.agentearth.ai/wemcp/{name}"
+  # 默认超时时间(秒)
+  DefaultTimeout: 30

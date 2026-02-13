@@ -41,9 +41,9 @@ func (m *customAeMcpTaskNodeModel) withSession(session sqlx.Session) AeMcpTaskNo
 
 // InsertReturningId inserts a record and returns the generated id using RETURNING.
 func (m *customAeMcpTaskNodeModel) InsertReturningId(ctx context.Context, data *AeMcpTaskNode) (int64, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5) returning id", m.table, aeMcpTaskNodeRowsExpectAutoSet)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6) returning id", m.table, aeMcpTaskNodeRowsExpectAutoSet)
 	var id int64
-	if err := m.conn.QueryRowCtx(ctx, &id, query, data.NodeName, data.NodeHandle, data.Enabled, data.ExternalServiceId, data.Description); err != nil {
+	if err := m.conn.QueryRowCtx(ctx, &id, query, data.NodeName, data.NodeHandle, data.Enabled, data.Description, data.ServerId, data.NodeConfig); err != nil {
 		return 0, err
 	}
 	return id, nil
