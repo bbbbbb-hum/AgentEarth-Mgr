@@ -77,7 +77,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 		currentBalance = 0
 	}
 
-	//totalDeducted表示管理员实际扣减的余额
+	//totalDeducted表示管理员实际已经扣减的余额，当前初始化为0
 	var totalDeducted decimal.Decimal
 	//insertCount表示管理员实际插入的扣减记录数
 	var insertCount int
@@ -90,7 +90,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 		var deltaStartTime time.Time
 
 		// 再次查询用户余额快照，保证事务内严谨性，强制所有查询在同一数据库事务内
-		// 与GetLatestBalance不同的是，会返回快照金额 + 金额日期，sanp这个结构体，方便我们选取截至日期来查增量
+		// 与GetLatestBalance不同的是，会返回快照金额 + 金额日期，sanp这个结构体，算增量需要用到日期
 		snap, errSnap := txBalanceModel.QueryLatestBalanceSnapshot(ctx, req.UserId)
 		if errSnap != nil {
 			l.Errorf("[ManualDeduction] 查询快照失败: user_id=%s, err=%v", req.UserId, errSnap)
@@ -105,7 +105,7 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 		} else {
 			// 无快照，视为 0，从最早时间开始全量计算增量
 			snapshotBal = decimal.Zero
-			deltaStartTime = time.Time{}
+			deltaStartTime = time.Time{} //把deltaStartTime清空，充值为0(因为没有余额快照，只能从最初开始计算增量)
 			l.Infof("[ManualDeduction] 用户 %s 无余额快照，使用全量流水计算总余额", req.UserId)
 		}
 
@@ -119,7 +119,10 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 		if val, parseErr := decimal.NewFromString(deltaStr); parseErr == nil {
 			deltaBal = val
 		}
+
+		//计算当前的全局余额
 		globalBalance := snapshotBal.Add(deltaBal)
+
 		l.Infof("[ManualDeduction] 余额预校验明细: user_id=%s, snapshot=%s, delta=%s, global=%s",
 			req.UserId, snapshotBal.String(), deltaBal.String(), globalBalance.String())
 
@@ -231,14 +234,14 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 	})
 
 	if err != nil {
-		if errorsAsErrNoRechargeBatch(err) {
+		if errors.Is(err, errNoRechargeBatch) {
 			return &types.ManualDeductionResp{
 				Success: false,
 				Message: "该用户无可用充值批次，无法扣减",
 			}, nil
 		}
 		var e errInsufficientBalance
-		if errorsAsErrInsufficientBalance(err, &e) {
+		if errors.As(err, &e) {
 			return &types.ManualDeductionResp{
 				Success: false,
 				Message: fmt.Sprintf("余额不足，当前可用余额 %s，需扣减 %s，不允许透支", e.Available.String(), e.Required.String()),
@@ -274,20 +277,4 @@ type errInsufficientBalance struct {
 
 func (e errInsufficientBalance) Error() string {
 	return fmt.Sprintf("余额不足: 需扣减 %s, 可用 %s", e.Required.String(), e.Available.String())
-}
-
-func errorsAsErrNoRechargeBatch(err error) bool {
-	return errors.Is(err, errNoRechargeBatch)
-}
-
-func errorsAsErrInsufficientBalance(err error, target *errInsufficientBalance) bool {
-	if err == nil || target == nil {
-		return false
-	}
-	var e errInsufficientBalance
-	if errors.As(err, &e) {
-		*target = e
-		return true
-	}
-	return false
 }

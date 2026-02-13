@@ -53,12 +53,11 @@ func (m *customAeUserBalanceStatisticDailyModel) GetLatestBalance(ctx context.Co
 	var balance float64
 	err := m.conn.QueryRowCtx(ctx, &balance, query, userId)
 	switch err {
-	case nil:
+	case nil: //查询成功，且至少有一行
 		return balance, nil
-	case sqlx.ErrNotFound:
-		// 没有记录时视为 0 余额
+	case sqlx.ErrNotFound: //查询成功，但没有查到任何一行
 		return 0, nil
-	default:
+	default: //真正出现了错误
 		return 0, err
 	}
 }
