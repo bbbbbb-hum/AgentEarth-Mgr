@@ -1,0 +1,79 @@
+syntax = "v1"
+
+info (
+	title:   "自动化规则配置"
+	desc:    "负责规则的增删改查与手动执行"
+	author:  "cbl"
+	email:   ""
+	version: "v1.0.0"
+)
+
+type (
+    // 规则的展示实体 (对应数据库 ae_marketing_rule)
+    RuleItem {
+        Id             int64  `json:"id"`
+        Name           string `json:"name"`
+        Description    string `json:"description"`
+        IsActive       bool   `json:"is_active"` // 对应 sql 里的 bool 类型
+        CronExpression string `json:"cron_expression"`
+        FilterConfig   string `json:"filter_config"` // JSONB 传给前端转成 String
+        ActionConfig   string `json:"action_config"` // JSONB 传给前端转成 String
+        LastExecTime   string `json:"last_exec_time"`
+        CreateTime     string `json:"create_time"`
+    }
+
+    // 保存规则请求 (包含新建和编辑)
+    SaveRuleReq {
+        Id             int64  `json:"id,optional"` // optional：没传ID就是新增，传了ID就是更新
+        Name           string `json:"name"`
+        Description    string `json:"description,optional"`
+        IsActive       bool   `json:"is_active"`
+        CronExpression string `json:"cron_expression"`
+        FilterConfig   string `json:"filter_config"`
+        ActionConfig   string `json:"action_config"`
+    }
+
+    // 规则列表响应数据
+    RuleListResp {
+        Total int64      `json:"total"`
+        List  []RuleItem `json:"list"`
+    }
+
+    // 切换状态请求 (快捷启停)
+    ToggleRuleReq {
+        Id       int64 `json:"id"`
+        IsActive bool  `json:"is_active"`
+    }
+
+    // 手动执行请求
+    ManualRunReq {
+        RuleId int64 `json:"rule_id"`
+    }
+
+    // 手动执行响应
+    ManualRunResp {
+        Success   bool   `json:"success"`
+        ExecCount int    `json:"exec_count"`
+        Message   string `json:"message"`
+    }
+)
+
+@server (
+    jwt: Auth       // 挂载你项目现有的 JWT 鉴权
+    group: rules    // 核心2：告诉 goctl 把生成的 logic 和 handler 放到 rules 文件夹下
+    prefix: /manager/api/rules
+)
+service admin-api {
+    @handler GetRuleList
+    // 核心3：直接使用 base.api 里的 BaseListReq 作为入参
+    get /list (BaseListReq) returns (RuleListResp)
+
+    @handler SaveRule
+    post /save (SaveRuleReq)
+
+    @handler ToggleRule
+    post /toggle (ToggleRuleReq)
+
+    @handler ManualRun
+    post /manual-run (ManualRunReq) returns (ManualRunResp)
+}

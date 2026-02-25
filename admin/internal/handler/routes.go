@@ -9,6 +9,7 @@ import (
 	auth "AgentEarth-Mgr/admin/internal/handler/auth"
 	data "AgentEarth-Mgr/admin/internal/handler/data"
 	mcp "AgentEarth-Mgr/admin/internal/handler/mcp"
+	rules "AgentEarth-Mgr/admin/internal/handler/rules"
 	source "AgentEarth-Mgr/admin/internal/handler/source"
 	userfund "AgentEarth-Mgr/admin/internal/handler/userfund"
 	"AgentEarth-Mgr/admin/internal/svc"
@@ -70,34 +71,18 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Path:    "/service-config/list",
 				Handler: data.GetServiceConfigListHandler(serverCtx),
 			},
-		{
-			Method:  http.MethodPost,
-			Path:    "/refresh-service-online-status",
-			Handler: data.RefreshServiceOnlineStatusHandler(serverCtx),
-		},
-		{
-			Method:  http.MethodPost,
-			Path:    "/update-service-online",
-			Handler: data.UpdateServiceOnlineHandler(serverCtx),
-		},
+			{
+				Method:  http.MethodPost,
+				Path:    "/update-service-online",
+				Handler: data.UpdateServiceOnlineHandler(serverCtx),
+			},
 			{
 				Method:  http.MethodPost,
 				Path:    "/update/service-config",
 				Handler: data.UpdateServiceConfigHandler(serverCtx),
 			},
-			{
-				Method:  http.MethodGet,
-				Path:    "/task-node/node-config",
-				Handler: data.GetTaskNodeNodeConfigHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/task-node/node-config",
-				Handler: data.UpdateTaskNodeNodeConfigHandler(serverCtx),
-			},
 		},
 		rest.WithPrefix("/manager/api/admin/data"),
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 	)
 
 	server.AddRoutes(
@@ -174,39 +159,8 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodPost,
-				Path:    "/service/create",
-				Handler: mcp.ServiceCreateHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
 				Path:    "/service/task/create",
 				Handler: mcp.ServiceTaskCreateHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/service/update/created-group",
-				Handler: mcp.ServiceUpdateCreatedGroupHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/service/update/is_create",
-				Handler: mcp.ServiceUpdateIsCreateHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/service/update/enabled",
-				Handler: mcp.ServiceUpdateEnabledHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
-				Path:    "/service/update/price",
-				Handler: mcp.ServiceUpdatePriceHandler(serverCtx),
-			},
-			// ==================== MCP服务测试接口 ====================
-			{
-				Method:  http.MethodPost,
-				Path:    "/service/test/connect",
-				Handler: mcp.ServiceTestConnectHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodPost,
@@ -220,8 +174,23 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodPost,
-				Path:    "/service/test/disconnect",
-				Handler: mcp.ServiceTestDisconnectHandler(serverCtx),
+				Path:    "/service/test/connect",
+				Handler: mcp.ServiceTestConnectHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/update/created-group",
+				Handler: mcp.ServiceUpdateCreatedGroupHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/update/is_create",
+				Handler: mcp.ServiceUpdateIsCreateHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/service/update/price",
+				Handler: mcp.ServiceUpdatePriceHandler(serverCtx),
 			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
@@ -237,6 +206,33 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 		},
 		rest.WithPrefix("/manager-inner"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/list",
+				Handler: rules.GetRuleListHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/manual-run",
+				Handler: rules.ManualRunHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/save",
+				Handler: rules.SaveRuleHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/toggle",
+				Handler: rules.ToggleRuleHandler(serverCtx),
+			},
+		},
+		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
+		rest.WithPrefix("/manager/api/rules"),
 	)
 
 	server.AddRoutes(
@@ -304,13 +300,13 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodGet,
-				Path:    "/user/:user_id/consumption",
-				Handler: userfund.GetConsumptionRecordsHandler(serverCtx),
+				Path:    "/user/:user_id/balance",
+				Handler: userfund.GetBalanceHistoryHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
-				Path:    "/user/:user_id/balance",
-				Handler: userfund.GetBalanceHistoryHandler(serverCtx),
+				Path:    "/user/:user_id/consumption",
+				Handler: userfund.GetConsumptionRecordsHandler(serverCtx),
 			},
 			{
 				Method:  http.MethodGet,
@@ -319,16 +315,15 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			},
 			{
 				Method:  http.MethodPost,
-				Path:    "/user/recharge",
-				Handler: userfund.ManualRechargeHandler(serverCtx),
-			},
-			{
-				Method:  http.MethodPost,
 				Path:    "/user/deduction",
 				Handler: userfund.ManualDeductionHandler(serverCtx),
 			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/user/recharge",
+				Handler: userfund.ManualRechargeHandler(serverCtx),
+			},
 		},
-		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),
 		rest.WithPrefix("/manager/api/userfund"),
 	)
 }

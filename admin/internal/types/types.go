@@ -12,6 +12,20 @@ type AccountSyncReq struct {
 	Ids []int64 `json:"ids"` // 账号ID列表
 }
 
+type BalanceHistoryItem struct {
+	Day     string  `json:"day"`     // 日期 YYYY-MM-DD
+	Balance float64 `json:"balance"` // 余额
+}
+
+type BalanceHistoryReq struct {
+	UserId string `path:"user_id"`
+	Days   int    `form:"days,default=7"` // 7 或 30
+}
+
+type BalanceHistoryResp struct {
+	List []BalanceHistoryItem `json:"list"`
+}
+
 type BaseListReq struct {
 	Page   int64  `form:"page,optional"`
 	Size   int64  `form:"size,optional"`
@@ -30,35 +44,78 @@ type BatchCloseServicesReq struct {
 	TestStatus int64 `json:"test_status"`
 }
 
+type ConsumptionRecordItem struct {
+	Day          string  `json:"day"`           // 日期 YYYY-MM-DD
+	SelfConsume  float64 `json:"self_consume"`  // 自行消费金额
+	SystemDeduct float64 `json:"system_deduct"` // 系统扣减金额（来自充值表负值）
+}
+
+type ConsumptionRecordReq struct {
+	UserId string `path:"user_id"`
+	Days   int    `form:"days,default=7"` // 7 或 30
+}
+
+type ConsumptionRecordResp struct {
+	List []ConsumptionRecordItem `json:"list"`
+}
+
 type CreateChainAndNodeReq struct {
-	ServerId   string `json:"server_id"`
-	NodeName   string `json:"node_name,optional"`
-	NodeHandle string `json:"node_handle,optional"`
-	NodeConfig string `json:"node_config,optional"`
-	ChainName  string `json:"chain_name,optional"`
+	Ids []int64 `json:"ids,omitempty"`
 }
 
 type CreateServiceConfigManualReq struct {
-	Name            string   `json:"name"`
-	WemcpName       string   `json:"wemcp_name,optional"`
-	Tags            []string `json:"tags,optional"`
-	Description     string   `json:"description"`
-	Comments        string   `json:"comments,optional"`
-	CodeSourceUrl   string   `json:"code_source_url,optional"`
-	AccountRequired int64    `json:"account_required"`
-	TestStatus      int64    `json:"test_status"`
-	OnlineStatus    int64    `json:"online_status"`
+	Name            string `json:"name"`
+	Type            string `json:"type"`
+	Description     string `json:"description"`
+	ProjectName     string `json:"project_name"`
+	MaxInstance     int64  `json:"max_instance"`
+	LaunchInfo      string `json:"launch_info"`
+	ConnectInfo     string `json:"connect_info"`
+	InstallInfo     string `json:"install_info"`
+	AccountRequired int64  `json:"account_required"`
+	TestStatus      int64  `json:"test_status"`
+	OnlineStatus    int64  `json:"online_status"`
 }
 
 type DetailReq struct {
 	Id int64 `path:"id"`
 }
 
+type FundChangeRecordItem struct {
+	TransactionTime   string  `json:"transaction_time"`
+	TypeDescription   string  `json:"type_description"`
+	ChangeAmount      float64 `json:"change_amount"`
+	Status            string  `json:"status"`
+	Remarks           string  `json:"remarks"`
+	ChargeType        int64   `json:"charge_type"`
+	ChargeTypeDesc    string  `json:"charge_type_desc"`
+	Operator          string  `json:"operator"`
+	BatchId           int64   `json:"batch_id,omitempty"`
+	InitialAmount     float64 `json:"initial_amount,omitempty"`
+	RemainingAmount   float64 `json:"remaining_amount,omitempty"`
+	RemainingAtExpire float64 `json:"remaining_at_expire"`
+	ExpireTime        string  `json:"expire_time,omitempty"`
+	BatchStatus       string  `json:"batch_status,omitempty"`
+	OverdraftAmount   float64 `json:"overdraft_amount,omitempty"`
+}
+
+type FundChangeRecordReq struct {
+	UserId     string `path:"user_id"`
+	Filter     string `form:"filter,optional"`      // all, recharge, deduction
+	ChargeType int64  `form:"charge_type,optional"` // 1 用户常规充值；2 系统故障补偿；3 活动赠送；4 过期扣减；5 管理员扣减
+	Page       int64  `form:"page,optional"`
+	PageSize   int64  `form:"page_size,optional"`
+}
+
+type FundChangeRecordResp struct {
+	List  []FundChangeRecordItem `json:"list"`
+	Total int64                  `json:"total"`
+}
+
 type GetServiceConfigListReq struct {
 	BaseListReq
 	FilterName            string `form:"filter_name,optional"`
 	FilterType            string `form:"filter_type,optional"`
-	FilterWemcpName       string `form:"filter_wemcp_name,optional"`
 	FilterAccountRequired string `form:"filter_account_required,optional"`
 	FilterTestStatus      string `form:"filter_test_status,optional"`
 	FilterOnlineStatus    string `form:"filter_online_status,optional"`
@@ -90,6 +147,70 @@ type LoginResp struct {
 	Code    int64     `json:"code"`
 	Message string    `json:"message"`
 	Data    LoginData `json:"data"`
+}
+
+type ManualDeductionReq struct {
+	UserId     string  `json:"user_id"`
+	Amount     float64 `json:"amount"`
+	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
+	Remarks    string  `json:"remarks,optional"`
+}
+
+type ManualDeductionResp struct {
+	Success    bool    `json:"success"`
+	Message    string  `json:"message"`
+	NewBalance float64 `json:"new_balance"`
+}
+
+type ManualRechargeReq struct {
+	UserId     string  `json:"user_id"`
+	Amount     float64 `json:"amount"`
+	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
+	Remarks    string  `json:"remarks,optional"`
+	ExpireTime string  `json:"expire_time,optional"` // 可选，格式 YYYY-MM-DD，不传或空为永久有效
+}
+
+type ManualRechargeResp struct {
+	Success    bool    `json:"success"`
+	Message    string  `json:"message"`
+	NewBalance float64 `json:"new_balance"`
+}
+
+type ManualRunReq struct {
+	RuleId int64 `json:"rule_id"`
+}
+
+type ManualRunResp struct {
+	Success   bool   `json:"success"`
+	ExecCount int    `json:"exec_count"`
+	Message   string `json:"message"`
+}
+
+type RuleItem struct {
+	Id             int64  `json:"id"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	IsActive       bool   `json:"is_active"` // 对应 sql 里的 bool 类型
+	CronExpression string `json:"cron_expression"`
+	FilterConfig   string `json:"filter_config"` // JSONB 传给前端转成 String
+	ActionConfig   string `json:"action_config"` // JSONB 传给前端转成 String
+	LastExecTime   string `json:"last_exec_time"`
+	CreateTime     string `json:"create_time"`
+}
+
+type RuleListResp struct {
+	Total int64      `json:"total"`
+	List  []RuleItem `json:"list"`
+}
+
+type SaveRuleReq struct {
+	Id             int64  `json:"id,optional"` // optional：没传ID就是新增，传了ID就是更新
+	Name           string `json:"name"`
+	Description    string `json:"description,optional"`
+	IsActive       bool   `json:"is_active"`
+	CronExpression string `json:"cron_expression"`
+	FilterConfig   string `json:"filter_config"`
+	ActionConfig   string `json:"action_config"`
 }
 
 type ServiceBatchCloseReq struct {
@@ -165,21 +286,6 @@ type ServiceConfigItem struct {
 	UpdateTime      string `json:"update_time"`
 }
 
-type ServiceConfigV2Item struct {
-	Id              int64    `json:"id"`
-	Name            string   `json:"name"`
-	WemcpName       string   `json:"wemcp_name"`
-	Tags            []string `json:"tags"`
-	Description     string   `json:"description"`
-	Comments        string   `json:"comments"`
-	CodeSourceUrl   string   `json:"code_source_url"`
-	AccountRequired int64    `json:"account_required"`
-	TestStatus      int64    `json:"test_status"`
-	OnlineStatus    int64    `json:"online_status"`
-	CreateTime      string   `json:"create_time"`
-	UpdateTime      string   `json:"update_time"`
-}
-
 type ServiceDeleteReq struct {
 	Ids []int64 `json:"ids"`
 }
@@ -213,6 +319,23 @@ type ServiceTaskCreateReq struct {
 	Ids []int64 `json:"ids"`
 }
 
+type ServiceTestCallReq struct {
+	ConfigId  int64  `json:"config_id"`          // 服务配置ID
+	ToolName  string `json:"tool_name"`          // 工具名称
+	Arguments string `json:"arguments,optional"` // 工具参数JSON字符串
+	Timeout   int    `json:"timeout,optional"`   // 超时秒数，默认30
+}
+
+type ServiceTestConfirmReq struct {
+	ConfigId   int64 `json:"config_id"`   // 服务配置ID
+	TestStatus int   `json:"test_status"` // 测试状态: 1=通过, -1=失败
+}
+
+type ServiceTestConnectReq struct {
+	ConfigId int64 `json:"config_id"`        // 服务配置ID (ae_mcp_external_services_config_v2.id)
+	Timeout  int   `json:"timeout,optional"` // 超时秒数，默认30
+}
+
 type ServiceTestStatusUpdateReq struct {
 	Ids        []int64 `json:"ids"`         // 数据源ID
 	TestStatus int64   `json:"test_status"` // 测试状态
@@ -226,28 +349,6 @@ type ServiceUpdateCreatedGroupReq struct {
 type ServiceUpdateIsCreateReq struct {
 	Id        int64 `json:"id"`
 	IsCreated bool  `json:"is_created"`
-}
-
-type ServiceUpdateEnabledReq struct {
-	Id      int64 `json:"id"`
-	Enabled bool  `json:"enabled"`
-}
-
-type ServiceCreateReq struct {
-	ServerName      string   `json:"server_name"`
-	Description     string   `json:"description,optional"`
-	ProjectName     string   `json:"project_name,optional"`
-	Enabled         bool     `json:"enabled"`
-	Tags            []string `json:"tags,optional"`
-	Logo            string   `json:"logo,optional"`
-	ProtocolVersion string   `json:"protocol_version,optional"`
-
-	Repository    string `json:"repository,optional"`
-	InstallCmd    string `json:"install_cmd,optional"`
-	PreinstallCmd string `json:"preinstall_cmd,optional"`
-	Port          int64  `json:"port,optional"`
-
-	ConnectInfo string `json:"connect_info,optional"`
 }
 
 type ServiceUpdatePriceReq struct {
@@ -281,22 +382,40 @@ type SourceUpdateReq struct {
 	Install         string `json:"install"`          // 安装命令
 }
 
+type ToggleRuleReq struct {
+	Id       int64 `json:"id"`
+	IsActive bool  `json:"is_active"`
+}
+
 type UpdateServiceConfigReq struct {
-	Id              int64     `json:"id"`
-	Name            string    `json:"name"`
-	WemcpName       *string   `json:"wemcp_name,omitempty"`
-	Tags            *[]string `json:"tags,omitempty"`
-	Description     string    `json:"description"`
-	Comments        *string   `json:"comments,omitempty"`
-	CodeSourceUrl   *string   `json:"code_source_url,omitempty"`
-	AccountRequired *int64    `json:"account_required,omitempty"`
-	TestStatus      *int64    `json:"test_status,omitempty"`
-	OnlineStatus    *int64    `json:"online_status,omitempty"`
+	Id              int64   `json:"id"`
+	Name            string  `json:"name"`
+	Type            string  `json:"type"`
+	Description     string  `json:"description"`
+	ProjectName     string  `json:"project_name"`
+	MaxInstance     int64   `json:"max_instance"`
+	LaunchInfo      *string `json:"launch_info,omitempty"`
+	ConnectInfo     *string `json:"connect_info,omitempty"`
+	InstallInfo     *string `json:"install_info,omitempty"`
+	AccountRequired *int64  `json:"account_required,omitempty"`
+	TestStatus      *int64  `json:"test_status,omitempty"`
+	OnlineStatus    *int64  `json:"online_status,omitempty"`
 }
 
 type UpdateServiceOnlineReq struct {
 	Id           int64 `json:"id"`
 	OnlineStatus int64 `json:"online_status"`
+}
+
+type UserDetailReq struct {
+	UserId string `path:"user_id"`
+}
+
+type UserDetailResp struct {
+	User             UserItem `json:"user"`
+	CurrentBalance   float64  `json:"current_balance"`
+	DailyConsumption float64  `json:"daily_consumption"`
+	FundRunway       int64    `json:"fund_runway"` // 资金续航天数
 }
 
 type UserFundStatsResp struct {
@@ -323,116 +442,10 @@ type UserListReq struct {
 	Page     int    `form:"page,default=1"`
 	PageSize int    `form:"pageSize,default=10"`
 	Search   string `form:"search,optional"`
+	Status   string `form:"status,optional"` // active: 30天内登录, inactive: 超过30天未登录
 }
 
 type UserListResp struct {
 	List  []UserItem `json:"list"`
 	Total int64      `json:"total"`
-}
-
-type UserDetailReq struct {
-	UserId string `path:"user_id"`
-}
-
-type UserDetailResp struct {
-	User             UserItem `json:"user"`
-	CurrentBalance   float64  `json:"current_balance"`
-	DailyConsumption float64  `json:"daily_consumption"`
-	FundRunway       int64    `json:"fund_runway"` // 资金续航天数
-}
-
-type ConsumptionRecordReq struct {
-	UserId string `path:"user_id"`
-	Days   int    `form:"days,default=7"` // 7 或 30
-}
-
-type ConsumptionRecordItem struct {
-	Day          string  `json:"day"`           // 日期 YYYY-MM-DD
-	SelfConsume  float64 `json:"self_consume"`  // 自行消费金额
-	SystemDeduct float64 `json:"system_deduct"` // 系统扣减金额（来自充值表负值）
-}
-
-type ConsumptionRecordResp struct {
-	List []ConsumptionRecordItem `json:"list"`
-}
-
-type ManualRechargeReq struct {
-	UserId     string  `json:"user_id"`
-	Amount     float64 `json:"amount"`
-	ChargeType int64   `json:"charge_type"`   // 充值类型：1常规 2系统故障补偿 3活动赠送
-	Remarks    string  `json:"remarks,optional"`
-	ExpireTime string  `json:"expire_time,optional"` // 可选，格式 YYYY-MM-DD，不传或空为永久有效
-}
-
-type ManualRechargeResp struct {
-	Success    bool    `json:"success"`
-	Message    string  `json:"message"`
-	NewBalance float64 `json:"new_balance"`
-}
-
-type ManualDeductionReq struct {
-	UserId     string  `json:"user_id"`
-	Amount     float64 `json:"amount"`
-	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
-	Remarks    string  `json:"remarks,optional"`
-}
-
-type ManualDeductionResp struct {
-	Success    bool    `json:"success"`
-	Message    string  `json:"message"`
-	NewBalance float64 `json:"new_balance"`
-}
-
-type BalanceHistoryReq struct {
-	UserId string `path:"user_id"`
-	Days   int    `form:"days,default=7"` // 7 或 30
-}
-
-type BalanceHistoryItem struct {
-	Day     string  `json:"day"`     // 日期 YYYY-MM-DD
-	Balance float64 `json:"balance"` // 余额
-}
-
-type BalanceHistoryResp struct {
-	List []BalanceHistoryItem `json:"list"`
-}
-
-type FundChangeRecordReq struct {
-	UserId     string `path:"user_id"`
-	Filter     string `form:"filter,optional"`        // all, recharge, deduction
-	ChargeType int64  `form:"charge_type,optional"`  // 1 用户常规充值；2 系统故障补偿；3 活动赠送；4 过期扣减；5 管理员扣减
-	Page       int64  `form:"page,optional"`         // 页码，从 1 开始
-	PageSize   int64  `form:"page_size,optional"`    // 每页条数
-}
-
-type FundChangeRecordItem struct {
-	TransactionTime   string  `json:"transaction_time"`   // 交易时间
-	TypeDescription   string  `json:"type_description"`  // 类型说明
-	ChangeAmount      float64 `json:"change_amount"`       // 变动金额（正数为充值，负数为扣减）
-	Status            string  `json:"status"`             // 状态
-	Remarks           string  `json:"remarks"`            // 备注/原因
-	ChargeType        int64   `json:"charge_type"`        // 充值类型
-	ChargeTypeDesc    string  `json:"charge_type_desc"`    // 充值类型说明
-	Operator          string  `json:"operator"`           // 操作人
-	BatchId           int64   `json:"batch_id,omitempty"`  // 批次ID（充值记录id）
-	InitialAmount     float64 `json:"initial_amount,omitempty"`      // 初始金额
-	RemainingAmount   float64 `json:"remaining_amount,omitempty"`    // 剩余额度（实时）
-	RemainingAtExpire float64 `json:"remaining_at_expire"`           // 已过期时：过期那一刻的剩余金额
-	ExpireTime        string  `json:"expire_time,omitempty"`         // 过期时间 YYYY-MM-DD 或 永久有效
-	BatchStatus       string  `json:"batch_status,omitempty"`        // 批次状态：使用中/已耗尽/已过期
-	OverdraftAmount   float64 `json:"overdraft_amount,omitempty"`    // 截至当前，该批次累计透支金额
-}
-
-type FundChangeRecordResp struct {
-	List  []FundChangeRecordItem `json:"list"`
-	Total int64                  `json:"total"` // 符合筛选条件的总条数
-}
-
-type GetTaskNodeNodeConfigReq struct {
-	ServerId string `form:"server_id"`
-}
-
-type UpdateTaskNodeNodeConfigReq struct {
-	ServerId   string `json:"server_id"`
-	NodeConfig string `json:"node_config"`
 }

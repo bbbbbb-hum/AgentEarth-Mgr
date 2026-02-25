@@ -1,12 +1,12 @@
 syntax = "v1"
 
-/*
- * File Name: userfund.api
- * Description: AgentEarth User Fund Management Module - API Definition
- * Created Date: 2026-01-24
- *
- * API Route Prefix: /manager/api/userfund
- */
+info (
+	title:   "用户资金管理"
+	desc:    "资金管理模块"
+	author:  "cbl"
+	email:   ""
+	version: "v1.0.0"
+)
 
 type (
     UserFundStatsResp {
