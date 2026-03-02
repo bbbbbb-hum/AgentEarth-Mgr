@@ -22,15 +22,30 @@ type (
         CreateTime     string `json:"create_time"`
     }
 
-    // 保存规则请求 (包含新建和编辑)
+    // 保存规则请求 (包含新建和编辑；表单字段由后端转为 filter_config/action_config)
     SaveRuleReq {
-        Id             int64  `json:"id,optional"` // optional：没传ID就是新增，传了ID就是更新
+        Id             int64  `json:"id,optional"`
         Name           string `json:"name"`
         Description    string `json:"description,optional"`
         IsActive       bool   `json:"is_active"`
-        CronExpression string `json:"cron_expression"`
-        FilterConfig   string `json:"filter_config"`
-        ActionConfig   string `json:"action_config"`
+        CronExpression string `json:"cron_expression,optional"`
+        FilterConfig   string `json:"filter_config,optional"`
+        ActionConfig   string `json:"action_config,optional"`
+        Frequency      string   `json:"frequency,optional"`
+        DayOfMonth     int64    `json:"day_of_month,optional"`
+        DayOfWeek      int64    `json:"day_of_week,optional"`
+        ExecTime       string   `json:"exec_time,optional"`
+        TargetStatuses []string `json:"target_statuses,optional"`
+        MinRegDays     int64    `json:"min_reg_days,optional"`
+        MaxRegDays     int64    `json:"max_reg_days,optional"`
+        LastLoginWithinDays int64   `json:"last_login_within_days,optional"`
+        MinLastMonthConsume float64 `json:"min_last_month_consume,optional"`
+        MaxLastMonthConsume float64 `json:"max_last_month_consume,optional"`
+        MinBalance     float64 `json:"min_balance,optional"`
+        MaxBalance     float64 `json:"max_balance,optional"`
+        ActionType     string  `json:"action_type,optional"`
+        ActionAmount   float64 `json:"action_amount,optional"`
+        ExpireStrategy string  `json:"expire_strategy,optional"`
     }
 
     // 规则列表响应数据

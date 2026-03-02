@@ -6,6 +6,7 @@ import (
 	"AgentEarth-Mgr/models/external"
 	"AgentEarth-Mgr/models/fund"
 	"AgentEarth-Mgr/models/mcp"
+	ruleModel "AgentEarth-Mgr/models/rules"
 	"AgentEarth-Mgr/models/users"
 
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
@@ -28,6 +29,11 @@ type ServiceContext struct {
 	RechargeAllocationModel         fund.AeRechargeAllocationModel
 	UserBalanceDailyModel           fund.AeUserBalanceStatisticDailyModel
 	UserConsumptionDailyModel       fund.AeUserConsumptionRecordDailyModel
+
+	// 自动规则配置相关 model
+	RuleModel           ruleModel.AeRuleModel
+	RuleExecutionLogMod ruleModel.AeRuleExecutionLogModel
+	RuleQueryModel      ruleModel.RuleQueryModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -49,5 +55,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		RechargeAllocationModel:         fund.NewAeRechargeAllocationModel(db),
 		UserBalanceDailyModel:           fund.NewAeUserBalanceStatisticDailyModel(db),
 		UserConsumptionDailyModel:       fund.NewAeUserConsumptionRecordDailyModel(db),
+
+		RuleModel:           ruleModel.NewAeRuleModel(db),
+		RuleExecutionLogMod: ruleModel.NewAeRuleExecutionLogModel(db),
+		RuleQueryModel:      ruleModel.NewRuleQueryModel(db),
 	}
 }

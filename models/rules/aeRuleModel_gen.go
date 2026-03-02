@@ -17,10 +17,29 @@ import (
 )
 
 var (
-	aeRuleFieldNames          = builder.RawFieldNames(&AeRule{}, true)
-	aeRuleRows                = strings.Join(aeRuleFieldNames, ",")
-	aeRuleRowsExpectAutoSet   = strings.Join(stringx.Remove(aeRuleFieldNames, "id", "create_at", "create_time", "created_at", "update_at", "update_time", "updated_at"), ",")
-	aeRuleRowsWithPlaceHolder = builder.PostgreSqlJoin(stringx.Remove(aeRuleFieldNames, "id", "create_at", "create_time", "created_at", "update_at", "update_time", "updated_at"))
+	aeRuleFieldNames        = builder.RawFieldNames(&AeRule{}, true)
+	aeRuleRows              = strings.Join(aeRuleFieldNames, ",")
+	aeRuleRowsExpectAutoSet = strings.Join(
+		stringx.Remove(
+			aeRuleFieldNames,
+			"id",
+			"create_at",
+			"created_at",
+			"update_at",
+			"updated_at",
+		),
+		",",
+	)
+	aeRuleRowsWithPlaceHolder = builder.PostgreSqlJoin(
+		stringx.Remove(
+			aeRuleFieldNames,
+			"id",
+			"create_at",
+			"created_at",
+			"update_at",
+			"updated_at",
+		),
+	)
 )
 
 type (
@@ -45,8 +64,10 @@ type (
 		TriggerKey   string         `db:"trigger_key"`
 		FilterConfig string         `db:"filter_config"`
 		ActionConfig string         `db:"action_config"`
-		CreatedTime  time.Time      `db:"created_time"`
-		UpdatedTime  time.Time      `db:"updated_time"`
+		NextRunTime  sql.NullTime   `db:"next_run_time"`
+		LastRunTime  sql.NullTime   `db:"last_run_time"`
+		CreateTime  time.Time      `db:"create_time"`
+		UpdateTime  time.Time      `db:"update_time"`
 	}
 )
 
@@ -78,14 +99,14 @@ func (m *defaultAeRuleModel) FindOne(ctx context.Context, id int64) (*AeRule, er
 }
 
 func (m *defaultAeRuleModel) Insert(ctx context.Context, data *AeRule) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)", m.table, aeRuleRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Description, data.Status, data.Priority, data.TriggerKey, data.FilterConfig, data.ActionConfig, data.CreatedTime, data.UpdatedTime)
+	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)", m.table, aeRuleRowsExpectAutoSet)
+	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Description, data.Status, data.Priority, data.TriggerKey, data.FilterConfig, data.ActionConfig, data.NextRunTime, data.LastRunTime, data.CreateTime, data.UpdateTime)
 	return ret, err
 }
 
 func (m *defaultAeRuleModel) Update(ctx context.Context, data *AeRule) error {
 	query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeRuleRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.Name, data.Description, data.Status, data.Priority, data.TriggerKey, data.FilterConfig, data.ActionConfig, data.CreatedTime, data.UpdatedTime)
+	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.Name, data.Description, data.Status, data.Priority, data.TriggerKey, data.FilterConfig, data.ActionConfig, data.NextRunTime, data.LastRunTime, data.CreateTime, data.UpdateTime)
 	return err
 }
 

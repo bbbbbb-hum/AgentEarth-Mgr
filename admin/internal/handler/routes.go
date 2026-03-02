@@ -212,6 +212,26 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		[]rest.Route{
 			{
 				Method:  http.MethodGet,
+				Path:    "/dashboard",
+				Handler: rules.GetRuleDashboardHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/delete",
+				Handler: rules.DeleteRuleHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/execution/details",
+				Handler: rules.GetRuleExecutionDetailsHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
+				Path:    "/execution/runs",
+				Handler: rules.GetRuleExecutionRunsHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodGet,
 				Path:    "/list",
 				Handler: rules.GetRuleListHandler(serverCtx),
 			},
@@ -229,6 +249,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/toggle",
 				Handler: rules.ToggleRuleHandler(serverCtx),
+			},
+			{
+				Method:  http.MethodPost,
+				Path:    "/audience-preview",
+				Handler: rules.AudiencePreviewHandler(serverCtx),
 			},
 		},
 		rest.WithJwt(serverCtx.Config.Auth.AccessSecret),

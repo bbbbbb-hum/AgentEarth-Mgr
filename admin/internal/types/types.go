@@ -60,21 +60,34 @@ type ConsumptionRecordResp struct {
 }
 
 type CreateChainAndNodeReq struct {
-	Ids []int64 `json:"ids,omitempty"`
+	Ids        []int64 `json:"ids,omitempty"`
+	ServerId   string  `json:"server_id"`
+	NodeName   string  `json:"node_name,optional"`
+	NodeHandle string  `json:"node_handle,optional"`
+	NodeConfig string  `json:"node_config,optional"`
+	ChainName  string  `json:"chain_name,optional"`
 }
 
 type CreateServiceConfigManualReq struct {
-	Name            string `json:"name"`
-	Type            string `json:"type"`
-	Description     string `json:"description"`
-	ProjectName     string `json:"project_name"`
-	MaxInstance     int64  `json:"max_instance"`
-	LaunchInfo      string `json:"launch_info"`
-	ConnectInfo     string `json:"connect_info"`
-	InstallInfo     string `json:"install_info"`
-	AccountRequired int64  `json:"account_required"`
-	TestStatus      int64  `json:"test_status"`
-	OnlineStatus    int64  `json:"online_status"`
+	Name            string   `json:"name"`
+	Type            string   `json:"type"`
+	Description     string   `json:"description"`
+	ProjectName     string   `json:"project_name"`
+	MaxInstance     int64    `json:"max_instance"`
+	LaunchInfo      string   `json:"launch_info"`
+	ConnectInfo     string   `json:"connect_info"`
+	InstallInfo     string   `json:"install_info"`
+	AccountRequired int64    `json:"account_required"`
+	TestStatus      int64    `json:"test_status"`
+	OnlineStatus    int64    `json:"online_status"`
+	WemcpName       string   `json:"wemcp_name"`
+	Comments        string   `json:"comments,optional"`
+	CodeSourceUrl   string   `json:"code_source_url,optional"`
+	Tags            []string `json:"tags,optional"`
+}
+
+type DeleteRuleReq struct {
+	Id int64 `json:"id"`
 }
 
 type DetailReq struct {
@@ -115,6 +128,7 @@ type FundChangeRecordResp struct {
 type GetServiceConfigListReq struct {
 	BaseListReq
 	FilterName            string `form:"filter_name,optional"`
+	FilterWemcpName       string `form:"filter_wemcp_name,optional"`
 	FilterType            string `form:"filter_type,optional"`
 	FilterAccountRequired string `form:"filter_account_required,optional"`
 	FilterTestStatus      string `form:"filter_test_status,optional"`
@@ -132,6 +146,15 @@ type IdsReq struct {
 	Ids []int64 `json:"ids"`
 }
 
+type GetTaskNodeNodeConfigReq struct {
+	ServerId string `json:"server_id"`
+}
+
+type UpdateTaskNodeNodeConfigReq struct {
+	ServerId   string `json:"server_id"`
+	NodeConfig string `json:"node_config"`
+}
+
 type LoginData struct {
 	Token    string `json:"token"`
 	UserId   string `json:"user_id"`
@@ -147,6 +170,20 @@ type LoginResp struct {
 	Code    int64     `json:"code"`
 	Message string    `json:"message"`
 	Data    LoginData `json:"data"`
+}
+
+type ServiceCreateReq struct {
+	ServerName      string   `json:"server_name"`
+	ProjectName     string   `json:"project_name,optional"`
+	Logo            string   `json:"logo,optional"`
+	ProtocolVersion string   `json:"protocol_version,optional"`
+	Description     string   `json:"description,optional"`
+	Tags            []string `json:"tags,optional"`
+}
+
+type ServiceUpdateEnabledReq struct {
+	Id      int64 `json:"id"`
+	Enabled bool  `json:"enabled"`
 }
 
 type ManualDeductionReq struct {
@@ -186,10 +223,59 @@ type ManualRunResp struct {
 	Message   string `json:"message"`
 }
 
+type RuleDashboardResp struct {
+	RunningRules        int64   `json:"running_rules"`
+	MonthlyTouchedUsers int64   `json:"monthly_touched_users"`
+	MonthlyAutoPoints   float64 `json:"monthly_auto_points"`
+}
+
+type RuleExecutionRunsReq struct {
+	RuleId int64 `form:"rule_id"`
+	Page   int64 `form:"page,optional"`
+	Size   int64 `form:"size,optional"`
+}
+
+type RuleExecutionRunItem struct {
+	RunTime      string `json:"run_time"`
+	ExecSource   string `json:"exec_source"`
+	TotalCount   int64  `json:"total_count"`
+	SuccessCount int64  `json:"success_count"`
+	FailedCount  int64  `json:"failed_count"`
+}
+
+type RuleExecutionRunsResp struct {
+	Total int64                  `json:"total"`
+	List  []RuleExecutionRunItem `json:"list"`
+}
+
+type RuleExecutionDetailsReq struct {
+	RuleId     int64  `form:"rule_id"`
+	RunTime    string `form:"run_time"`
+	ExecSource string `form:"exec_source,optional"`
+}
+
+type RuleExecutionDetailItem struct {
+	TriggerTime  string  `json:"trigger_time"`
+	ExecSource   string  `json:"exec_source"`
+	UserId       string  `json:"user_id"`
+	UserName     string  `json:"user_name"`
+	Operator     string  `json:"operator"`
+	ChangeAmount float64 `json:"change_amount"`
+	Status       string  `json:"status"`
+	Remark       string  `json:"remark"`
+	ActionType   string  `json:"action_type"`
+}
+
+type RuleExecutionDetailsResp struct {
+	Total int64                     `json:"total"`
+	List  []RuleExecutionDetailItem `json:"list"`
+}
+
 type RuleItem struct {
 	Id             int64  `json:"id"`
 	Name           string `json:"name"`
 	Description    string `json:"description"`
+	Priority       int64  `json:"priority"`
 	IsActive       bool   `json:"is_active"` // 对应 sql 里的 bool 类型
 	CronExpression string `json:"cron_expression"`
 	FilterConfig   string `json:"filter_config"` // JSONB 传给前端转成 String
@@ -207,10 +293,63 @@ type SaveRuleReq struct {
 	Id             int64  `json:"id,optional"` // optional：没传ID就是新增，传了ID就是更新
 	Name           string `json:"name"`
 	Description    string `json:"description,optional"`
+	Priority       int64  `json:"priority,optional"`
 	IsActive       bool   `json:"is_active"`
-	CronExpression string `json:"cron_expression"`
-	FilterConfig   string `json:"filter_config"`
-	ActionConfig   string `json:"action_config"`
+	CronExpression string `json:"cron_expression,optional"`
+	FilterConfig   string `json:"filter_config,optional"`
+	ActionConfig   string `json:"action_config,optional"`
+
+	// 触发器表单字段（前端不直接编辑 cron）
+	Frequency  string `json:"frequency,optional"`    // monthly/weekly/daily
+	DayOfMonth int64  `json:"day_of_month,optional"` // 1-28
+	DayOfWeek  int64  `json:"day_of_week,optional"`  // 0-6
+	ExecTime   string `json:"exec_time,optional"`    // HH:mm
+
+	// 筛选表单字段（后台转换为 filter_config json）
+	TargetStatuses      []string `json:"target_statuses,optional"`
+	MinRegDays          int64    `json:"min_reg_days,optional"`
+	MaxRegDays          int64    `json:"max_reg_days,optional"`           // 0=不限制，>0 表示仅注册在 N 天内的用户（新用户）
+	LastLoginWithinDays int64    `json:"last_login_within_days,optional"` // 0=不限制，>0 表示最近 N 天内有登录
+	MinLastMonthConsume float64  `json:"min_last_month_consume,optional"` // 上月消费金额下限，0=不限制
+	MaxLastMonthConsume float64  `json:"max_last_month_consume,optional"` // 上月消费金额上限，0=不限制
+	MinBalance          float64  `json:"min_balance,optional"`            // 当前余额下限，<0 表示不限制
+	MaxBalance          float64  `json:"max_balance,optional"`            // 当前余额上限，<0 表示不限制
+	RegChannel          string   `json:"reg_channel,optional"`            // 注册渠道：google/local 等
+	MinHistoryRecharge  float64  `json:"min_history_recharge,optional"`   // 历史累计充值下限，0=不限制
+	MaxHistoryRecharge  float64  `json:"max_history_recharge,optional"`   // 历史累计充值上限，0=不限制
+
+	// 动作表单字段（后台转换为 action_config json）
+	ActionType     string  `json:"action_type,optional"`     // add_points/deduct_points
+	ActionAmount   float64 `json:"action_amount,optional"`   // 点数
+	ExpireStrategy string  `json:"expire_strategy,optional"` // month_end/never/fixed_days
+}
+
+// AudiencePreviewReq 受众预览请求：与 SaveRule 的筛选字段一致，用于实时查看当前条件将作用哪些用户
+type AudiencePreviewReq struct {
+	MinRegDays          int64    `json:"min_reg_days,optional"`
+	MaxRegDays          int64    `json:"max_reg_days,optional"`
+	LastLoginWithinDays int64    `json:"last_login_within_days,optional"`
+	MinLastMonthConsume float64  `json:"min_last_month_consume,optional"`
+	MaxLastMonthConsume float64  `json:"max_last_month_consume,optional"`
+	MinBalance          float64  `json:"min_balance,optional"`
+	MaxBalance          float64  `json:"max_balance,optional"`
+	RegChannel          string   `json:"reg_channel,optional"`
+	MinHistoryRecharge  float64  `json:"min_history_recharge,optional"`
+	MaxHistoryRecharge  float64  `json:"max_history_recharge,optional"`
+	Page                int64    `json:"page,optional"` // 从 1 开始
+	Size                int64    `json:"size,optional"` // 每页条数，建议 500
+}
+
+// AudiencePreviewUserItem 预览结果中的单条用户
+type AudiencePreviewUserItem struct {
+	UserId   string `json:"user_id"`
+	Username string `json:"username"`
+}
+
+// AudiencePreviewResp 受众预览响应：总人数 + 当前页用户列表（前端可循环请求直到取完所有页）
+type AudiencePreviewResp struct {
+	Total int64                     `json:"total"`
+	List  []AudiencePreviewUserItem `json:"list"`
 }
 
 type ServiceBatchCloseReq struct {
@@ -286,6 +425,21 @@ type ServiceConfigItem struct {
 	UpdateTime      string `json:"update_time"`
 }
 
+type ServiceConfigV2Item struct {
+	Id              int64    `json:"id"`
+	Name            string   `json:"name"`
+	WemcpName       string   `json:"wemcp_name"`
+	Tags            []string `json:"tags"`
+	Description     string   `json:"description"`
+	Comments        string   `json:"comments"`
+	CodeSourceUrl   string   `json:"code_source_url"`
+	AccountRequired int64    `json:"account_required"`
+	TestStatus      int64    `json:"test_status"`
+	OnlineStatus    int64    `json:"online_status"`
+	CreateTime      string   `json:"create_time"`
+	UpdateTime      string   `json:"update_time"`
+}
+
 type ServiceDeleteReq struct {
 	Ids []int64 `json:"ids"`
 }
@@ -317,23 +471,6 @@ type ServiceShellCreateReq struct {
 
 type ServiceTaskCreateReq struct {
 	Ids []int64 `json:"ids"`
-}
-
-type ServiceTestCallReq struct {
-	ConfigId  int64  `json:"config_id"`          // 服务配置ID
-	ToolName  string `json:"tool_name"`          // 工具名称
-	Arguments string `json:"arguments,optional"` // 工具参数JSON字符串
-	Timeout   int    `json:"timeout,optional"`   // 超时秒数，默认30
-}
-
-type ServiceTestConfirmReq struct {
-	ConfigId   int64 `json:"config_id"`   // 服务配置ID
-	TestStatus int   `json:"test_status"` // 测试状态: 1=通过, -1=失败
-}
-
-type ServiceTestConnectReq struct {
-	ConfigId int64 `json:"config_id"`        // 服务配置ID (ae_mcp_external_services_config_v2.id)
-	Timeout  int   `json:"timeout,optional"` // 超时秒数，默认30
 }
 
 type ServiceTestStatusUpdateReq struct {
@@ -388,18 +525,22 @@ type ToggleRuleReq struct {
 }
 
 type UpdateServiceConfigReq struct {
-	Id              int64   `json:"id"`
-	Name            string  `json:"name"`
-	Type            string  `json:"type"`
-	Description     string  `json:"description"`
-	ProjectName     string  `json:"project_name"`
-	MaxInstance     int64   `json:"max_instance"`
-	LaunchInfo      *string `json:"launch_info,omitempty"`
-	ConnectInfo     *string `json:"connect_info,omitempty"`
-	InstallInfo     *string `json:"install_info,omitempty"`
-	AccountRequired *int64  `json:"account_required,omitempty"`
-	TestStatus      *int64  `json:"test_status,omitempty"`
-	OnlineStatus    *int64  `json:"online_status,omitempty"`
+	Id              int64     `json:"id"`
+	Name            string    `json:"name"`
+	Type            string    `json:"type"`
+	Description     string    `json:"description"`
+	ProjectName     string    `json:"project_name"`
+	MaxInstance     int64     `json:"max_instance"`
+	LaunchInfo      *string   `json:"launch_info,omitempty"`
+	ConnectInfo     *string   `json:"connect_info,omitempty"`
+	InstallInfo     *string   `json:"install_info,omitempty"`
+	AccountRequired *int64    `json:"account_required,omitempty"`
+	TestStatus      *int64    `json:"test_status,omitempty"`
+	OnlineStatus    *int64    `json:"online_status,omitempty"`
+	WemcpName       *string   `json:"wemcp_name,omitempty"`
+	Tags            *[]string `json:"tags,omitempty"`
+	Comments        *string   `json:"comments,omitempty"`
+	CodeSourceUrl   *string   `json:"code_source_url,omitempty"`
 }
 
 type UpdateServiceOnlineReq struct {

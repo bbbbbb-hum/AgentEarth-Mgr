@@ -20,7 +20,7 @@ func GetRuleListHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		l := rules.NewGetRuleListLogic(r.Context(), svcCtx)
+		l := rules.NewRuleListLogic(r.Context(), svcCtx)
 		resp, err := l.GetRuleList(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)

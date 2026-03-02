@@ -1,6 +1,3 @@
-// Code scaffolded by goctl. Safe to edit.
-// goctl 1.9.2
-
 package rules
 
 import (
@@ -12,21 +9,20 @@ import (
 	"github.com/zeromicro/go-zero/rest/httpx"
 )
 
-func ManualRunHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+func DeleteRuleHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.ManualRunReq
+		var req types.DeleteRuleReq
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
 		}
 
-		opCtx := withOperatorIdentityCtx(r, svcCtx)
-		l := rules.NewManualRunLogic(opCtx, svcCtx)
-		resp, err := l.ManualRun(&req)
+		l := rules.NewDeleteRuleLogic(r.Context(), svcCtx)
+		resp, err := l.DeleteRule(&req)
 		if err != nil {
-			httpx.ErrorCtx(opCtx, w, err)
+			httpx.ErrorCtx(r.Context(), w, err)
 		} else {
-			httpx.OkJsonCtx(opCtx, w, resp)
+			httpx.OkJsonCtx(r.Context(), w, resp)
 		}
 	}
 }

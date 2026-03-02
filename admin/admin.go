@@ -7,6 +7,7 @@ import (
 
 	"AgentEarth-Mgr/admin/internal/config"
 	"AgentEarth-Mgr/admin/internal/handler"
+	ruleLogic "AgentEarth-Mgr/admin/internal/logic/rules"
 	"AgentEarth-Mgr/admin/internal/middleware"
 	"AgentEarth-Mgr/admin/internal/svc"
 
@@ -35,7 +36,7 @@ func main() {
 
 	server.Use(middleware.ErrorHandlerMiddleware)
 
-	ctx := svc.NewServiceContext(c)
+	svcCtx := svc.NewServiceContext(c)
 	{
 		var dbInfo struct {
 			Database string `db:"db"`
@@ -46,7 +47,7 @@ func main() {
 			DataDir  string `db:"data_dir"`
 			Version  string `db:"version"`
 		}
-		err := ctx.DB.QueryRowCtx(context.Background(), &dbInfo, `
+		err := svcCtx.DB.QueryRowCtx(context.Background(), &dbInfo, `
 			select
 				current_database() as db,
 				current_schema() as schema,
@@ -67,7 +68,7 @@ func main() {
 		var tableCheck struct {
 			Regclass *string `db:"regclass"`
 		}
-		err := ctx.DB.QueryRowCtx(context.Background(), &tableCheck, `
+		err := svcCtx.DB.QueryRowCtx(context.Background(), &tableCheck, `
 			select to_regclass('public.ae_mgrsystem_user') as regclass
 		`)
 		if err != nil {
@@ -85,7 +86,7 @@ func main() {
 			Kind   string `db:"kind"`
 		}
 		var rels []relInfo
-		err := ctx.DB.QueryRowsCtx(context.Background(), &rels, `
+		err := svcCtx.DB.QueryRowsCtx(context.Background(), &rels, `
 			select n.nspname as schema, c.relname as name, c.relkind as kind
 			from pg_class c
 			join pg_namespace n on n.oid = c.relnamespace
@@ -103,7 +104,11 @@ func main() {
 			}
 		}
 	}
-	handler.RegisterHandlers(server, ctx)
+	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
+	defer cancelScheduler()
+	ruleLogic.StartAutoRuleScheduler(schedulerCtx, svcCtx)
+
+	handler.RegisterHandlers(server, svcCtx)
 
 	fmt.Printf("Starting server at %s:%d...\n", c.Host, c.Port)
 	server.Start()
