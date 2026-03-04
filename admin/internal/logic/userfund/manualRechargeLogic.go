@@ -42,7 +42,8 @@ func NewManualRechargeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 }
 
 func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp *types.ManualRechargeResp, err error) {
-	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, 1)
+	// charge_source=2：运营手工单个操作，对应后台人工充值
+	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, 2)
 	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserId)
 	// 充值类型直接使用新枚举（101/201/301）；<=0 时默认常规充值 101
 	chargeType := req.ChargeType
