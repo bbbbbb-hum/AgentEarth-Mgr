@@ -50,7 +50,7 @@ const neverExpireYear = 9999
 func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleModel.AeRule, execSource, operator string) (int, error) {
 	logger := logx.WithContext(ctx)
 
-	// 1. 定义用于反序列化 FilterConfig 的 struct（已不再包含用户状态筛选）。
+	// 1. 定义用于反序列化 FilterConfig 的 struct。
 	var fCfg struct {
 		MinRegDays          int64   `json:"min_reg_days"`
 		MaxRegDays          int64   `json:"max_reg_days"`
@@ -178,58 +178,45 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 	return successCount, nil
 }
 
-// parseRechargeActionConfig 解析规则的 action_config，目前仅支持含有一个或多个 recharge 动作的配置。
-// 支持两种格式：
-// 1）新版：{"actions":[{"action_type":"recharge","action_body":{"charge_type":301,"amount":100,"expire_strategy":"month_end"}}]}
-// 2）旧版：{"type":"add_points","amount":100,"expire_strategy":"month_end"}
+// parseRechargeActionConfig 解析规则的 action_config，目前仅支持含有一个或多个 recharge 动作的新版配置。
+// 新版示例：
+// {"actions":[{"action_type":"recharge","action_body":{"charge_type":301,"amount":100,"expire_strategy":"month_end"}}]}
 func parseRechargeActionConfig(raw string) (amount float64, chargeType int64, expireStrategy string, err error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return 0, 0, "", fmt.Errorf("动作配置为空")
 	}
 
-	// 优先尝试新版结构
+	// 解析新版结构
 	var cfg ruleActionsConfig
-	if e := json.Unmarshal([]byte(raw), &cfg); e == nil && len(cfg.Actions) > 0 {
-		// 选择第一个 recharge 动作；如果没有显式 recharge，则取第一个动作兜底。
-		selected := &cfg.Actions[0]
-		for i := range cfg.Actions {
-			if strings.EqualFold(cfg.Actions[i].ActionType, "recharge") {
-				selected = &cfg.Actions[i]
-				break
-			}
-		}
-		var body rechargeActionBody
-		if err := json.Unmarshal(selected.ActionBody, &body); err != nil {
-			return 0, 0, "", fmt.Errorf("解析 recharge 动作配置失败: %w", err)
-		}
-		if body.Amount <= 0 {
-			return 0, 0, "", fmt.Errorf("动作金额必须大于0")
-		}
-		if body.ChargeType == 0 {
-			// 兼容旧语义：不填时默认活动赠送（301）
-			body.ChargeType = 301
-		}
-		return body.Amount, body.ChargeType, body.ExpireStrategy, nil
-	}
-
-	// 兼容旧格式：{"type":"add_points","amount":100,"expire_strategy":"month_end"}
-	var legacy struct {
-		Type           string  `json:"type"`
-		Amount         float64 `json:"amount"`
-		ExpireStrategy string  `json:"expire_strategy"`
-	}
-	if err := json.Unmarshal([]byte(raw), &legacy); err != nil {
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
 		return 0, 0, "", fmt.Errorf("解析动作配置失败: %w", err)
 	}
-	if legacy.Amount <= 0 {
+	if len(cfg.Actions) == 0 {
+		return 0, 0, "", fmt.Errorf("动作列表不能为空")
+	}
+
+	// 选择一个合适的 recharge 动作；如果没有显式 recharge，则取第一个动作兜底。
+	selected := &cfg.Actions[0]
+	for i := range cfg.Actions {
+		if strings.EqualFold(cfg.Actions[i].ActionType, "recharge") {
+			selected = &cfg.Actions[i]
+			break
+		}
+	}
+
+	var body rechargeActionBody
+	if err := json.Unmarshal(selected.ActionBody, &body); err != nil {
+		return 0, 0, "", fmt.Errorf("解析 recharge 动作配置失败: %w", err)
+	}
+	if body.Amount <= 0 {
 		return 0, 0, "", fmt.Errorf("动作金额必须大于0")
 	}
-	if strings.TrimSpace(legacy.Type) == "" {
-		legacy.Type = "add_points"
+	if body.ChargeType == 0 {
+		// 兼容旧语义：不填时默认活动赠送（301）
+		body.ChargeType = 301
 	}
-	// 旧格式未显式提供 charge_type，按旧逻辑默认活动赠送 301。
-	return legacy.Amount, 301, legacy.ExpireStrategy, nil
+	return body.Amount, body.ChargeType, body.ExpireStrategy, nil
 }
 
 // buildExpireTime 根据配置的过期策略，算出充值记录的 expire_time。
@@ -244,7 +231,10 @@ func buildExpireTime(expireStrategy string, now time.Time, rechargeAmount float6
 		monthEnd := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()).Add(-time.Second)
 		return sql.NullTime{Time: monthEnd, Valid: true}
 	case "fixed_30_days":
-		return sql.NullTime{Time: now.AddDate(0, 0, 30), Valid: true}
+		// 包含当日的 30 个自然日：到第 30 日 23:59:59 失效
+		dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		dayEnd := dayStart.AddDate(0, 0, 30).Add(-time.Second)
+		return sql.NullTime{Time: dayEnd, Valid: true}
 	case "never":
 		// 使用一个极远的未来时间表示“永不过期”，避免与「无意义的过期时间（NULL）」混淆。
 		never := time.Date(neverExpireYear, 12, 31, 23, 59, 59, 0, now.Location())
@@ -263,7 +253,10 @@ func buildExpireTime(expireStrategy string, now time.Time, rechargeAmount float6
 			raw := strings.TrimPrefix(strategy, "fixed_")
 			raw = strings.TrimSuffix(raw, "_days")
 			if days, err := strconv.Atoi(raw); err == nil && days > 0 {
-				return sql.NullTime{Time: now.AddDate(0, 0, days), Valid: true}
+				// 包含当日的 N 个自然日：到第 N 日 23:59:59 失效
+				dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+				dayEnd := dayStart.AddDate(0, 0, days).Add(-time.Second)
+				return sql.NullTime{Time: dayEnd, Valid: true}
 			}
 		}
 		return sql.NullTime{Valid: false}

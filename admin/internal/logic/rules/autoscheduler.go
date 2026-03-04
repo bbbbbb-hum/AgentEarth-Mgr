@@ -31,7 +31,7 @@ type autoRuleScheduler struct {
 var globalAutoRuleScheduler *autoRuleScheduler
 
 // StartAutoRuleScheduler 初始化自动规则调度器：争抢一次分布式锁，加载所有已启用规则并注册到 cron。
-// 之后的定时触发完全由 robfig/cron 接管，不再使用 Ticker + 轮询。
+// 之后的定时触发完全由 robfig/cron 接管，不再轮询。
 func StartAutoRuleScheduler(ctx context.Context, svcCtx *svc.ServiceContext) {
 	logger := logx.WithContext(ctx)
 
@@ -55,7 +55,7 @@ func StartAutoRuleScheduler(ctx context.Context, svcCtx *svc.ServiceContext) {
 		baseCtx: ctx,
 		svcCtx:  svcCtx,
 		cron:    cron.New(),                   //使用默认解析规则的 cron 调度器
-		entries: make(map[int64]cron.EntryID), // 初始化规则映射表
+		entries: make(map[int64]cron.EntryID), //初始化map存储ruleID -> 对应的 cron entryID
 	}
 	globalAutoRuleScheduler = scheduler
 
@@ -97,7 +97,7 @@ func (s *autoRuleScheduler) loadAndRegisterAllRules(ctx context.Context) error {
 }
 
 // registerOrUpdateRule 将一条规则的 cron 表达式注册到调度器中；如果已存在则先移除再重新注册。
-// 如果这条规则之前已经注册过定时任务，则先移除旧的 entry，再用新的表达式重新注册。
+// 如果这条规则之前已经注册过定时任务，则先移除旧的 entry，再用新的表达式重新注册，避免一条规则被多次注册。
 func (s *autoRuleScheduler) registerOrUpdateRule(ctx context.Context, ruleID int64, cronExpr string) {
 	cronExpr = strings.TrimSpace(cronExpr)
 	if cronExpr == "" {
@@ -105,7 +105,7 @@ func (s *autoRuleScheduler) registerOrUpdateRule(ctx context.Context, ruleID int
 		return
 	}
 
-	// 加锁，确保对entries的读写是线程安全的
+	// 加锁，表示从这里开始，这个协程独占对共享数据的访问权,对s.entries的map操作，s.cron注册/移除entry等
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -117,7 +117,8 @@ func (s *autoRuleScheduler) registerOrUpdateRule(ctx context.Context, ruleID int
 
 	// 为当前规则添加一个 cron 任务
 	// 到达 cronExpr 对应的时间点时，调用 s.runRule(ruleID) 执行这条规则
-	rid := ruleID
+	rid := ruleID //复制一份ruleID，在闭包匿名函数中固定住当前规则id，避免循环等导致变量混乱
+	//核心：向s.cron定时任务调度器中注册定时任务，后面的fun(){}表示到点后执行的函数
 	entryID, err := s.cron.AddFunc(cronExpr, func() {
 		s.runRule(rid)
 	})
