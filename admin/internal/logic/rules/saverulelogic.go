@@ -64,43 +64,33 @@ func (l *SaveRuleLogic) SaveRule(req *types.SaveRuleReq) error {
 		}
 	}
 
-	//准备时间字段，当前时间now、下次执行时间nextRun
+	// 准备时间字段，当前时间 now
 	now := time.Now()
-	nextRun := sql.NullTime{Valid: false} // 默认不设置next_run_time（null）
-
-	//如果规则是active的，就要预先计算下一次执行时间
-	if status == "active" {
-		next, err := calcNextRunTime(triggerKey, now)
-		if err != nil {
-			return err
-		}
-		nextRun = sql.NullTime{
-			Time:  next,
-			Valid: true,
-		}
-	}
 
 	// 新建
 	if req.Id == 0 {
 		data := &ruleModel.AeRule{
 			Name:         req.Name,
 			Description:  desc,
-			Status:       status,
-			Priority:     req.Priority,
-			TriggerKey:   triggerKey,
+			Active:       status,
+			CronValue:    triggerKey,
 			FilterConfig: filterConfig,
 			ActionConfig: actionConfig,
-			NextRunTime:  nextRun,
-			LastRunTime:  sql.NullTime{Valid: false},
-			CreateTime:  now,
-			UpdateTime:  now,
+			CreateTime:   now,
+			UpdateTime:   now,
 		}
-		//调用 Model 的 Insert 写入数据库
-		_, err := l.svcCtx.RuleModel.Insert(l.ctx, data)
+		// 插入规则并拿到自增主键 id，便于立刻注册到调度器
+		id, err := l.svcCtx.RuleModel.InsertAndReturnId(l.ctx, data)
 		if err != nil {
 			l.Logger.Errorf("插入规则失败, data=%+v, err=%v", data, err)
+			return err
 		}
-		return err
+
+		// 如果规则是启用状态，则把 cron 表达式注册到调度器里
+		if req.IsActive {
+			registerRuleInScheduler(l.ctx, id, triggerKey)
+		}
+		return nil
 	}
 
 	// 更新
@@ -113,17 +103,22 @@ func (l *SaveRuleLogic) SaveRule(req *types.SaveRuleReq) error {
 	//覆盖需要更新的字段（按照业务要求，只改这些字段）
 	exist.Name = req.Name
 	exist.Description = desc
-	exist.Status = status
-	exist.Priority = req.Priority
-	exist.TriggerKey = triggerKey
+	exist.Active = status
+	exist.CronValue = triggerKey
 	exist.FilterConfig = filterConfig
 	exist.ActionConfig = actionConfig
-	exist.NextRunTime = nextRun
 	exist.UpdateTime = now //更新时间改为当前时间
 
 	if err := l.svcCtx.RuleModel.Update(l.ctx, exist); err != nil {
 		l.Logger.Errorf("更新规则失败, id=%d, err=%v", req.Id, err)
 		return err
+	}
+
+	// 更新后的规则如果是启用状态，则注册/更新调度器中的 entry；否则从调度器里移除。
+	if exist.Active == "active" {
+		registerRuleInScheduler(l.ctx, exist.Id, exist.CronValue)
+	} else {
+		unregisterRuleFromScheduler(l.ctx, exist.Id)
 	}
 
 	return nil //一切成功就返回nil
@@ -203,26 +198,82 @@ func buildFilterConfig(req *types.SaveRuleReq) string {
 	return string(b)
 }
 
-// 构造“动作”配置的JSON
-// 例如 {"type":"add_points","amount":100,"expire_strategy":"month_end"}
+// 构造“动作”配置的 JSON，遵循 ae_cron_rule.action_config 的新结构：
+// {
+//   "actions": [
+//     {
+//       "action_type": "recharge",
+//       "action_body": {
+//         "charge_type": 301,
+//         "amount": 100,
+//         "expire_strategy": "month_end"
+//       }
+//     }
+//   ]
+// }
+
+type ruleActionBody struct {
+	ChargeType     int64   `json:"charge_type"`
+	Amount         float64 `json:"amount"`
+	ExpireStrategy string  `json:"expire_strategy"`
+}
+
+type ruleAction struct {
+	ActionType string        `json:"action_type"`
+	ActionBody ruleActionBody `json:"action_body"`
+}
+
+type ruleActionsPayload struct {
+	Actions []ruleAction `json:"actions"`
+}
+
 func buildActionConfig(req *types.SaveRuleReq) string {
-	actionType := strings.TrimSpace(req.ActionType)
-	if len(actionType) == 0 {
-		actionType = "add_points"
-	}
 	expireStrategy := strings.TrimSpace(req.ExpireStrategy)
 	if len(expireStrategy) == 0 {
 		expireStrategy = "month_end"
 	}
 
-	payload := map[string]interface{}{
-		"type":            actionType,
-		"amount":          req.ActionAmount,
-		"expire_strategy": expireStrategy,
+	// 当前版本只真正支持充值（recharge）这一种动作，
+	// 但这里按照 action_type 分支，方便后续扩展其它动作类型。
+	actionType := strings.TrimSpace(req.ActionType)
+	if actionType == "" {
+		actionType = "recharge"
+	}
+
+	// 使用类型安全的结构体来构造 action_body，再通过 json.Marshal 生成 JSON，
+	// 语义上是：先根据 action_type 决定使用哪种 body 结构，再填充具体字段。
+	var actions []ruleAction
+	switch actionType {
+	case "recharge":
+		body := ruleActionBody{
+			ChargeType:     int64(301),
+			Amount:         req.ActionAmount,
+			ExpireStrategy: expireStrategy,
+		}
+		actions = append(actions, ruleAction{
+			ActionType: "recharge",
+			ActionBody: body,
+		})
+	default:
+		// 暂不支持的 action_type：为避免写入无法执行的配置，这里仍然回退为单一的 recharge 动作。
+		body := ruleActionBody{
+			ChargeType:     int64(301),
+			Amount:         req.ActionAmount,
+			ExpireStrategy: expireStrategy,
+		}
+		actions = append(actions, ruleAction{
+			ActionType: "recharge",
+			ActionBody: body,
+		})
+	}
+
+	payload := ruleActionsPayload{
+		Actions: actions,
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
-		return `{"type":"add_points","amount":0,"expire_strategy":"month_end"}`
+		// 兜底一个合法的默认配置，避免规则存储为空。
+		return `{"actions":[{"action_type":"recharge","action_body":{"charge_type":301,"amount":0,"expire_strategy":"month_end"}}]}`
 	}
 	return string(b)
 }

@@ -7,7 +7,7 @@
  * - 日余额由专门统计系统更新，避免与统计系统重复加导致错误
  *
  * 数据操作:
- * - 插入充值记录: charge_source=1, xlcredit_amount=充值金额, pay_time=当前时间
+ * - 插入充值记录: charge_source=2（运营手工单个操作）, xlcredit_amount=充值金额, pay_time=当前时间
  *
  * API路由: POST /manager/api/userfund/user/recharge
  * 请求体: {"user_id": "xxx", "amount": 100.00, "remarks": "活动赠送"}
@@ -44,9 +44,10 @@ func NewManualRechargeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp *types.ManualRechargeResp, err error) {
 	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, 1)
 	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserId)
+	// 充值类型直接使用新枚举（101/201/301）；<=0 时默认常规充值 101
 	chargeType := req.ChargeType
 	if chargeType <= 0 {
-		chargeType = 1
+		chargeType = 101
 	}
 
 	// 1. 获取当前余额仅用于日志与返回值展示，不写入日余额表
@@ -56,14 +57,20 @@ func (l *ManualRechargeLogic) ManualRecharge(req *types.ManualRechargeReq) (resp
 		currentBalance = 0
 	}
 
-	// 2. 解析可选过期时间（格式 YYYY-MM-DD，不传或空为永久有效）
+	// 2. 解析可选过期时间（格式 YYYY-MM-DD，不传或空为“永久有效”），
+	// 但在数据库中用 9999-12-31 23:59:59 作为“永不过期”的哨兵时间，避免与 NULL（无意义）混淆。
 	var expireTime sql.NullTime
-	if len(strings.TrimSpace(req.ExpireTime)) > 0 { //字符串去掉首位空格，判断是否为非空
-		if t, parseErr := time.ParseInLocation("2006-01-02", strings.TrimSpace(req.ExpireTime), time.Local); parseErr == nil {
+	rawExpire := strings.TrimSpace(req.ExpireTime)
+	if len(rawExpire) > 0 {
+		if t, parseErr := time.ParseInLocation("2006-01-02", rawExpire, time.Local); parseErr == nil {
 			// 设为该日 23:59:59，表示该日结束前有效
 			endOfDay := time.Date(t.Year(), t.Month(), t.Day(), 23, 59, 59, 0, time.Local)
 			expireTime = sql.NullTime{Time: endOfDay, Valid: true}
 		}
+	} else {
+		// 未指定过期时间：写入永不过期哨兵时间。
+		never := time.Date(9999, 12, 31, 23, 59, 59, 0, time.Local)
+		expireTime = sql.NullTime{Time: never, Valid: true}
 	}
 
 	// 3. 插入充值记录（含可选 expire_time），不修改日余额统计表，SQL 在 model 层

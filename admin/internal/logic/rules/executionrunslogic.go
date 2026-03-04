@@ -44,6 +44,7 @@ func (l *ExecutionRunsLogic) GetRuleExecutionRuns(req *types.RuleExecutionRunsRe
 	for _, r := range rows {
 		items = append(items, types.RuleExecutionRunItem{
 			RunTime:      r.RunTime,
+			ChargeSource: r.ChargeSource,
 			ExecSource:   r.ExecSource,
 			TotalCount:   r.TotalCount,
 			SuccessCount: r.SuccessCount,

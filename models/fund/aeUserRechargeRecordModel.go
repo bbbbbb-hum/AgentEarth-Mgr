@@ -30,7 +30,10 @@ type (
 		QueryFundChangeRows(ctx context.Context, whereClause string, baseArgs []interface{}, limit, offset int64) ([]FundChangeRecordRow, error)
 		GetExpiredDeductionAmount(ctx context.Context, rechargeID int64) (float64, error)
 
+		// InsertRechargeRecordWithExpire 用于通用后台充值场景（与规则无关）。
 		InsertRechargeRecordWithExpire(ctx context.Context, userId string, amount float64, payTime, createTime, updateTime time.Time, chargeType int64, remark, operator string, expireTime sql.NullTime) (int64, error)
+		// InsertRuleRechargeRecordWithExpire 用于“规则执行充值”场景：在充值记录上打上 rule_id 标记。
+		InsertRuleRechargeRecordWithExpire(ctx context.Context, userId string, amount float64, payTime, createTime, updateTime time.Time, ruleId int64, chargeSource, chargeType int64, remark, operator string, expireTime sql.NullTime) (int64, error)
 		InsertRechargeRecordWithoutExpire(ctx context.Context, userId string, amount float64, payTime, createTime, updateTime time.Time, chargeType int64, remark, operator string) (int64, error)
 
 		QueryBalanceDeltaSince(ctx context.Context, userId string, from time.Time) (string, error)
@@ -84,7 +87,7 @@ func (m *customAeUserRechargeRecordModel) GetBalance(ctx context.Context, userId
 // FundChangeRecordRow 对应 ae_user_recharge_record 表（含操作人名称），
 // 用于“资金变动明细”列表的数据载体。
 // 仅做数据映射，不包含任何业务字段衍生逻辑。
-// RelatedRechargeId 用于负值扣减记录关联的正向充值 id，过期扣减(charge_type=4) 时必填，便于展示「过期时剩余」。
+// RelatedRechargeId 用于负值扣减记录关联的正向充值 id，过期扣减(charge_type=141) 时必填，便于展示「过期时剩余」。
 type FundChangeRecordRow struct {
 	Id                int64          `db:"id"`
 	CreateTime        time.Time      `db:"create_time"`
@@ -123,7 +126,7 @@ func (m *customAeUserRechargeRecordModel) CountMergeableDeductionRows(ctx contex
 	query := fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM ae_user_recharge_record r
-		WHERE %s AND r.xlcredit_amount < 0 AND r.charge_type != 4
+		WHERE %s AND r.xlcredit_amount < 0 AND r.charge_type != 141
 	`, whereClause)
 	var n int64
 	if err := m.conn.QueryRowCtx(ctx, &n, query, args...); err != nil {
@@ -140,7 +143,7 @@ func (m *customAeUserRechargeRecordModel) CountMergeableDeductionGroups(ctx cont
 		FROM (
 			SELECT 1
 			FROM ae_user_recharge_record r
-			WHERE %s AND r.xlcredit_amount < 0 AND r.charge_type != 4
+			WHERE %s AND r.xlcredit_amount < 0 AND r.charge_type != 141
 			GROUP BY date_trunc('second', r.pay_time), r.operator, r.charge_type, COALESCE(r.remark, '')
 		) t
 	`, whereClause)
@@ -181,7 +184,7 @@ func (m *customAeUserRechargeRecordModel) QueryFundChangeRows(ctx context.Contex
 	return rows, nil
 }
 
-// GetExpiredDeductionAmount 查询指定充值批次上，与“过期扣减”(charge_type=4) 关联的扣减金额（绝对值）。
+// GetExpiredDeductionAmount 查询指定充值批次上，与“过期扣减”(charge_type=141) 关联的扣减金额（绝对值）。
 // 业务含义：
 // - 一条充值记录在过期时，会插入一条负值记录，related_recharge_id 指向原充值记录，charge_type=4。
 // - 该负值记录的绝对值代表“过期那一刻的剩余额度”，可用于前端展示「过期时还剩多少」。
@@ -192,7 +195,7 @@ func (m *customAeUserRechargeRecordModel) GetExpiredDeductionAmount(ctx context.
 		SELECT COALESCE((
 			SELECT ABS(r.xlcredit_amount)
 			FROM "public"."ae_user_recharge_record" r
-			WHERE r.related_recharge_id = $1 AND r.xlcredit_amount < 0 AND r.charge_type = 4
+			WHERE r.related_recharge_id = $1 AND r.xlcredit_amount < 0 AND r.charge_type = 141
 			LIMIT 1
 		), 0)
 	`
@@ -208,7 +211,7 @@ func (m *customAeUserRechargeRecordModel) GetExpiredDeductionAmount(ctx context.
 // InsertRechargeRecordWithExpire 在 ae_user_recharge_record 表中插入一条带过期时间的充值记录。
 // 典型场景：管理员人工充值，允许指定某个日期 23:59:59 作为过期时间。
 // 注意：
-// - charge_source 在业务中固定为 1（后台充值），此处由调用方控制 chargeType、remark、operator 等字段。
+// - charge_source 在业务中固定为 2（运营手工单个操作），此处由调用方控制 chargeType、remark、operator 等字段。
 func (m *customAeUserRechargeRecordModel) InsertRechargeRecordWithExpire(
 	ctx context.Context,
 	userId string,
@@ -223,11 +226,51 @@ func (m *customAeUserRechargeRecordModel) InsertRechargeRecordWithExpire(
 			user_id, xlcredit_amount, pay_time, create_time, update_time,
 			charge_source, charge_type, remark, operator, expire_time
 		)
-		VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8, $9)
+		VALUES ($1, $2, $3, $4, $5, 2, $6, $7, $8, $9)
 		RETURNING id
 	`
 	var id int64
 	if err := m.conn.QueryRowCtx(ctx, &id, insertQuery, userId, amount, payTime, createTime, updateTime, chargeType, remark, operator, expireTime); err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+// InsertRuleRechargeRecordWithExpire 在 ae_user_recharge_record 表中插入一条“由规则执行产生的充值记录”，并打上 rule_id 标记。
+// 典型场景：自动规则或手动规则执行，为命中用户批量发放资金。
+func (m *customAeUserRechargeRecordModel) InsertRuleRechargeRecordWithExpire(
+	ctx context.Context,
+	userId string,
+	amount float64,
+	payTime, createTime, updateTime time.Time,
+	ruleId int64,
+	chargeSource, chargeType int64,
+	remark, operator string,
+	expireTime sql.NullTime,
+) (int64, error) {
+	const insertQuery = `
+		INSERT INTO public.ae_user_recharge_record (
+			user_id, xlcredit_amount, pay_time, create_time, update_time,
+			charge_source, charge_type, remark, operator, expire_time,
+			rule_id
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id
+	`
+	var id int64
+	if err := m.conn.QueryRowCtx(ctx, &id, insertQuery,
+		userId,
+		amount,
+		payTime,
+		createTime,
+		updateTime,
+		chargeSource,
+		chargeType,
+		remark,
+		operator,
+		expireTime,
+		ruleId,
+	); err != nil {
 		return 0, err
 	}
 	return id, nil
@@ -249,7 +292,7 @@ func (m *customAeUserRechargeRecordModel) InsertRechargeRecordWithoutExpire(
 			user_id, xlcredit_amount, pay_time, create_time, update_time,
 			charge_source, charge_type, remark, operator
 		)
-		VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8)
+		VALUES ($1, $2, $3, $4, $5, 2, $6, $7, $8)
 		RETURNING id
 	`
 	var id int64

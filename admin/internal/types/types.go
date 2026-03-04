@@ -115,7 +115,7 @@ type FundChangeRecordItem struct {
 type FundChangeRecordReq struct {
 	UserId     string `path:"user_id"`
 	Filter     string `form:"filter,optional"`      // all, recharge, deduction
-	ChargeType int64  `form:"charge_type,optional"` // 1 用户常规充值；2 系统故障补偿；3 活动赠送；4 过期扣减；5 管理员扣减
+	ChargeType int64  `form:"charge_type,optional"` // 101 用户常规充值；201 系统故障补偿；301 活动赠送；141 过期扣减；341 管理员扣减
 	Page       int64  `form:"page,optional"`
 	PageSize   int64  `form:"page_size,optional"`
 }
@@ -189,7 +189,7 @@ type ServiceUpdateEnabledReq struct {
 type ManualDeductionReq struct {
 	UserId     string  `json:"user_id"`
 	Amount     float64 `json:"amount"`
-	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
+	ChargeType int64   `json:"charge_type"` // 扣减类型：141 过期扣减；341 管理员扣减
 	Remarks    string  `json:"remarks,optional"`
 }
 
@@ -202,7 +202,7 @@ type ManualDeductionResp struct {
 type ManualRechargeReq struct {
 	UserId     string  `json:"user_id"`
 	Amount     float64 `json:"amount"`
-	ChargeType int64   `json:"charge_type"` // 充值类型：1常规 2系统故障补偿 3活动赠送
+	ChargeType int64   `json:"charge_type"` // 充值类型：101 用户常规充值；201 系统故障补偿；301 活动赠送
 	Remarks    string  `json:"remarks,optional"`
 	ExpireTime string  `json:"expire_time,optional"` // 可选，格式 YYYY-MM-DD，不传或空为永久有效
 }
@@ -237,6 +237,7 @@ type RuleExecutionRunsReq struct {
 
 type RuleExecutionRunItem struct {
 	RunTime      string `json:"run_time"`
+	ChargeSource int64  `json:"charge_source"`
 	ExecSource   string `json:"exec_source"`
 	TotalCount   int64  `json:"total_count"`
 	SuccessCount int64  `json:"success_count"`
@@ -249,9 +250,9 @@ type RuleExecutionRunsResp struct {
 }
 
 type RuleExecutionDetailsReq struct {
-	RuleId     int64  `form:"rule_id"`
-	RunTime    string `form:"run_time"`
-	ExecSource string `form:"exec_source,optional"`
+	RuleId       int64  `form:"rule_id"`
+	RunTime      string `form:"run_time"`
+	ChargeSource int64  `form:"charge_source,optional"`
 }
 
 type RuleExecutionDetailItem struct {
@@ -262,7 +263,6 @@ type RuleExecutionDetailItem struct {
 	Operator     string  `json:"operator"`
 	ChangeAmount float64 `json:"change_amount"`
 	Status       string  `json:"status"`
-	Remark       string  `json:"remark"`
 	ActionType   string  `json:"action_type"`
 }
 
@@ -275,7 +275,6 @@ type RuleItem struct {
 	Id             int64  `json:"id"`
 	Name           string `json:"name"`
 	Description    string `json:"description"`
-	Priority       int64  `json:"priority"`
 	IsActive       bool   `json:"is_active"` // 对应 sql 里的 bool 类型
 	CronExpression string `json:"cron_expression"`
 	FilterConfig   string `json:"filter_config"` // JSONB 传给前端转成 String
@@ -293,7 +292,6 @@ type SaveRuleReq struct {
 	Id             int64  `json:"id,optional"` // optional：没传ID就是新增，传了ID就是更新
 	Name           string `json:"name"`
 	Description    string `json:"description,optional"`
-	Priority       int64  `json:"priority,optional"`
 	IsActive       bool   `json:"is_active"`
 	CronExpression string `json:"cron_expression,optional"`
 	FilterConfig   string `json:"filter_config,optional"`
@@ -321,7 +319,7 @@ type SaveRuleReq struct {
 	// 动作表单字段（后台转换为 action_config json）
 	ActionType     string  `json:"action_type,optional"`     // add_points/deduct_points
 	ActionAmount   float64 `json:"action_amount,optional"`   // 点数
-	ExpireStrategy string  `json:"expire_strategy,optional"` // month_end/never/fixed_days
+	ExpireStrategy string  `json:"expire_strategy,optional"` // month_end/never/fixed_30_days
 }
 
 // AudiencePreviewReq 受众预览请求：与 SaveRule 的筛选字段一致，用于实时查看当前条件将作用哪些用户

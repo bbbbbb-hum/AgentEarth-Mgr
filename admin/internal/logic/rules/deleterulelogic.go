@@ -26,13 +26,11 @@ func NewDeleteRuleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Delete
 func (l *DeleteRuleLogic) DeleteRule(req *types.DeleteRuleReq) (resp *types.BaseResp, err error) {
 	l.Logger.Infof("尝试删除规则 ID: %d", req.Id)
 
-	// 1. 先删关联执行日志（避免可能的 FK 约束，并清理数据）
-	if _, err = l.svcCtx.RuleQueryModel.DeleteExecutionLogsByRuleId(l.ctx, req.Id); err != nil {
-		l.Logger.Errorf("删除规则 %d 的关联执行日志失败: %v", req.Id, err)
-		return nil, err
-	}
+	// 先从调度器中移除这条规则（如果调度器当前在本实例中运行的话）
+	unregisterRuleFromScheduler(l.ctx, req.Id)
 
-	// 2. 再删规则本身（返回影响行数用于判断是否存在）
+	// 仅删除规则本身（返回影响行数用于判断是否存在）。
+	// 充值记录作为资金台账保留，不做级联删除，可通过 rule_id 字段进行历史追溯。
 	rows, err := l.svcCtx.RuleQueryModel.DeleteRuleById(l.ctx, req.Id)
 	if err != nil {
 		l.Logger.Errorf("删除规则 %d 失败: %v", req.Id, err)

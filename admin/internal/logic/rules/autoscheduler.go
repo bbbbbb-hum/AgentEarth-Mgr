@@ -3,6 +3,7 @@ package rules
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 
 	"AgentEarth-Mgr/admin/internal/svc"
@@ -16,118 +17,180 @@ import (
 // 这个数值不需要插入到任何表里，只是传给pgsql服务器内部的一个锁管理模块
 const scheduleAdvisoryLockKey int64 = 83240611
 
-// 一个全局的cron解析器
-var cronParser = cron.NewParser(
-	cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow,
-)
+// autoRuleScheduler 负责把规则的 cron 表达式注册到 robfig/cron 中，由 cron 按表达式触发。
+type autoRuleScheduler struct {
+	baseCtx context.Context
+	svcCtx  *svc.ServiceContext
 
-// calcNextRunTime负责根据cron表达式和当前时间算出“下一次”执行时间
-func calcNextRunTime(expr string, base time.Time) (time.Time, error) {
-	// 用全局cronParser解析表达式，先TrimSpace去掉两边空白
-	s, err := cronParser.Parse(strings.TrimSpace(expr))
-	if err != nil {
-		return time.Time{}, err
-	}
-	//把base时间转换到本地时区，并且Truncate到分钟精度
-	base = base.In(time.Local).Truncate(time.Minute)
-	// s.Next(base) 会给出“base 之后”第一次满足 cron 表达式的时间。
-	return s.Next(base), nil
+	cron    *cron.Cron
+	mu      sync.Mutex
+	entries map[int64]cron.EntryID
 }
 
-// StartAutoRuleScheduler 启动每分钟扫描一次的自动规则调度器。
+// 包级全局指针变量，保证全局只有一个调度器，避免重复启动cron
+var globalAutoRuleScheduler *autoRuleScheduler
+
+// StartAutoRuleScheduler 初始化自动规则调度器：争抢一次分布式锁，加载所有已启用规则并注册到 cron。
+// 之后的定时触发完全由 robfig/cron 接管，不再使用 Ticker + 轮询。
 func StartAutoRuleScheduler(ctx context.Context, svcCtx *svc.ServiceContext) {
-	//启动一个新的goroutine，这样不会阻塞调用方
-	//定时任务用一个新的goroutine在后台独立的跑，主逻辑继续执行，不会影响HTTP服务启动
+	logger := logx.WithContext(ctx)
+
+	// 防御性检查：如果已经有全局调度器了，就不要重复初始化
+	if globalAutoRuleScheduler != nil {
+		return
+	}
+
+	// 多实例下，通过 advisory lock 选出唯一“调度者”实例
+	locked, err := svcCtx.RuleQueryModel.TryAdvisoryLock(ctx, scheduleAdvisoryLockKey)
+	if err != nil {
+		logger.Errorf("自动规则调度器尝试获取分布式锁失败: %v", err)
+		return
+	}
+	if !locked {
+		logger.Infof("自动规则调度器分布式锁未获取到，当前实例不负责自动规则调度")
+		return
+	}
+	//构造调度器实例，并挂到全局变量上
+	scheduler := &autoRuleScheduler{
+		baseCtx: ctx,
+		svcCtx:  svcCtx,
+		cron:    cron.New(),                   //使用默认解析规则的 cron 调度器
+		entries: make(map[int64]cron.EntryID), // 初始化规则映射表
+	}
+	globalAutoRuleScheduler = scheduler
+
+	// 启动时从 DB 加载所有已启用规则，并注册到 cron
+	if err := scheduler.loadAndRegisterAllRules(ctx); err != nil {
+		logger.Errorf("自动规则调度器加载规则失败: %v", err)
+	}
+
+	// 启动调度器（内部会起自己的 goroutine），按表达式触发。
+	// 这里 Start() 内部会起自己的 goroutine，按注册的 cron 表达式定时调用对应的函数
+	scheduler.cron.Start()
+	logger.Infof("自动规则调度器已启动")
+
+	// 监听上层 ctx 关闭，关闭调度器并尝试释放 advisory lock。
 	go func() {
-		// 创建一个每分钟触发一次的 Ticker
-		// Ticker就是一个“定时器通道”：每过一段时间往 channal 里发一个当前时间
-		// Ticker是一个按固定时间间隔"滴答"一次的计时器，内部有一个channal：ticker.c,类型是<-chan time.Time
-		ticker := time.NewTicker(time.Minute)
-		// 函数退出时停止ticker，释放资源
-		defer ticker.Stop()
-
-		//定义真正执行调度逻辑的闭包函数run
-		run := func() {
-			//调度 runAutoRulesOnce 执行一次扫描 + 执行
-			if err := runAutoRulesOnce(ctx, svcCtx); err != nil {
-				//如果发生错误，打印日志，不要报错停止服务，让后续轮询还可以继续执行
-				logx.WithContext(ctx).Errorf("自动规则调度执行失败: %v", err)
-			}
-		}
-
-		// 先立即把所有已经到时间的规则执行一次 (服务刚启动时不等待下一分钟，立即开始扫描)
-		run()
-		//进入一个长期运行的循环，在这个goroutine里一直等事件
-		for {
-			select {
-			case <-ctx.Done(): // 如果上层传入的 ctx 被取消（比如服务关闭），就退出循环，结束 goroutine
-				return
-			case <-ticker.C: // 等待闹钟响，每到一个时间点（每分钟一次）就再跑一次调度。
-				run()
-			}
+		<-ctx.Done()
+		logger.Info("自动规则调度器收到上层上下文取消信号，准备停止")
+		scheduler.cron.Stop()
+		if err := svcCtx.RuleQueryModel.AdvisoryUnlock(context.Background(), scheduleAdvisoryLockKey); err != nil {
+			logger.Errorf("自动规则调度器释放分布式锁失败: %v", err)
 		}
 	}()
 }
 
-// runAutoRulesOnce 代表 “执行一次完整的调度循环”
-//  1. 争抢 advisory lock（保证多实例下只有一个在跑真正逻辑）；
-//  2. 查出所有需要执行的规则；
-//  3. 对每条规则调用 ExecuteRule；
-//  4. 更新规则的 last_run_time、next_run_time。
-func runAutoRulesOnce(ctx context.Context, svcCtx *svc.ServiceContext) error {
-	// 先尝试获取 PostgreSQL advisory lock，防止多实例并发执行同一套调度。
-	locked, err := svcCtx.RuleQueryModel.TryAdvisoryLock(ctx, scheduleAdvisoryLockKey)
-	if err != nil {
-		return err
-	}
-	if !locked {
-		return nil
-	}
-
-	//函数结束时释放 advisory lock (defer 确保不管中途return还是panic都会执行)
-	defer func() { _ = svcCtx.RuleQueryModel.AdvisoryUnlock(ctx, scheduleAdvisoryLockKey) }()
-
-	// 查出所有“到期需要执行的规则”的 id
-	ids, err := svcCtx.RuleQueryModel.ListDueRuleIds(ctx, 200)
+// loadAndRegisterAllRules 启动时加载所有已启用规则，并把 cron 表达式注册进调度器。
+func (s *autoRuleScheduler) loadAndRegisterAllRules(ctx context.Context) error {
+	// 从 models 层获取所有 active 规则的精简信息（id + cron_value + active）
+	rows, err := s.svcCtx.RuleQueryModel.ListActiveRulesForScheduler(ctx)
 	if err != nil {
 		return err
 	}
 
-	for _, id := range ids {
-		rule, findErr := svcCtx.RuleModel.FindOne(ctx, id)
-		if findErr != nil {
-			logx.WithContext(ctx).Errorf("查询规则失败, id=%d, err=%v", id, findErr)
-			continue
-		}
-
-		//虽然sql里已经筛选过status = 'active'，这里再做一次防御性校验
-		if rule.Status != "active" {
-			continue // 状态不是active就直接跳过
-		}
-
-		//execAt 记录这次执行的时间点，用于更新last_run_time和计算next_run_time的基准
-		execAt := time.Now()
-		//调用 ExecuteRule 真正执行规则逻辑
-		//execSource = “cron”， operator = “cron”(表示是定时任务触发)
-		_, execErr := ExecuteRule(ctx, svcCtx, rule, "cron", "cron")
-		if execErr != nil {
-			logx.WithContext(ctx).Errorf("执行规则失败, id=%d, err=%v", rule.Id, execErr)
-			//出错时不return，继续处理下一条规则，避免一条挂了影响所有
-			continue
-		}
-		// 规则执行完后，需要算出下一次执行时间。
-		nextRun, nextErr := calcNextRunTime(rule.TriggerKey, execAt)
-		if nextErr != nil {
-			logx.WithContext(ctx).Errorf("计算下次执行时间失败, id=%d, cron=%s, err=%v", rule.Id, rule.TriggerKey, nextErr)
-			continue
-		}
-		// 更新 ae_rule 表的 last_run_time、next_run_time、update_time
-		if updErr := svcCtx.RuleQueryModel.UpdateRuleRunTimes(ctx, rule.Id, execAt, nextRun, time.Now()); updErr != nil {
-			logx.WithContext(ctx).Errorf("更新规则下次执行时间失败, id=%d, err=%v", rule.Id, updErr)
-		} else {
-			logx.WithContext(ctx).Infof("自动规则 %d 执行成功，下次执行时间: %v", rule.Id, nextRun)
-		}
+	// 逐条规则注册进 cron 调度器
+	for _, r := range rows {
+		s.registerOrUpdateRule(ctx, r.Id, r.CronValue)
 	}
 
 	return nil
+}
+
+// registerOrUpdateRule 将一条规则的 cron 表达式注册到调度器中；如果已存在则先移除再重新注册。
+// 如果这条规则之前已经注册过定时任务，则先移除旧的 entry，再用新的表达式重新注册。
+func (s *autoRuleScheduler) registerOrUpdateRule(ctx context.Context, ruleID int64, cronExpr string) {
+	cronExpr = strings.TrimSpace(cronExpr)
+	if cronExpr == "" {
+		logx.WithContext(ctx).Errorf("自动规则调度器注册规则时发现 cron 表达式为空, rule_id=%d", ruleID)
+		return
+	}
+
+	// 加锁，确保对entries的读写是线程安全的
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 如果这条规则之前已经在 cron 中注册过，先移除旧的定时任务。
+	if entryID, ok := s.entries[ruleID]; ok {
+		s.cron.Remove(entryID)
+		delete(s.entries, ruleID)
+	}
+
+	// 为当前规则添加一个 cron 任务
+	// 到达 cronExpr 对应的时间点时，调用 s.runRule(ruleID) 执行这条规则
+	rid := ruleID
+	entryID, err := s.cron.AddFunc(cronExpr, func() {
+		s.runRule(rid)
+	})
+	if err != nil {
+		logx.WithContext(ctx).Errorf("自动规则调度器注册规则失败, rule_id=%d, cron=%s, err=%v", ruleID, cronExpr, err)
+		return
+	}
+
+	s.entries[ruleID] = entryID
+	logx.WithContext(ctx).Infof("自动规则调度器已注册规则, rule_id=%d, cron=%s", ruleID, cronExpr)
+}
+
+// unregisterRule 从调度器中移除某条规则的 cron 任务。
+func (s *autoRuleScheduler) unregisterRule(ctx context.Context, ruleID int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entryID, ok := s.entries[ruleID]
+	if !ok {
+		return
+	}
+
+	s.cron.Remove(entryID)
+	delete(s.entries, ruleID)
+	logx.WithContext(ctx).Infof("自动规则调度器已移除规则, rule_id=%d", ruleID)
+}
+
+// runRule 是被 cron 调度器真正调用的函数：
+// 每当某条规则的 cron 表达式触发时，就会执行一次 runRule(ruleID)
+func (s *autoRuleScheduler) runRule(ruleID int64) {
+	// 这里使用一个带超时的上下文，避免单次执行无限卡住。
+	ctx, cancel := context.WithTimeout(s.baseCtx, 10*time.Minute)
+	defer cancel()
+
+	// 全局 panic 保护，防止某条规则执行时 panic 导致整个调度 goroutine 崩溃。
+	defer func() {
+		if r := recover(); r != nil {
+			logx.WithContext(ctx).Errorf("自动规则调度执行 panic, rule_id=%d, err=%v", ruleID, r)
+		}
+	}()
+
+	rule, err := s.svcCtx.RuleModel.FindOne(ctx, ruleID)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("自动规则调度查询规则失败, rule_id=%d, err=%v", ruleID, err)
+		return
+	}
+	if rule.Active != "active" {
+		// 状态已变更为非 active，则不再执行。
+		return
+	}
+
+	// 自动执行时将操作者标记为 "cron"，便于对账明细中区分来源。
+	if _, execErr := ExecuteRule(ctx, s.svcCtx, rule, "cron", "cron"); execErr != nil {
+		logx.WithContext(ctx).Errorf("自动规则调度执行规则失败, rule_id=%d, err=%v", ruleID, execErr)
+		return
+	}
+	logx.WithContext(ctx).Infof("自动规则调度执行规则成功, rule_id=%d", ruleID)
+}
+
+// helper：供保存/启用/停用/删除规则的 logic 使用，把规则变更同步到调度器。
+func registerRuleInScheduler(ctx context.Context, ruleID int64, cronExpr string) {
+	if globalAutoRuleScheduler == nil {
+		// 当前实例可能不是“调度者”（没拿到 advisory lock），直接跳过。
+		return
+	}
+	globalAutoRuleScheduler.registerOrUpdateRule(ctx, ruleID, cronExpr)
+}
+
+// unregisterRuleFromScheduler 是给停用/删除规则时调用的辅助函数。
+// 它会从调度器中移除该规则对应的 cron 任务
+func unregisterRuleFromScheduler(ctx context.Context, ruleID int64) {
+	if globalAutoRuleScheduler == nil {
+		return
+	}
+	globalAutoRuleScheduler.unregisterRule(ctx, ruleID)
 }

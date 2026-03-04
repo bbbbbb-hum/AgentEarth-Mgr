@@ -46,15 +46,16 @@ func NewManualDeductionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *M
 }
 
 func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (resp *types.ManualDeductionResp, err error) {
-	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, -1) // chargeSource=-1 表示管理员扣减，取当前管理员用户名
+	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, 2) // chargeSource=2 表示管理员单次操作，取当前管理员用户名
 	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserId)
 
-	// 管理员扣减使用请求中的 charge_type（如 2/3/5 等），4 为过期扣减专用不可用，无效或未传时默认 5
+	// 管理员扣减使用请求中的 charge_type（如 341 等），141 为过期扣减专用不可用，无效或未传时默认 341
 	chargeTypeAdminDeduction := req.ChargeType
-	if chargeTypeAdminDeduction <= 0 || chargeTypeAdminDeduction == 4 {
-		chargeTypeAdminDeduction = 5
+	if chargeTypeAdminDeduction <= 0 || chargeTypeAdminDeduction == 141 {
+		chargeTypeAdminDeduction = 341
 	}
-	chargeSource := int64(-1) // 系统扣减
+	// 后台管理员手动扣减：统一使用 charge_source=2（管理员单次操作）
+	chargeSource := int64(2)
 
 	// 1. 参数校验：扣减额必须为正数
 	if req.Amount <= 0 {
@@ -216,7 +217,11 @@ func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (r
 
 			expireStr := "永久有效"
 			if rec.ExpireTime.Valid {
-				expireStr = rec.ExpireTime.Time.Format(time.RFC3339)
+				if rec.ExpireTime.Time.Year() >= 9999 {
+					expireStr = "永久有效"
+				} else {
+					expireStr = rec.ExpireTime.Time.Format(time.RFC3339)
+				}
 			}
 			l.Infof("[ManualDeduction] 核销详情: user_id=%s, 扣减金额=%s, 充值批次ID=%d, 批次过期时间=%s, 剩余待扣=%s, 备注=%s",
 				req.UserId, actualDeduct.String(), rec.Id, expireStr, amountToDeduct.String(), remark)

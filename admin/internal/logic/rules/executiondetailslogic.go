@@ -2,7 +2,6 @@ package rules
 
 import (
 	"context"
-	"strings"
 
 	"AgentEarth-Mgr/admin/internal/svc"
 	"AgentEarth-Mgr/admin/internal/types"
@@ -26,22 +25,19 @@ func NewExecutionDetailsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 }
 
 func (l *ExecutionDetailsLogic) GetRuleExecutionDetails(req *types.RuleExecutionDetailsReq) (resp *types.RuleExecutionDetailsResp, err error) {
-	source := strings.TrimSpace(req.ExecSource)
-	if len(source) == 0 {
-		source = "cron"
+	chargeSource := req.ChargeSource
+	// 兜底：前端没传时默认为 4（自动 Rule 操作），但正常应始终由前端显式传入 3/4。
+	if chargeSource == 0 {
+		chargeSource = 4
 	}
 
-	total, rows, err := l.svcCtx.RuleQueryModel.GetExecutionDetails(l.ctx, req.RuleId, req.RunTime, source)
+	total, rows, err := l.svcCtx.RuleQueryModel.GetExecutionDetails(l.ctx, req.RuleId, req.RunTime, chargeSource)
 	if err != nil {
 		return nil, err
 	}
 
 	items := make([]types.RuleExecutionDetailItem, 0, len(rows))
 	for _, r := range rows {
-		remark := ""
-		if r.Remark.Valid {
-			remark = r.Remark.String
-		}
 		userName := ""
 		if r.UserName.Valid {
 			userName = r.UserName.String
@@ -58,7 +54,6 @@ func (l *ExecutionDetailsLogic) GetRuleExecutionDetails(req *types.RuleExecution
 			Operator:     operatorName,
 			ChangeAmount: r.ChangeAmount,
 			Status:       r.Status,
-			Remark:       remark,
 			ActionType:   r.ActionType,
 		})
 	}

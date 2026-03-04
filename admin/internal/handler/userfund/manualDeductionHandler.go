@@ -21,12 +21,14 @@ func ManualDeductionHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			return
 		}
 
-		l := userfund.NewManualDeductionLogic(r.Context(), svcCtx)
+		// 从 Authorization 中解析管理员身份，写入上下文，便于后续记录 operator
+		opCtx := withOperatorUsernameCtx(r, svcCtx)
+		l := userfund.NewManualDeductionLogic(opCtx, svcCtx)
 		resp, err := l.ManualDeduction(&req)
 		if err != nil {
-			httpx.ErrorCtx(r.Context(), w, err)
+			httpx.ErrorCtx(opCtx, w, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.OkJsonCtx(opCtx, w, resp)
 		}
 	}
 }

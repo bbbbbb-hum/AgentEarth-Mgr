@@ -39,7 +39,7 @@ func (l *AudiencePreviewLogic) AudiencePreview(req *types.AudiencePreviewReq) (*
 	offset := (page - 1) * size
 
 	filter := ruleModel.AudienceFilter{
-		MinRegDays:          int(req.MinRegDays),
+		MinRegDays:          req.MinRegDays,
 		MaxRegDays:          req.MaxRegDays,
 		LastLoginWithinDays: req.LastLoginWithinDays,
 		MinLastMonthConsume: req.MinLastMonthConsume,

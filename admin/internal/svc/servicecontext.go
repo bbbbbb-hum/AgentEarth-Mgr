@@ -31,9 +31,8 @@ type ServiceContext struct {
 	UserConsumptionDailyModel       fund.AeUserConsumptionRecordDailyModel
 
 	// 自动规则配置相关 model
-	RuleModel           ruleModel.AeRuleModel
-	RuleExecutionLogMod ruleModel.AeRuleExecutionLogModel
-	RuleQueryModel      ruleModel.RuleQueryModel
+	RuleModel      ruleModel.AeRuleModel
+	RuleQueryModel ruleModel.RuleQueryModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -56,8 +55,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		UserBalanceDailyModel:           fund.NewAeUserBalanceStatisticDailyModel(db),
 		UserConsumptionDailyModel:       fund.NewAeUserConsumptionRecordDailyModel(db),
 
-		RuleModel:           ruleModel.NewAeRuleModel(db),
-		RuleExecutionLogMod: ruleModel.NewAeRuleExecutionLogModel(db),
-		RuleQueryModel:      ruleModel.NewRuleQueryModel(db),
+		RuleModel:      ruleModel.NewAeRuleModel(db),
+		RuleQueryModel: ruleModel.NewRuleQueryModel(db),
 	}
 }

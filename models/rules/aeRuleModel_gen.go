@@ -59,22 +59,19 @@ type (
 		Id           int64          `db:"id"`
 		Name         string         `db:"name"`
 		Description  sql.NullString `db:"description"`
-		Status       string         `db:"status"`
-		Priority     int64          `db:"priority"`
-		TriggerKey   string         `db:"trigger_key"`
+		Active       string         `db:"active"`
+		CronValue    string         `db:"cron_value"`
 		FilterConfig string         `db:"filter_config"`
 		ActionConfig string         `db:"action_config"`
-		NextRunTime  sql.NullTime   `db:"next_run_time"`
-		LastRunTime  sql.NullTime   `db:"last_run_time"`
-		CreateTime  time.Time      `db:"create_time"`
-		UpdateTime  time.Time      `db:"update_time"`
+		CreateTime   time.Time      `db:"create_time"`
+		UpdateTime   time.Time      `db:"update_time"`
 	}
 )
 
 func newAeRuleModel(conn sqlx.SqlConn) *defaultAeRuleModel {
 	return &defaultAeRuleModel{
 		conn:  conn,
-		table: `"public"."ae_rule"`,
+		table: `"public"."ae_cron_rule"`,
 	}
 }
 
@@ -99,14 +96,45 @@ func (m *defaultAeRuleModel) FindOne(ctx context.Context, id int64) (*AeRule, er
 }
 
 func (m *defaultAeRuleModel) Insert(ctx context.Context, data *AeRule) (sql.Result, error) {
-	query := fmt.Sprintf("insert into %s (%s) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)", m.table, aeRuleRowsExpectAutoSet)
-	ret, err := m.conn.ExecCtx(ctx, query, data.Name, data.Description, data.Status, data.Priority, data.TriggerKey, data.FilterConfig, data.ActionConfig, data.NextRunTime, data.LastRunTime, data.CreateTime, data.UpdateTime)
+	// 显式指定列名，避免与 aeRuleRowsExpectAutoSet 的字段列表不一致导致占位符索引错误。
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
+			name,
+			description,
+			active,
+			cron_value,
+			filter_config,
+			action_config,
+			create_time,
+			update_time
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, m.table)
+	ret, err := m.conn.ExecCtx(ctx, query,
+		data.Name,
+		data.Description,
+		data.Active,
+		data.CronValue,
+		data.FilterConfig,
+		data.ActionConfig,
+		data.CreateTime,
+		data.UpdateTime,
+	)
 	return ret, err
 }
 
 func (m *defaultAeRuleModel) Update(ctx context.Context, data *AeRule) error {
 	query := fmt.Sprintf("update %s set %s where id = $1", m.table, aeRuleRowsWithPlaceHolder)
-	_, err := m.conn.ExecCtx(ctx, query, data.Id, data.Name, data.Description, data.Status, data.Priority, data.TriggerKey, data.FilterConfig, data.ActionConfig, data.NextRunTime, data.LastRunTime, data.CreateTime, data.UpdateTime)
+	_, err := m.conn.ExecCtx(ctx, query,
+		data.Id,
+		data.Name,
+		data.Description,
+		data.Active,
+		data.CronValue,
+		data.FilterConfig,
+		data.ActionConfig,
+		data.CreateTime,
+		data.UpdateTime,
+	)
 	return err
 }
 
