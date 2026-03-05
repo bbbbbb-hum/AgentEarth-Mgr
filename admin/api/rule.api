@@ -73,13 +73,13 @@ type (
 )
 
 @server (
-    jwt: Auth       // 挂载你项目现有的 JWT 鉴权
-    group: rules    // 核心2：告诉 goctl 把生成的 logic 和 handler 放到 rules 文件夹下
+    jwt: Auth
+    group: rules
     prefix: /manager/api/rules
 )
 service admin-api {
     @handler GetRuleList
-    // 核心3：直接使用 base.api 里的 BaseListReq 作为入参
+
     get /list (BaseListReq) returns (RuleListResp)
 
     @handler SaveRule

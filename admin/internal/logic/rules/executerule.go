@@ -61,11 +61,14 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 		return 0, err
 	}
 
-	if filter.MaxLastMonthConsume > 0 && filter.MinLastMonthConsume > 0 && filter.MaxLastMonthConsume < filter.MinLastMonthConsume {
+	if filter.MinLastMonthConsume >= 0 && filter.MaxLastMonthConsume >= 0 && filter.MaxLastMonthConsume < filter.MinLastMonthConsume {
 		return 0, fmt.Errorf("筛选条件无效: max_last_month_consume 小于 min_last_month_consume")
 	}
 	if filter.MaxBalance >= 0 && filter.MinBalance >= 0 && filter.MaxBalance < filter.MinBalance {
 		return 0, fmt.Errorf("筛选条件无效: max_balance 小于 min_balance")
+	}
+	if filter.MinHistoryRecharge >= 0 && filter.MaxHistoryRecharge >= 0 && filter.MaxHistoryRecharge < filter.MinHistoryRecharge {
+		return 0, fmt.Errorf("筛选条件无效: max_history_recharge 小于 min_history_recharge")
 	}
 
 	// 根据筛选条件查出“要执行动作的所有 user_id 列表”

@@ -23,8 +23,9 @@ type autoRuleScheduler struct {
 	svcCtx  *svc.ServiceContext
 
 	cron    *cron.Cron
-	mu      sync.Mutex
-	entries map[int64]cron.EntryID
+	mu      sync.Mutex             //互斥锁，保护entries的读写，因为会有启动时批量注册、保存/启用/停用规则时增删任务、cron 触发时查 map，需要并发安全
+	entries map[int64]cron.EntryID //规则ID → cron 任务 ID 的映射。key 是规则表主键 rule_id，value 是该规则在 cron 里注册后的 EntryID。
+	// 更新/停用规则时要根据 rule_id 找到对应 EntryID，才能从 cron 里 Remove 掉，再按需要重新 Add。
 }
 
 // 包级全局指针变量，保证全局只有一个调度器，避免重复启动cron
@@ -111,14 +112,15 @@ func (s *autoRuleScheduler) registerOrUpdateRule(ctx context.Context, ruleID int
 
 	// 如果这条规则之前已经在 cron 中注册过，先移除旧的定时任务。
 	if entryID, ok := s.entries[ruleID]; ok {
-		s.cron.Remove(entryID)
+		s.cron.Remove(entryID) //cron的删除API是Remove(entryID EntryID),没有「按表达式删除」的接口
+		//原因是同一条表达式有可能对应多个任务，仅凭表达式无法精确删除，所以维护entryid
 		delete(s.entries, ruleID)
 	}
 
 	// 为当前规则添加一个 cron 任务
 	// 到达 cronExpr 对应的时间点时，调用 s.runRule(ruleID) 执行这条规则
 	rid := ruleID //复制一份ruleID，在闭包匿名函数中固定住当前规则id，避免循环等导致变量混乱
-	//核心：向s.cron定时任务调度器中注册定时任务，后面的fun(){}表示到点后执行的函数
+	//核心：向s.cron定时任务调度器中注册定时任务，后面的fun(){}表示到点后执行的函数，注册成功后会返回一条唯一id entryID，用来在之后精确地删除这个定时任务
 	entryID, err := s.cron.AddFunc(cronExpr, func() {
 		s.runRule(rid)
 	})
@@ -149,7 +151,7 @@ func (s *autoRuleScheduler) unregisterRule(ctx context.Context, ruleID int64) {
 // runRule 是被 cron 调度器真正调用的函数：
 // 每当某条规则的 cron 表达式触发时，就会执行一次 runRule(ruleID)
 func (s *autoRuleScheduler) runRule(ruleID int64) {
-	// 这里使用一个带超时的上下文，避免单次执行无限卡住。
+	// 使用一个带超时的上下文，避免单次执行无限卡住。
 	ctx, cancel := context.WithTimeout(s.baseCtx, 10*time.Minute)
 	defer cancel()
 

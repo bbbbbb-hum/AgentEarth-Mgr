@@ -348,15 +348,13 @@ func (m *customAeRuleModel) DeleteRuleById(ctx context.Context, ruleId int64) (i
 
 func (m *customAeRuleModel) buildAudienceFromWhere(f AudienceFilter) (string, []interface{}) {
 	minRegDays := f.MinRegDays
-	if minRegDays < 0 {
-		minRegDays = 0
-	}
 	minBalance := f.MinBalance // 前端约定：-1 表示不限制下限
 	maxBalance := f.MaxBalance // 前端约定：-1 表示不限制上限
 
-	needConsume := f.MinLastMonthConsume > 0 || f.MaxLastMonthConsume > 0
+	// 上月消费、历史充值：>=0 表示有效条件，<0（如 -1）表示不限制该边
+	needConsume := f.MinLastMonthConsume >= 0 || f.MaxLastMonthConsume >= 0
 	needBalance := minBalance >= 0 || maxBalance >= 0
-	needHistory := f.MinHistoryRecharge > 0 || f.MaxHistoryRecharge > 0
+	needHistory := f.MinHistoryRecharge >= 0 || f.MaxHistoryRecharge >= 0
 
 	var sb strings.Builder
 	args := []interface{}{minRegDays}
@@ -415,12 +413,12 @@ func (m *customAeRuleModel) buildAudienceFromWhere(f AudienceFilter) (string, []
 		argIdx++
 	}
 	if needConsume {
-		if f.MinLastMonthConsume > 0 {
+		if f.MinLastMonthConsume >= 0 {
 			sb.WriteString(fmt.Sprintf(`  AND (COALESCE(c.total, 0) >= $%d)`+"\n", argIdx))
 			args = append(args, f.MinLastMonthConsume)
 			argIdx++
 		}
-		if f.MaxLastMonthConsume > 0 {
+		if f.MaxLastMonthConsume >= 0 {
 			sb.WriteString(fmt.Sprintf(`  AND (COALESCE(c.total, 0) <= $%d)`+"\n", argIdx))
 			args = append(args, f.MaxLastMonthConsume)
 			argIdx++
@@ -439,12 +437,12 @@ func (m *customAeRuleModel) buildAudienceFromWhere(f AudienceFilter) (string, []
 		}
 	}
 	if needHistory {
-		if f.MinHistoryRecharge > 0 {
+		if f.MinHistoryRecharge >= 0 {
 			sb.WriteString(fmt.Sprintf(`  AND (COALESCE(hr.total_recharge, 0) >= $%d)`+"\n", argIdx))
 			args = append(args, f.MinHistoryRecharge)
 			argIdx++
 		}
-		if f.MaxHistoryRecharge > 0 {
+		if f.MaxHistoryRecharge >= 0 {
 			sb.WriteString(fmt.Sprintf(`  AND (COALESCE(hr.total_recharge, 0) <= $%d)`+"\n", argIdx))
 			args = append(args, f.MaxHistoryRecharge)
 			argIdx++
