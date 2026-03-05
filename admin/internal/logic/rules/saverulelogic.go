@@ -236,7 +236,6 @@ func buildActionConfig(req *types.SaveRuleReq) string {
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
-		// Marshal 极少失败，失败时用当前请求参数拼一份，避免写死固定值
 		return fmt.Sprintf(`{"actions":[{"action_type":"recharge","action_body":{"charge_type":301,"amount":%f,"expire_strategy":%q}}]}`, req.ActionAmount, expireStrategy)
 	}
 	return string(b)
