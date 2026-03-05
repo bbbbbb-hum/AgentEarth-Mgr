@@ -66,9 +66,12 @@ type (
 
     // 手动执行响应
     ManualRunResp {
-        Success   bool   `json:"success"`
-        ExecCount int    `json:"exec_count"`
-        Message   string `json:"message"`
+        Success        bool   `json:"success"`          // 是否执行成功
+        ExecCount      int    `json:"exec_count"`       // 兼容字段：等同于 success_count
+        EligibleCount  int64  `json:"eligible_count"`   // 当次符合筛选条件的用户数
+        SuccessCount   int64  `json:"success_count"`    // 实际成功写入充值记录的用户数
+        FailedCount    int64  `json:"failed_count"`     // 失败数 = EligibleCount - SuccessCount（如出现异常）
+        Message        string `json:"message"`          // 提示文案
     }
 )
 

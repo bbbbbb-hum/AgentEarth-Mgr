@@ -218,9 +218,12 @@ type ManualRunReq struct {
 }
 
 type ManualRunResp struct {
-	Success   bool   `json:"success"`
-	ExecCount int    `json:"exec_count"`
-	Message   string `json:"message"`
+	Success       bool   `json:"success"`
+	ExecCount     int    `json:"exec_count"`
+	EligibleCount int64  `json:"eligible_count"`
+	SuccessCount  int64  `json:"success_count"`
+	FailedCount   int64  `json:"failed_count"`
+	Message       string `json:"message"`
 }
 
 type RuleDashboardResp struct {

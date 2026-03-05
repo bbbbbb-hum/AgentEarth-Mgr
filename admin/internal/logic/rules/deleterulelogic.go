@@ -26,7 +26,7 @@ func NewDeleteRuleLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Delete
 func (l *DeleteRuleLogic) DeleteRule(req *types.DeleteRuleReq) (resp *types.BaseResp, err error) {
 	l.Logger.Infof("尝试删除规则 ID: %d", req.Id)
 
-	// 先从调度器中移除这条规则（如果调度器当前在本实例中运行的话）
+	// 先从调度器中移除这条规则
 	unregisterRuleFromScheduler(l.ctx, req.Id)
 
 	// 仅删除规则本身（返回影响行数用于判断是否存在）。
