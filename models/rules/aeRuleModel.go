@@ -68,7 +68,6 @@ type (
 		FilterConfig string    `db:"filter_config"`
 		ActionConfig string    `db:"action_config"`
 		CreateTime   time.Time `db:"create_time"`
-		LastExecTime time.Time `db:"last_exec_time"`
 	}
 
 	ExecutionRunRow struct {
@@ -91,17 +90,18 @@ type (
 		ActionType   string         `db:"action_type"`
 	}
 
+	// AudienceFilter 规则受众筛选条件，与 filter_config JSON 及 ListAudienceUserIds 等接口共用。
 	AudienceFilter struct {
-		MinRegDays          int64
-		MaxRegDays          int64
-		LastLoginWithinDays int64
-		MinLastMonthConsume float64
-		MaxLastMonthConsume float64
-		MinBalance          float64
-		MaxBalance          float64
-		RegChannel          string
-		MinHistoryRecharge  float64
-		MaxHistoryRecharge  float64
+		MinRegDays          int64   `json:"min_reg_days"`
+		MaxRegDays          int64   `json:"max_reg_days"`
+		LastLoginWithinDays int64   `json:"last_login_within_days"`
+		MinLastMonthConsume float64 `json:"min_last_month_consume"`
+		MaxLastMonthConsume float64 `json:"max_last_month_consume"`
+		MinBalance          float64 `json:"min_balance"`
+		MaxBalance          float64 `json:"max_balance"`
+		RegChannel          string  `json:"reg_channel"`
+		MinHistoryRecharge  float64 `json:"min_history_recharge"`
+		MaxHistoryRecharge  float64 `json:"max_history_recharge"`
 	}
 
 	AudienceUserRow struct {
@@ -166,8 +166,6 @@ func (m *customAeRuleModel) InsertAndReturnId(ctx context.Context, data *AeRule)
 	return id, nil
 }
 
-// ===== 以下为原 RuleQueryModel 的实现，迁移到 customAeRuleModel 上 =====
-
 func (m *customAeRuleModel) GetRuleList(ctx context.Context, search string, size, offset int64) (int64, []RuleListRow, error) {
 	var total int64
 	countSql := `
@@ -188,12 +186,9 @@ func (m *customAeRuleModel) GetRuleList(ctx context.Context, search string, size
 			r.cron_value,
 			r.filter_config,
 			r.action_config,
-			r.create_time,
-			COALESCE(MAX(rec.pay_time), '0001-01-01'::timestamptz) AS last_exec_time
+			r.create_time
 		FROM "public"."ae_cron_rule" r
-		LEFT JOIN "public"."ae_user_recharge_record" rec ON rec.rule_id = r.id
 		WHERE ($1 = '' OR r.name ILIKE '%' || $1 || '%')
-		GROUP BY r.id, r.name, r.description, r.active, r.cron_value, r.filter_config, r.action_config, r.create_time
 		ORDER BY r.id DESC
 		LIMIT $2 OFFSET $3
 	`
@@ -490,4 +485,3 @@ func (m *customAeRuleModel) ListAudienceUserIds(ctx context.Context, f AudienceF
 	}
 	return userIds, nil
 }
-

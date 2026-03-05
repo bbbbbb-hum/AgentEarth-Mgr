@@ -45,11 +45,6 @@ func (l *RuleListLogic) GetRuleList(req *types.BaseListReq) (resp *types.RuleLis
 
 	items := make([]types.RuleItem, 0, len(rows))
 	for _, r := range rows {
-		lastExec := ""
-		if !r.LastExecTime.IsZero() && r.LastExecTime.Year() > 1 {
-			lastExec = r.LastExecTime.Format("2006-01-02 15:04:05")
-		}
-
 		items = append(items, types.RuleItem{
 			Id:             r.Id,
 			Name:           r.Name,
@@ -58,7 +53,6 @@ func (l *RuleListLogic) GetRuleList(req *types.BaseListReq) (resp *types.RuleLis
 			CronExpression: r.CronValue,
 			FilterConfig:   r.FilterConfig,
 			ActionConfig:   r.ActionConfig,
-			LastExecTime:   lastExec,
 			CreateTime:     r.CreateTime.Format("2006-01-02 15:04:05"),
 		})
 	}

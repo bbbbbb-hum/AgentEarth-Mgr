@@ -279,7 +279,6 @@ type RuleItem struct {
 	CronExpression string `json:"cron_expression"`
 	FilterConfig   string `json:"filter_config"` // JSONB 传给前端转成 String
 	ActionConfig   string `json:"action_config"` // JSONB 传给前端转成 String
-	LastExecTime   string `json:"last_exec_time"`
 	CreateTime     string `json:"create_time"`
 }
 

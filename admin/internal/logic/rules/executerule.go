@@ -50,22 +50,9 @@ const neverExpireYear = 9999
 func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleModel.AeRule, execSource, operator string) (int, error) {
 	logger := logx.WithContext(ctx)
 
-	// 1. 定义用于反序列化 FilterConfig 的 struct。
-	var fCfg struct {
-		MinRegDays          int64   `json:"min_reg_days"`
-		MaxRegDays          int64   `json:"max_reg_days"`
-		LastLoginWithinDays int64   `json:"last_login_within_days"`
-		MinLastMonthConsume float64 `json:"min_last_month_consume"`
-		MaxLastMonthConsume float64 `json:"max_last_month_consume"`
-		MinBalance          float64 `json:"min_balance"`
-		MaxBalance          float64 `json:"max_balance"`
-		RegChannel          string  `json:"reg_channel"`
-		MinHistoryRecharge  float64 `json:"min_history_recharge"`
-		MaxHistoryRecharge  float64 `json:"max_history_recharge"`
-	}
-
-	// 2. 解析规则上的 JSON 配置（filter_config + action_config）。
-	if err := json.Unmarshal([]byte(rule.FilterConfig), &fCfg); err != nil {
+	// 1. 解析规则上的 filter_config JSON 到受众筛选条件（与 model 层 AudienceFilter 共用）。
+	var filter ruleModel.AudienceFilter
+	if err := json.Unmarshal([]byte(rule.FilterConfig), &filter); err != nil {
 		return 0, fmt.Errorf("解析筛选配置失败: %w", err)
 	}
 
@@ -74,30 +61,11 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 		return 0, err
 	}
 
-	// 兼容旧数据：历史规则未设置余额区间时通常是 0/0，语义应为“不限制”。
-	if fCfg.MinBalance == 0 && fCfg.MaxBalance == 0 {
-		fCfg.MinBalance = -1
-		fCfg.MaxBalance = -1
-	}
-
-	if fCfg.MaxLastMonthConsume > 0 && fCfg.MinLastMonthConsume > 0 && fCfg.MaxLastMonthConsume < fCfg.MinLastMonthConsume {
+	if filter.MaxLastMonthConsume > 0 && filter.MinLastMonthConsume > 0 && filter.MaxLastMonthConsume < filter.MinLastMonthConsume {
 		return 0, fmt.Errorf("筛选条件无效: max_last_month_consume 小于 min_last_month_consume")
 	}
-	if fCfg.MaxBalance >= 0 && fCfg.MinBalance >= 0 && fCfg.MaxBalance < fCfg.MinBalance {
+	if filter.MaxBalance >= 0 && filter.MinBalance >= 0 && filter.MaxBalance < filter.MinBalance {
 		return 0, fmt.Errorf("筛选条件无效: max_balance 小于 min_balance")
-	}
-
-	filter := ruleModel.AudienceFilter{
-		MinRegDays:          fCfg.MinRegDays,
-		MaxRegDays:          fCfg.MaxRegDays,
-		LastLoginWithinDays: fCfg.LastLoginWithinDays,
-		MinLastMonthConsume: fCfg.MinLastMonthConsume,
-		MaxLastMonthConsume: fCfg.MaxLastMonthConsume,
-		MinBalance:          fCfg.MinBalance,
-		MaxBalance:          fCfg.MaxBalance,
-		RegChannel:          fCfg.RegChannel,
-		MinHistoryRecharge:  fCfg.MinHistoryRecharge,
-		MaxHistoryRecharge:  fCfg.MaxHistoryRecharge,
 	}
 
 	// 根据筛选条件查出“要执行动作的所有 user_id 列表”
@@ -116,10 +84,10 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 	// 根据过期策略算出本次加积分的过期时间
 	expireTime := buildExpireTime(expireStrategy, now, rechargeAmount)
 
-	// remark：给执行日志的“来源说明”。
-	remark := "定时任务触发"
+	// 用于写入 ae_user_recharge_record.remark，标识本条充值记录的触发来源。
+	sourceDesc := "定时任务触发"
 	if execSource == "manual" {
-		remark = "管理员手动触发"
+		sourceDesc = "管理员手动触发"
 	}
 
 	// 10. 针对每个用户依次执行“加点数”，在充值记录表中打上 rule_id/exec_source 标记。
@@ -135,7 +103,7 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 
 	for _, uid := range userIds {
 		// 插入到充值记录表里的备注
-		rechargeRemark := fmt.Sprintf("规则执行充值 | 规则ID:%d | 触发:%s", rule.Id, remark)
+		rechargeRemark := fmt.Sprintf("规则执行充值 | 规则ID:%d | 触发:%s", rule.Id, sourceDesc)
 
 		// 对于每个用户，以事务的方式执行“加钱”（写入 ae_user_recharge_record）：
 		//  - 用 svcCtx.DB.TransactCtx 开启事务，内部通过 WithSession 绑定同一个 session。
@@ -178,16 +146,14 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 	return successCount, nil
 }
 
-// parseRechargeActionConfig 解析规则的 action_config，目前仅支持含有一个或多个 recharge 动作的新版配置。
-// 新版示例：
-// {"actions":[{"action_type":"recharge","action_body":{"charge_type":301,"amount":100,"expire_strategy":"month_end"}}]}
+// parseRechargeActionConfig 解析规则的 action_config。当前仅支持 recharge 一种动作，直接取第一个 action 的 action_body。
+// 示例：{"actions":[{"action_type":"recharge","action_body":{"charge_type":301,"amount":100,"expire_strategy":"month_end"}}]}
 func parseRechargeActionConfig(raw string) (amount float64, chargeType int64, expireStrategy string, err error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return 0, 0, "", fmt.Errorf("动作配置为空")
 	}
 
-	// 解析新版结构
 	var cfg ruleActionsConfig
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
 		return 0, 0, "", fmt.Errorf("解析动作配置失败: %w", err)
@@ -196,17 +162,8 @@ func parseRechargeActionConfig(raw string) (amount float64, chargeType int64, ex
 		return 0, 0, "", fmt.Errorf("动作列表不能为空")
 	}
 
-	// 选择一个合适的 recharge 动作；如果没有显式 recharge，则取第一个动作兜底。
-	selected := &cfg.Actions[0]
-	for i := range cfg.Actions {
-		if strings.EqualFold(cfg.Actions[i].ActionType, "recharge") {
-			selected = &cfg.Actions[i]
-			break
-		}
-	}
-
 	var body rechargeActionBody
-	if err := json.Unmarshal(selected.ActionBody, &body); err != nil {
+	if err := json.Unmarshal(cfg.Actions[0].ActionBody, &body); err != nil {
 		return 0, 0, "", fmt.Errorf("解析 recharge 动作配置失败: %w", err)
 	}
 	if body.Amount <= 0 {
@@ -230,35 +187,28 @@ func buildExpireTime(expireStrategy string, now time.Time, rechargeAmount float6
 	case "month_end":
 		monthEnd := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()).Add(-time.Second)
 		return sql.NullTime{Time: monthEnd, Valid: true}
-	case "fixed_30_days":
-		// 包含当日的 30 个自然日：到第 30 日 23:59:59 失效
-		dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-		dayEnd := dayStart.AddDate(0, 0, 30).Add(-time.Second)
-		return sql.NullTime{Time: dayEnd, Valid: true}
 	case "never":
-		// 使用一个极远的未来时间表示“永不过期”，避免与「无意义的过期时间（NULL）」混淆。
 		never := time.Date(neverExpireYear, 12, 31, 23, 59, 59, 0, now.Location())
 		return sql.NullTime{Time: never, Valid: true}
-	default:
-		// 支持固定日期：date:YYYY-MM-DD
-		if strings.HasPrefix(strategy, "date:") {
-			raw := strings.TrimPrefix(strategy, "date:")
-			if d, err := time.ParseInLocation("2006-01-02", raw, now.Location()); err == nil {
-				dayEnd := time.Date(d.Year(), d.Month(), d.Day()+1, 0, 0, 0, 0, d.Location()).Add(-time.Second)
-				return sql.NullTime{Time: dayEnd, Valid: true}
-			}
-		}
-		// 支持通用的 fixed_{N}_days，自定义 N 天后失效。
-		if strings.HasPrefix(strategy, "fixed_") && strings.HasSuffix(strategy, "_days") {
-			raw := strings.TrimPrefix(strategy, "fixed_")
-			raw = strings.TrimSuffix(raw, "_days")
-			if days, err := strconv.Atoi(raw); err == nil && days > 0 {
-				// 包含当日的 N 个自然日：到第 N 日 23:59:59 失效
-				dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-				dayEnd := dayStart.AddDate(0, 0, days).Add(-time.Second)
-				return sql.NullTime{Time: dayEnd, Valid: true}
-			}
-		}
-		return sql.NullTime{Valid: false}
 	}
+
+	// 固定日期：date:YYYY-MM-DD（该日 23:59:59 失效）
+	if strings.HasPrefix(strategy, "date:") {
+		raw := strings.TrimPrefix(strategy, "date:")
+		if d, err := time.ParseInLocation("2006-01-02", raw, now.Location()); err == nil {
+			dayEnd := time.Date(d.Year(), d.Month(), d.Day()+1, 0, 0, 0, 0, d.Location()).Add(-time.Second)
+			return sql.NullTime{Time: dayEnd, Valid: true}
+		}
+	}
+	// fixed_{N}_days：包含当日的 N 个自然日，到第 N 日 23:59:59 失效（如 fixed_30_days、fixed_7_days）
+	if strings.HasPrefix(strategy, "fixed_") && strings.HasSuffix(strategy, "_days") {
+		raw := strings.TrimPrefix(strategy, "fixed_")
+		raw = strings.TrimSuffix(raw, "_days")
+		if days, err := strconv.Atoi(raw); err == nil && days > 0 {
+			dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+			dayEnd := dayStart.AddDate(0, 0, days).Add(-time.Second)
+			return sql.NullTime{Time: dayEnd, Valid: true}
+		}
+	}
+	return sql.NullTime{Valid: false}
 }
