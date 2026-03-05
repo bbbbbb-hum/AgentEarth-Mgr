@@ -48,7 +48,17 @@ func (l *SaveRuleLogic) SaveRule(req *types.SaveRuleReq) error {
 
 	filterConfig := strings.TrimSpace(req.FilterConfig)
 	if len(filterConfig) == 0 {
-		filterConfig = buildFilterConfig(req)
+		var err error
+		filterConfig, err = buildFilterConfig(req)
+		if err != nil {
+			l.Logger.Errorf("生成筛选配置失败, req=%+v, err=%v", req, err)
+			return err
+		}
+	}
+
+	// 检查规则命中用户数，如果为 0 则返回错误提示
+	if err := l.checkAudienceCount(filterConfig); err != nil {
+		return err
 	}
 
 	actionConfig := strings.TrimSpace(req.ActionConfig)
@@ -168,7 +178,7 @@ func buildCronExpression(req *types.SaveRuleReq) string {
 	}
 }
 
-func buildFilterConfig(req *types.SaveRuleReq) string {
+func buildFilterConfig(req *types.SaveRuleReq) (string, error) {
 	// 余额：0/0 表示“余额=0”；<0 表示不限制（与 types 约定一致，原样写入）。
 	payload := map[string]interface{}{
 		"min_reg_days":            req.MinRegDays,                     // 注册天数 >= 多少天
@@ -179,14 +189,14 @@ func buildFilterConfig(req *types.SaveRuleReq) string {
 		"min_balance":             req.MinBalance,                     // 当前余额下限
 		"max_balance":             req.MaxBalance,                     // 当前余额上限
 		"reg_channel":             strings.TrimSpace(req.RegChannel),  // 注册渠道
-		"min_history_recharge":    req.MinHistoryRecharge,             // 历史累计充值下限
-		"max_history_recharge":    req.MaxHistoryRecharge,             // 历史累计充值上限
+		"min_history_recharge":    req.MinHistoryRecharge,            // 历史累计充值下限
+		"max_history_recharge":    req.MaxHistoryRecharge,            // 历史累计充值上限
 	}
 	b, err := json.Marshal(payload)
 	if err != nil {
-		return `{"min_reg_days":0}`
+		return "", fmt.Errorf("生成筛选配置 JSON 失败: %w", err)
 	}
-	return string(b)
+	return string(b), nil
 }
 
 // 构造“动作”配置的 JSON，遵循 ae_cron_rule.action_config 的新结构：
@@ -239,4 +249,46 @@ func buildActionConfig(req *types.SaveRuleReq) string {
 		return fmt.Sprintf(`{"actions":[{"action_type":"recharge","action_body":{"charge_type":301,"amount":%f,"expire_strategy":%q}}]}`, req.ActionAmount, expireStrategy)
 	}
 	return string(b)
+}
+
+// checkAudienceCount 检查规则筛选条件：
+// 1）如果根本没有配置任何受众筛选条件，直接拒绝保存；
+// 2）如果命中用户数为 0，则拒绝保存，提示运营调整筛选条件。
+func (l *SaveRuleLogic) checkAudienceCount(filterConfig string) error {
+	var filter ruleModel.AudienceFilter
+	if err := json.Unmarshal([]byte(filterConfig), &filter); err != nil {
+		l.Logger.Errorf("解析筛选配置失败: %v", err)
+		return fmt.Errorf("解析筛选配置失败: %w", err)
+	}
+
+	// 判定是否真正配置了“受众筛选条件”。以下任一成立，即认为配置了筛选：
+	// - 注册时间有上下限（>0）
+	// - 最近登录天数 > 0
+	// - 上月消费 / 历史充值 / 余额 任一边 >=0（-1 表示不限）
+	// - 注册渠道非空
+	hasRegLimit := filter.MinRegDays > 0 || filter.MaxRegDays > 0
+	hasLastLogin := filter.LastLoginWithinDays > 0
+	hasConsume := filter.MinLastMonthConsume >= 0 || filter.MaxLastMonthConsume >= 0
+	hasBalance := filter.MinBalance >= 0 || filter.MaxBalance >= 0
+	hasHistory := filter.MinHistoryRecharge >= 0 || filter.MaxHistoryRecharge >= 0
+	hasChannel := strings.TrimSpace(filter.RegChannel) != ""
+
+	if !(hasRegLimit || hasLastLogin || hasConsume || hasBalance || hasHistory || hasChannel) {
+		l.Logger.Infof("规则未配置任何受众筛选条件，拒绝保存")
+		return fmt.Errorf("RULE_NO_AUDIENCE:未配置任何受众筛选条件，请至少设置一个条件后再保存")
+	}
+
+	count, err := l.svcCtx.RuleQueryModel.CountAudience(l.ctx, filter)
+	if err != nil {
+		l.Logger.Errorf("查询命中用户数失败: %v", err)
+		return fmt.Errorf("查询命中用户数失败: %w", err)
+	}
+
+	if count == 0 {
+		l.Logger.Infof("规则命中用户数为 0，拒绝保存")
+		return fmt.Errorf("RULE_NO_AUDIENCE:当前筛选条件下无命中用户，请调整筛选条件后再保存")
+	}
+
+	l.Logger.Infof("规则命中用户数: %d", count)
+	return nil
 }
