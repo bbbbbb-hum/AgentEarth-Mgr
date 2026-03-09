@@ -4,7 +4,6 @@ Port: 9005                                # 服务监听端口
 
 DB:                                       # 数据库配置
   #DataSource: "postgres://wcs:123@8.146.236.193:9002/agent_earth?sslmode=disable"
-  DataSource: "postgres://postgres:123456@localhost:5432/postgres?sslmode=disable"
 
 
 Auth:                                     # JWT 鉴权配置
