@@ -5,7 +5,6 @@
  * 主要功能:
  * - 查询指定用户最近7天或30天的消费记录
  * - 返回所有消费数据（xlcredit_consume > 0 为自行消费，< 0 为系统扣减）
- * - 按日期升序排序，便于前端图表渲染
  *
  * 数据来源:
  * - ae_user_consumption_record_daily: 日消费记录（字段: day, xlcredit_consume）

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -34,6 +35,8 @@ type (
 		InsertRechargeRecordWithExpire(ctx context.Context, userId string, amount float64, payTime, createTime, updateTime time.Time, chargeType int64, remark, operator string, expireTime sql.NullTime) (int64, error)
 		// InsertRuleRechargeRecordWithExpire 用于“规则执行充值”场景：在充值记录上打上 rule_id 标记。
 		InsertRuleRechargeRecordWithExpire(ctx context.Context, userId string, amount float64, payTime, createTime, updateTime time.Time, ruleId int64, chargeSource, chargeType int64, remark, operator string, expireTime sql.NullTime) (int64, error)
+		// BulkInsertRuleRechargeRecordsWithExpire 用于“规则执行充值”场景的批量插入，按同一规则配置为一批用户写入记录。
+		BulkInsertRuleRechargeRecordsWithExpire(ctx context.Context, userIds []string, amount float64, payTime, createTime, updateTime time.Time, ruleId int64, chargeSource, chargeType int64, remark, operator string, expireTime sql.NullTime) error
 		InsertRechargeRecordWithoutExpire(ctx context.Context, userId string, amount float64, payTime, createTime, updateTime time.Time, chargeType int64, remark, operator string) (int64, error)
 
 		QueryBalanceDeltaSince(ctx context.Context, userId string, from time.Time) (string, error)
@@ -274,6 +277,69 @@ func (m *customAeUserRechargeRecordModel) InsertRuleRechargeRecordWithExpire(
 		return 0, err
 	}
 	return id, nil
+}
+
+// BulkInsertRuleRechargeRecordsWithExpire 在 ae_user_recharge_record 表中批量插入“由规则执行产生的充值记录”，并打上相同的 rule_id 标记。
+// 约定：同一批次的 amount / 时间字段 / ruleId / chargeSource / chargeType / remark / operator / expireTime 相同，仅 user_id 不同。
+func (m *customAeUserRechargeRecordModel) BulkInsertRuleRechargeRecordsWithExpire(
+	ctx context.Context,
+	userIds []string,
+	amount float64,
+	payTime, createTime, updateTime time.Time,
+	ruleId int64,
+	chargeSource, chargeType int64,
+	remark, operator string,
+	expireTime sql.NullTime,
+) error {
+	if len(userIds) == 0 {
+		return nil
+	}
+
+	const baseInsert = `
+		INSERT INTO public.ae_user_recharge_record (
+			user_id, xlcredit_amount, pay_time, create_time, update_time,
+			charge_source, charge_type, remark, operator, expire_time,
+			rule_id
+		) VALUES `
+
+	var sb strings.Builder
+	sb.WriteString(baseInsert)
+
+	// 每行 11 个占位符
+	args := make([]interface{}, 0, len(userIds)*11)
+	argIdx := 1
+
+	for i, uid := range userIds {
+		sb.WriteString("(")
+		for j := 0; j < 11; j++ {
+			sb.WriteString(fmt.Sprintf("$%d", argIdx))
+			if j < 10 {
+				sb.WriteString(", ")
+			}
+			argIdx++
+		}
+		sb.WriteString(")")
+		if i < len(userIds)-1 {
+			sb.WriteString(",")
+		}
+
+		args = append(args,
+			uid,
+			amount,
+			payTime,
+			createTime,
+			updateTime,
+			chargeSource,
+			chargeType,
+			remark,
+			operator,
+			expireTime,
+			ruleId,
+		)
+	}
+
+	_, err := m.conn.ExecCtx(ctx, sb.String(), args...)
+	return err
 }
 
 // InsertRechargeRecordWithoutExpire 在 ae_user_recharge_record 表中插入一条“永久有效”的充值记录（不写入 expire_time 字段）。

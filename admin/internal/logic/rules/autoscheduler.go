@@ -72,7 +72,7 @@ func StartAutoRuleScheduler(ctx context.Context, svcCtx *svc.ServiceContext) {
 
 	// 监听上层 ctx 关闭，关闭调度器并尝试释放 advisory lock。
 	go func() {
-		<-ctx.Done()
+		<-ctx.Done() //阻塞在这里，等到ctx被需要或超时，再往下执行
 		logger.Info("自动规则调度器收到上层上下文取消信号，准备停止")
 		scheduler.cron.Stop()
 		if err := svcCtx.RuleQueryModel.AdvisoryUnlock(context.Background(), scheduleAdvisoryLockKey); err != nil {

@@ -33,8 +33,10 @@ func (l *AudiencePreviewLogic) AudiencePreview(req *types.AudiencePreviewReq) (*
 	if page <= 0 {
 		page = 1
 	}
-	if size <= 0 || size > 2000 {
+	if size <= 0 {
 		size = 500
+	} else if size > 2000 {
+		size = 2000
 	}
 	offset := (page - 1) * size
 

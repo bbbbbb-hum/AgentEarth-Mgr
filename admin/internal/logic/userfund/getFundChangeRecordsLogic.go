@@ -13,14 +13,6 @@
  *   字段: pay_time, xlcredit_amount, charge_source
  * - ae_mgrsystem_user: 管理员表 (用于关联操作人名称)
  *
- * 充值方式映射:
- * - 1: 管理员后台充值
- * - 2: 支付宝充值
- * - 3: 微信充值
- * - 4: 银行卡充值
- * - 其他: 系统充值
- *
- *
  * API路由: GET /manager/api/userfund/user/:user_id/fund-changes?filter=all
  */
 
@@ -54,6 +46,7 @@ func NewGetFundChangeRecordsLogic(ctx context.Context, svcCtx *svc.ServiceContex
 	}
 }
 
+// 展示充值记录状态计算逻辑流程图见：https://kcnh6cevaeaq.feishu.cn/wiki/CriGwqkejioBSNk7QRccoMjXnHd
 func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRecordReq) (resp *types.FundChangeRecordResp, err error) {
 	// 分页默认值
 	page := req.Page
@@ -278,50 +271,49 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 					item.ExpireTime = row.ExpireTime.Time.Format("2006-01-02")
 					now := time.Now()
 					if row.ExpireTime.Time.Before(now) {
-					item.BatchStatus = "已过期"
+						item.BatchStatus = "已过期"
 
-					// ==================== 过期时剩余：优先用本批结果里「关联本条充值 id 的负值过期扣减」金额 ====================
-					l.Infof("[过期时剩余] 已过期批次 充值批次id=%d 初始金额=%.2f 当前剩余=%.2f 透支金额=%.2f 开始计算过期时剩余",
-						row.Id, row.XlcreditAmount, item.RemainingAmount, item.OverdraftAmount)
-					var expiredAmount float64 //代表某个充值批次在过期那一刻还剩下多少没有用完【过期时剩余】
-					for _, r := range rows {
-						//遍历所有原始行rows
-						//1.这条记录关联了某个充值id，也就是related_recharge_id不为空
-						//2.关联的充值记录id就是当前这条充值id
-						//3.charge_type = 过期扣减 (141)
-						//4.充值金额是负值
-						if r.RelatedRechargeId.Valid && r.RelatedRechargeId.Int64 == row.Id && r.ChargeType == 141 && r.XlcreditAmount < 0 {
-							//过期时剩余 = abs(负值金额)
-							expiredAmount = math.Abs(r.XlcreditAmount)
-							l.Infof("[过期时剩余] 从本批结果中找到关联的过期扣减记录 扣减记录id=%d 关联充值id=%d 扣减金额=%.2f => 过期时剩余=%.2f",
-								r.Id, r.RelatedRechargeId.Int64, r.XlcreditAmount, expiredAmount)
-							break //找到一条有过期的负值扣减记录就够了(实际上正常逻辑下每条充值记录只会有一条)
+						// ==================== 过期时剩余：优先用本批结果里「关联本条充值 id 的负值过期扣减」金额 ====================
+						l.Infof("[过期时剩余] 已过期批次 充值批次id=%d 初始金额=%.2f 当前剩余=%.2f 透支金额=%.2f 开始计算过期时剩余",
+							row.Id, row.XlcreditAmount, item.RemainingAmount, item.OverdraftAmount)
+						var expiredAmount float64 //代表某个充值批次在过期那一刻还剩下多少没有用完【过期时剩余】
+						for _, r := range rows {
+							//遍历所有原始行rows
+							//1.这条记录关联了某个充值id，也就是related_recharge_id不为空
+							//2.关联的充值记录id就是当前这条充值id
+							//3.charge_type = 过期扣减 (141)
+							//4.充值金额是负值
+							if r.RelatedRechargeId.Valid && r.RelatedRechargeId.Int64 == row.Id && r.ChargeType == 141 && r.XlcreditAmount < 0 {
+								//过期时剩余 = abs(负值金额)
+								expiredAmount = math.Abs(r.XlcreditAmount)
+								l.Infof("[过期时剩余] 从本批结果中找到关联的过期扣减记录 扣减记录id=%d 关联充值id=%d 扣减金额=%.2f => 过期时剩余=%.2f",
+									r.Id, r.RelatedRechargeId.Int64, r.XlcreditAmount, expiredAmount)
+								break //找到一条有过期的负值扣减记录就够了(实际上正常逻辑下每条充值记录只会有一条)
+							}
 						}
-					}
-					if expiredAmount == 0 {
-						//可能是由于这一次查询出来的rows原始行记录中数量太少，没有找到关联的过期扣减记录
-						//也就是此次分页查询没有包含那条过期扣减行，再次从数据库查一遍
-						fromDB, errDB := l.svcCtx.UserRechargeRecordModel.GetExpiredDeductionAmount(l.ctx, row.Id)
-						l.Infof("[过期时剩余] 本批未找到扣减行，查库 充值批次id=%d => 查询结果金额=%.2f 错误=%v", row.Id, fromDB, errDB)
-						expiredAmount = fromDB
-					}
-					if expiredAmount > 0 {
-						//这就是当前充值批次“过期那一刻的剩余金额”
-						item.RemainingAtExpire = expiredAmount
-						l.Infof("[过期时剩余] 最终赋值 过期时剩余=%.2f（来自过期扣减金额）", expiredAmount)
-					} else {
-						//走到这里没有查到任何过期扣减金额，但是这批有已经处于已过期状态
-						if item.RemainingAmount > 0 { //当前实时剩余 > 0，定时任务没有跑完
-							item.RemainingAtExpire = item.RemainingAmount
-							l.Infof("[过期时剩余] 最终赋值 过期时剩余=%.2f（定时任务未跑，用当前剩余）", item.RemainingAmount)
+						if expiredAmount == 0 {
+							//可能是由于这一次查询出来的rows原始行记录中数量太少，没有找到关联的过期扣减记录
+							//也就是此次分页查询没有包含那条过期扣减行，再次从数据库查一遍
+							fromDB, errDB := l.svcCtx.UserRechargeRecordModel.GetExpiredDeductionAmount(l.ctx, row.Id)
+							l.Infof("[过期时剩余] 本批未找到扣减行，查库 充值批次id=%d => 查询结果金额=%.2f 错误=%v", row.Id, fromDB, errDB)
+							expiredAmount = fromDB
+						}
+						if expiredAmount > 0 {
+							//这就是当前充值批次“过期那一刻的剩余金额”
+							item.RemainingAtExpire = expiredAmount
+							l.Infof("[过期时剩余] 最终赋值 过期时剩余=%.2f（来自过期扣减金额）", expiredAmount)
 						} else {
-							//当前实时剩余 < 0，说明这批要么已经被花光，要么已经被其他方式扣完
-							//但是有没有过期扣减记录可参考，那就认为过期时剩余为0
-							item.RemainingAtExpire = 0
-							l.Infof("[过期时剩余] 最终赋值 过期时剩余=0（无过期扣减记录且当前剩余<=0）")
+							//走到这里没有查到任何过期扣减金额，但是这批有已经处于已过期状态
+							if item.RemainingAmount > 0 { //当前实时剩余 > 0，定时任务没有跑完
+								item.RemainingAtExpire = item.RemainingAmount
+								l.Infof("[过期时剩余] 最终赋值 过期时剩余=%.2f（定时任务未跑，用当前剩余）", item.RemainingAmount)
+							} else {
+								//当前实时剩余 < 0，说明这批要么已经被花光，要么已经被其他方式扣完
+								//但是有没有过期扣减记录可参考，那就认为过期时剩余为0
+								item.RemainingAtExpire = 0
+								l.Infof("[过期时剩余] 最终赋值 过期时剩余=0（无过期扣减记录且当前剩余<=0）")
+							}
 						}
-					}
-					// ==================== 修正结束 ====================
 
 					} else if item.RemainingAmount <= 0 {
 						item.BatchStatus = "已耗尽"
@@ -348,11 +340,11 @@ func (l *GetFundChangeRecordsLogic) GetFundChangeRecords(req *types.FundChangeRe
 	if req.Filter == "recharge" {
 		list = records //此时records本身就是“当前页”的数据，不需要再在内存里切分页
 	} else {
-		start := offset //从records的第offset条开始取，因为合并后可能超出要取的条数
+		start := offset                  //从records的第offset条开始取，因为合并后可能超出要取的条数
 		if start > int64(len(records)) { //越界保护，如果offset超出records的长度，把start强行拉到len(records)的位置
 			start = int64(len(records))
 		}
-		end := offset + pageSize //从offset开始取pageSize条
+		end := offset + pageSize       //从offset开始取pageSize条
 		if end > int64(len(records)) { //如果end超出records的长度，就把end收缩到len(records)的位置
 			end = int64(len(records))
 		}
@@ -383,7 +375,7 @@ func chargeTypeDescFromType(chargeType int64) string {
 	}
 }
 
-// typeDescFromChargeSource 根据 charge_source 返回统一的类型说明（不再区分充值/扣减语气）
+// typeDescFromChargeSource 根据 charge_source 返回统一的类型说明
 func typeDescFromChargeSource(chargeSource int64, _ bool) string {
 	switch chargeSource {
 	case 1:

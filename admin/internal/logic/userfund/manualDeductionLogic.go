@@ -45,6 +45,7 @@ func NewManualDeductionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *M
 	}
 }
 
+// 管理系统人工扣减逻辑流程图见:https://kcnh6cevaeaq.feishu.cn/wiki/CriGwqkejioBSNk7QRccoMjXnHd
 func (l *ManualDeductionLogic) ManualDeduction(req *types.ManualDeductionReq) (resp *types.ManualDeductionResp, err error) {
 	operatorName := resolveOperatorName(l.ctx, l.svcCtx, req.UserId, 2) // chargeSource=2 表示管理员单次操作，取当前管理员用户名
 	targetUsername := resolveTargetUsername(l.ctx, l.svcCtx, req.UserId)

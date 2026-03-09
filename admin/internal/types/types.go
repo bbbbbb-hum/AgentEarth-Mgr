@@ -256,6 +256,8 @@ type RuleExecutionDetailsReq struct {
 	RuleId       int64  `form:"rule_id"`
 	RunTime      string `form:"run_time"`
 	ChargeSource int64  `form:"charge_source,optional"`
+	Size         int64  `form:"size,optional"`
+	Cursor       int64  `form:"cursor,optional"`
 }
 
 type RuleExecutionDetailItem struct {
@@ -270,8 +272,9 @@ type RuleExecutionDetailItem struct {
 }
 
 type RuleExecutionDetailsResp struct {
-	Total int64                     `json:"total"`
-	List  []RuleExecutionDetailItem `json:"list"`
+	Total      int64                     `json:"total"`
+	List       []RuleExecutionDetailItem `json:"list"`
+	NextCursor int64                     `json:"next_cursor"`
 }
 
 type RuleItem struct {

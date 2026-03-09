@@ -33,8 +33,10 @@ func (l *RuleListLogic) GetRuleList(req *types.BaseListReq) (resp *types.RuleLis
 	if page <= 0 {
 		page = 1
 	}
-	if size <= 0 || size > 100 {
+	if size <= 0 {
 		size = 10
+	} else if size > 100 {
+		size = 100
 	}
 	offset := (page - 1) * size
 

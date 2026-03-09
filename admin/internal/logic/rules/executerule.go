@@ -17,18 +17,19 @@ import (
 )
 
 // ruleActionsConfig 描述 action_config 新版 JSON 结构：
-// {
-//   "actions": [
-//     {
-//       "action_type": "recharge",
-//       "action_body": {
-//         "charge_type": 301,
-//         "amount": 100,
-//         "expire_strategy": "month_end"
-//       }
-//     }
-//   ]
-// }
+//
+//	{
+//	  "actions": [
+//	    {
+//	      "action_type": "recharge",
+//	      "action_body": {
+//	        "charge_type": 301,
+//	        "amount": 100,
+//	        "expire_strategy": "month_end"
+//	      }
+//	    }
+//	  ]
+//	}
 type ruleActionsConfig struct {
 	Actions []struct {
 		ActionType string          `json:"action_type"`
@@ -71,16 +72,11 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 		return 0, fmt.Errorf("筛选条件无效: max_history_recharge 小于 min_history_recharge")
 	}
 
-	// 根据筛选条件查出“要执行动作的所有 user_id 列表”
-	userIds, err := svcCtx.RuleQueryModel.ListAudienceUserIds(ctx, filter)
-	if err != nil {
-		return 0, fmt.Errorf("查询目标用户失败: %w", err)
-	}
-	// 如果没有用户被命中，就直接返回 0，不算错误。
-	if len(userIds) == 0 {
-		logger.Infof("规则无命中用户, rule=%d, source=%s", rule.Id, execSource)
-		return 0, nil
-	}
+	// 根据筛选条件按游标分批查出“要执行动作的 user_id 列表”，避免一次取出过多数据
+	const batchSize int64 = 1000
+	cursor := ""
+	successCount := 0
+	firstBatch := true
 
 	// 9. 处理执行过程中的时间/备注等。
 	now := time.Now()
@@ -93,8 +89,7 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 		sourceDesc = "管理员手动触发"
 	}
 
-	// 10. 针对每个用户依次执行“加点数”，在充值记录表中打上 rule_id/exec_source 标记。
-	successCount := 0
+	// 10. 分批针对用户执行“加点数”，在充值记录表中打上 rule_id/exec_source 标记。
 	var chargeSource int64
 	if strings.TrimSpace(execSource) == "manual" {
 		// 运营手工批量触发
@@ -104,21 +99,32 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 		chargeSource = 4
 	}
 
-	for _, uid := range userIds {
-		// 插入到充值记录表里的备注
-		rechargeRemark := fmt.Sprintf("规则执行充值 | 规则ID:%d | 触发:%s", rule.Id, sourceDesc)
+	for {
+		userIds, nextCursor, err := svcCtx.RuleQueryModel.ListAudienceUserIdsByCursor(ctx, filter, batchSize, cursor)
+		if err != nil {
+			return successCount, fmt.Errorf("查询目标用户失败: %w", err)
+		}
+		// 如果第一批就没有用户被命中，就直接返回 0，不算错误。
+		if len(userIds) == 0 {
+			if firstBatch {
+				logger.Infof("规则无命中用户, rule=%d, source=%s", rule.Id, execSource)
+				return 0, nil
+			}
+			break
+		}
+		firstBatch = false
 
-		// 对于每个用户，以事务的方式执行“加钱”（写入 ae_user_recharge_record）：
-		//  - 用 svcCtx.DB.TransactCtx 开启事务，内部通过 WithSession 绑定同一个 session。
-		//  - 任一操作失败，都会导致本次“加钱”回滚。
+		// 对当前批次的所有用户使用一个事务批量插入充值记录。
+		// 如果本批事务失败，则整批用户都视为失败，仅记录日志，继续处理后续批次。
 		txErr := svcCtx.DB.TransactCtx(ctx, func(txCtx context.Context, session sqlx.Session) error {
-			// 事务内统一使用基于 session 的 model
 			txRechargeModel := svcCtx.UserRechargeRecordModel.WithSession(session)
 
-			// 10.1 插入充值记录（带过期时间），并在记录上打上 rule_id / exec_source 标记，便于规则维度对账。
-			_, rechargeErr := txRechargeModel.InsertRuleRechargeRecordWithExpire(
+			// 本批次所有用户共用相同的规则配置与备注。
+			rechargeRemark := fmt.Sprintf("规则执行充值 | 规则ID:%d | 触发:%s", rule.Id, sourceDesc)
+
+			if err := txRechargeModel.BulkInsertRuleRechargeRecordsWithExpire(
 				txCtx,
-				uid,
+				userIds,
 				rechargeAmount,
 				now,
 				now,
@@ -129,21 +135,21 @@ func ExecuteRule(ctx context.Context, svcCtx *svc.ServiceContext, rule *ruleMode
 				rechargeRemark,
 				operator,
 				expireTime,
-			)
-			if rechargeErr != nil {
-				return fmt.Errorf("插入充值记录失败: %w", rechargeErr)
+			); err != nil {
+				return fmt.Errorf("批量插入充值记录失败: %w", err)
 			}
 
 			return nil
 		})
 
 		if txErr != nil {
-			// 加钱失败：认为本次规则对该用户的执行失败（资金未变动），仅记录错误日志。
-			logger.Errorf("规则执行事务失败, rule=%d, user=%s, err=%v", rule.Id, uid, txErr)
-			continue
+			// 本批事务失败：认为这批用户执行失败（资金未变动），记录一次批次级错误日志后继续处理下一批，避免全部阻塞住。
+			logger.Errorf("规则执行批次事务失败, rule=%d, cursor=%s, batchSize=%d, err=%v", rule.Id, cursor, len(userIds), txErr)
+		} else {
+			successCount++
 		}
 
-		successCount++
+		cursor = nextCursor
 	}
 
 	return successCount, nil
@@ -173,7 +179,7 @@ func parseRechargeActionConfig(raw string) (amount float64, chargeType int64, ex
 		return 0, 0, "", fmt.Errorf("动作金额必须大于0")
 	}
 	if body.ChargeType == 0 {
-		// 兼容旧语义：不填时默认活动赠送（301）
+		// 兼容旧语义：不填时默认活动赠送（301），正常情况下不会出现
 		body.ChargeType = 301
 	}
 	return body.Amount, body.ChargeType, body.ExpireStrategy, nil

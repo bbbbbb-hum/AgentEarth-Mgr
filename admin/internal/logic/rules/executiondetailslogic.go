@@ -31,7 +31,16 @@ func (l *ExecutionDetailsLogic) GetRuleExecutionDetails(req *types.RuleExecution
 		chargeSource = 4
 	}
 
-	total, rows, err := l.svcCtx.RuleQueryModel.GetExecutionDetails(l.ctx, req.RuleId, req.RunTime, chargeSource)
+	size := req.Size
+	if size <= 0 {
+		size = 50
+	} else if size > 1000 {
+		size = 1000
+	}
+
+	cursor := req.Cursor
+
+	total, rows, nextCursor, err := l.svcCtx.RuleQueryModel.GetExecutionDetails(l.ctx, req.RuleId, req.RunTime, chargeSource, size, cursor)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +68,8 @@ func (l *ExecutionDetailsLogic) GetRuleExecutionDetails(req *types.RuleExecution
 	}
 
 	return &types.RuleExecutionDetailsResp{
-		Total: total,
-		List:  items,
+		Total:      total,
+		List:       items,
+		NextCursor: nextCursor,
 	}, nil
 }

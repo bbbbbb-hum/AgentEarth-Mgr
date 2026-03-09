@@ -24,8 +24,8 @@ type (
 		// 对账：执行批次列表
 		GetExecutionRuns(ctx context.Context, ruleId int64, size, offset int64) (total int64, rows []ExecutionRunRow, err error)
 
-		// 对账：执行明细
-		GetExecutionDetails(ctx context.Context, ruleId int64, runTime string, chargeSource int64) (total int64, rows []ExecutionDetailRow, err error)
+		// 对账：执行明细（按游标分页）
+		GetExecutionDetails(ctx context.Context, ruleId int64, runTime string, chargeSource int64, size, cursor int64) (total int64, rows []ExecutionDetailRow, nextCursor int64, err error)
 
 		// PG advisory lock
 		TryAdvisoryLock(ctx context.Context, key int64) (bool, error)
@@ -38,8 +38,8 @@ type (
 		CountAudience(ctx context.Context, f AudienceFilter) (int64, error)
 		ListAudience(ctx context.Context, f AudienceFilter, size, offset int64) ([]AudienceUserRow, error)
 
-		// 规则执行：只取 user_id 列表（供 ExecuteRule 使用）
-		ListAudienceUserIds(ctx context.Context, f AudienceFilter) ([]string, error)
+		// 规则执行：按游标分批只取 user_id 列表（供 ExecuteRule 使用）
+		ListAudienceUserIdsByCursor(ctx context.Context, f AudienceFilter, size int64, cursor string) ([]string, string, error)
 
 		// 调度器：查询所有已启用规则的基本信息（供 autoscheduler 注册 cron 任务使用）
 		ListActiveRulesForScheduler(ctx context.Context) ([]SchedulerRuleRow, error)
@@ -80,14 +80,15 @@ type (
 	}
 
 	ExecutionDetailRow struct {
-		TriggerTime  string         `db:"trigger_time"`
-		ExecSource   string         `db:"exec_source"`
-		UserId       string         `db:"user_id"`
+		Id           int64         `db:"id"`
+		TriggerTime  string        `db:"trigger_time"`
+		ExecSource   string        `db:"exec_source"`
+		UserId       string        `db:"user_id"`
 		UserName     sql.NullString `db:"user_name"`
 		OperatorName sql.NullString `db:"operator_name"`
-		ChangeAmount float64        `db:"change_amount"`
-		Status       string         `db:"status"`
-		ActionType   string         `db:"action_type"`
+		ChangeAmount float64       `db:"change_amount"`
+		Status       string        `db:"status"`
+		ActionType   string        `db:"action_type"`
 	}
 
 	// AudienceFilter 规则受众筛选条件，与 filter_config JSON 及 ListAudienceUserIds 等接口共用。
@@ -284,10 +285,16 @@ func (m *customAeRuleModel) GetExecutionRuns(ctx context.Context, ruleId int64, 
 	return total, rows, nil
 }
 
-func (m *customAeRuleModel) GetExecutionDetails(ctx context.Context, ruleId int64, runTime string, chargeSource int64) (int64, []ExecutionDetailRow, error) {
+func (m *customAeRuleModel) GetExecutionDetails(ctx context.Context, ruleId int64, runTime string, chargeSource int64, size, cursor int64) (int64, []ExecutionDetailRow, int64, error) {
 	if chargeSource == 0 {
 		// 兜底：未显式传入时，默认按“自动规则”维度过滤，避免误查所有来源。
 		chargeSource = 4
+	}
+
+	if size <= 0 {
+		size = 50
+	} else if size > 1000 {
+		size = 1000
 	}
 
 	var total int64
@@ -298,12 +305,13 @@ func (m *customAeRuleModel) GetExecutionDetails(ctx context.Context, ruleId int6
 		  AND to_char(date_trunc('second', r.pay_time), 'YYYY-MM-DD HH24:MI:SS') = $2
 		  AND r.charge_source = $3
 	`, ruleId, runTime, chargeSource); err != nil {
-		return 0, nil, fmt.Errorf("查询执行明细总数失败: %w", err)
+		return 0, nil, 0, fmt.Errorf("查询执行明细总数失败: %w", err)
 	}
 
 	var rows []ExecutionDetailRow
 	if err := m.conn.QueryRowsCtx(ctx, &rows, `
 		SELECT
+			r.id AS id,
 			to_char(r.pay_time, 'YYYY-MM-DD HH24:MI:SS') AS trigger_time,
 			CASE WHEN r.charge_source = 3 THEN 'manual' ELSE 'cron' END AS exec_source,
 			r.user_id,
@@ -318,12 +326,19 @@ func (m *customAeRuleModel) GetExecutionDetails(ctx context.Context, ruleId int6
 		WHERE r.rule_id = $1
 		  AND to_char(date_trunc('second', r.pay_time), 'YYYY-MM-DD HH24:MI:SS') = $2
 		  AND r.charge_source = $3
-		ORDER BY r.pay_time DESC, r.id DESC
-	`, ruleId, runTime, chargeSource); err != nil {
-		return 0, nil, fmt.Errorf("查询执行明细列表失败: %w", err)
+		  AND ($4 = 0 OR r.id < $4)
+		ORDER BY r.id DESC
+		LIMIT $5
+	`, ruleId, runTime, chargeSource, cursor, size); err != nil {
+		return 0, nil, 0, fmt.Errorf("查询执行明细列表失败: %w", err)
 	}
 
-	return total, rows, nil
+	var nextCursor int64
+	if len(rows) > 0 {
+		nextCursor = rows[len(rows)-1].Id
+	}
+
+	return total, rows, nextCursor, nil
 }
 
 func (m *customAeRuleModel) TryAdvisoryLock(ctx context.Context, key int64) (bool, error) {
@@ -474,12 +489,33 @@ func (m *customAeRuleModel) ListAudience(ctx context.Context, f AudienceFilter, 
 	return rows, nil
 }
 
-func (m *customAeRuleModel) ListAudienceUserIds(ctx context.Context, f AudienceFilter) ([]string, error) {
-	fromWhere, args := m.buildAudienceFromWhere(f)
-	sqlStr := `SELECT u.user_id::text AS user_id ` + fromWhere
-	var userIds []string
-	if err := m.conn.QueryRowsCtx(ctx, &userIds, sqlStr, args...); err != nil {
-		return nil, err
+// ListAudienceUserIdsByCursor 按 user_id 升序使用“游标”分批返回命中用户 ID。
+// cursor 为空表示从最小的 user_id 开始；否则从大于 cursor 的下一个 user_id 开始。
+func (m *customAeRuleModel) ListAudienceUserIdsByCursor(ctx context.Context, f AudienceFilter, size int64, cursor string) ([]string, string, error) {
+	if size <= 0 {
+		size = 1000
+	} else if size > 5000 {
+		size = 5000
 	}
-	return userIds, nil
+
+	fromWhere, args := m.buildAudienceFromWhere(f)
+	if c := strings.TrimSpace(cursor); c != "" {
+		fromWhere += fmt.Sprintf(`  AND (u.user_id::text > $%d)`+"\n", len(args)+1)
+		args = append(args, c)
+	}
+
+	sqlStr := `SELECT u.user_id::text AS user_id ` + fromWhere +
+		fmt.Sprintf(` ORDER BY u.user_id::text ASC LIMIT $%d`, len(args)+1)
+	listArgs := append(args, size)
+
+	var userIds []string
+	if err := m.conn.QueryRowsCtx(ctx, &userIds, sqlStr, listArgs...); err != nil {
+		return nil, "", err
+	}
+
+	var nextCursor string
+	if len(userIds) > 0 {
+		nextCursor = userIds[len(userIds)-1]
+	}
+	return userIds, nextCursor, nil
 }

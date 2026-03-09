@@ -30,8 +30,10 @@ func (l *ExecutionRunsLogic) GetRuleExecutionRuns(req *types.RuleExecutionRunsRe
 	if page <= 0 {
 		page = 1
 	}
-	if size <= 0 || size > 100 {
+	if size <= 0 {
 		size = 20
+	} else if size > 100 {
+		size = 100
 	}
 	offset := (page - 1) * size
 
