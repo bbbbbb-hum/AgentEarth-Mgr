@@ -383,36 +383,22 @@ func chargeTypeDescFromType(chargeType int64) string {
 	}
 }
 
-// typeDescFromChargeSource 根据 charge_source 返回类型说明；isDeduction 为 true 时按扣减语义
-func typeDescFromChargeSource(chargeSource int64, isDeduction bool) string {
-	if !isDeduction {
-		switch chargeSource {
-		case 1:
-			return "用户自主操作"
-		case 2:
-			return "管理员单次操作"
-		case 3:
-			return "运营手工批量操作"
-		case 4:
-			return "自动规则操作"
-		case 5:
-			return "业务逻辑操作"
-		default:
-			return "其他"
-		}
-	}
+// typeDescFromChargeSource 根据 charge_source 返回统一的类型说明（不再区分充值/扣减语气）
+func typeDescFromChargeSource(chargeSource int64, _ bool) string {
 	switch chargeSource {
+	case 1:
+		return "用户自主操作"
 	case 2:
-		return "管理员单次扣减"
+		return "管理员单次操作"
 	case 3:
-		return "管理员批量扣减"
+		return "管理员批量操作"
 	case 4:
-		return "自动规则扣减"
+		return "自动规则操作"
 	case 5:
-		return "业务逻辑扣减"
+		return "业务逻辑操作"
 	case -1:
-		return "系统扣减"
+		return "系统操作"
 	default:
-		return "系统扣减"
+		return "其他"
 	}
 }
